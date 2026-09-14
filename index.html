@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="Reduza tarefas manuais com automação de planilhas, relatórios e processos em Excel e Google Sheets. A Planex analisa sua rotina e propõe soluções sob medida." name="description"/>
+  <meta content="#0b1422" name="theme-color"/>
+  <title>
+   Planex | Automação de planilhas para reduzir trabalho manual
+  </title>
+  <link href="./favicon.svg" rel="icon" type="image/svg+xml"/>
+  <link href="./style.css" rel="stylesheet"/>
+  <noscript>
+   <style>
+    .page:not(.is-active){display:block!important}
+   </style>
+  </noscript>
+ </head>
+ <body>
+  <div aria-hidden="true" class="reading-progress">
+   <span>
+   </span>
+  </div>
+  <a class="skip-link" href="#conteudo">
+   Pular para o conteúdo
+  </a>
+  <div aria-hidden="true" class="bg-glow">
+   <span>
+   </span>
+   <span>
+   </span>
+   <span>
+   </span>
+  </div>
+  <header>
+   <a aria-label="Planex, início" class="brand brand--header" href="#inicio"><img alt="Planex" decoding="async" height="724" src="logo-planex-white.png" width="2172"/></a>
+   <nav aria-label="Menu principal">
+    <a href="#inicio">
+     Início
+    </a>
+    <a href="#solucoes">
+     Soluções
+    </a>
+    <a href="#planos">
+     Planos
+    </a>
+    <a href="#contato">
+     Contato
+    </a>
+   </nav>
+   <a class="button small" href="#contato">
+    Solicitar análise
+   </a>
+  </header>
+  <main id="conteudo" tabindex="-1">
+   <section class="hero wrap page is-active" id="inicio">
+    <div class="hero-copy">
+     <p class="eyebrow">
+      AUTOMAÇÃO PARA ROTINAS EMPRESARIAIS
+     </p>
+     <h1>
+      Automatize tarefas manuais.
+      <br/>
+      <em>
+       Ganhe tempo para o que importa.
+      </em>
+     </h1>
+     <p class="lead">
+      Transformamos Excel e Google Sheets em ferramentas que calculam, organizam, consolidam e geram relatórios para sua equipe, sem exigir que você saiba qual tecnologia usar.
+     </p>
+     <div class="actions">
+      <a class="button" href="#contato">
+       Solicitar análise da minha planilha
+      </a>
+      <a class="text-link" href="#solucoes">
+       Ver o que pode ser automatizado →
+      </a>
+     </div>
+    </div>
+    <div aria-labelledby="simulation-title" class="simulation">
+     <div class="simulation-header">
+      <div>
+       <p class="eyebrow">
+        LABORATÓRIO PLANEX · DADOS FICTÍCIOS
+       </p>
+       <h3 id="simulation-title">
+        Do trabalho manual ao resultado.
+       </h3>
+      </div>
+      <span class="simulation-label">
+       <i aria-hidden="true">
+       </i>
+       Demo interativa
+      </span>
+     </div>
+     <div aria-label="Escolha uma automação" class="demo-modes" role="group">
+      <button aria-pressed="true" data-demo="sales" type="button">
+       Vendas
+      </button>
+      <button aria-pressed="false" data-demo="clean" type="button">
+       Organização
+      </button>
+      <button aria-pressed="false" data-demo="metrics" type="button">
+       Indicadores
+      </button>
+     </div>
+     <div class="workbook-title">
+      <span aria-hidden="true" class="excel-symbol">
+       X
+      </span>
+      <span id="workbook-name">
+       Controle de vendas.xlsx
+      </span>
+      <span id="workbook-state">
+       Pronto
+      </span>
+     </div>
+     <div class="formula-bar">
+      <span id="cell-address">
+       A1
+      </span>
+      <span aria-hidden="true">
+       ƒx
+      </span>
+      <code id="formula-value">
+       Clique em Reproduzir para ver a automação.
+      </code>
+     </div>
+     <div aria-label="Planilha de demonstração, com rolagem horizontal quando necessário" class="sheet-scroll" role="region" tabindex="0">
+      <table class="live-sheet">
+       <caption id="demo-caption">
+        Demonstração de vendas com dados fictícios.
+       </caption>
+       <thead id="demo-head">
+        <tr>
+         <th scope="col">
+          Produto
+         </th>
+         <th scope="col">
+          Qtd.
+         </th>
+         <th scope="col">
+          Valor
+         </th>
+         <th scope="col">
+          Total
+         </th>
+        </tr>
+       </thead>
+       <tbody id="demo-body">
+        <tr>
+         <th scope="row">
+          Teclado
+         </th>
+         <td>
+          3
+         </td>
+         <td>
+          R$ 150
+         </td>
+         <td>
+          ...
+         </td>
+        </tr>
+        <tr>
+         <th scope="row">
+          Mouse
+         </th>
+         <td>
+          6
+         </td>
+         <td>
+          R$ 80
+         </td>
+         <td>
+          ...
+         </td>
+        </tr>
+        <tr>
+         <th scope="row">
+          Monitor
+         </th>
+         <td>
+          1
+         </td>
+         <td>
+          R$ 900
+         </td>
+         <td>
+          ...
+         </td>
+        </tr>
+       </tbody>
+      </table>
+     </div>
+     <div class="sheet-tab">
+      <span id="demo-sheet-name">
+       Vendas
+      </span>
+      <span>
+       Prévia ilustrativa · sem arquivos reais
+      </span>
+     </div>
+     <div class="live-report">
+      <div class="report-summary">
+       <span class="report-label" id="report-label">
+        TOTAL CALCULADO
+       </span>
+       <strong id="report-total">
+        R$ 0
+       </strong>
+       <span id="report-detail">
+        Aguardando processamento
+       </span>
+      </div>
+      <div aria-label="Indicadores ainda não calculados" class="demo-chart" role="img">
+       <div>
+        <span id="bar-label-0">
+         Teclado
+        </span>
+        <i>
+         <b id="bar-0">
+         </b>
+        </i>
+       </div>
+       <div>
+        <span id="bar-label-1">
+         Mouse
+        </span>
+        <i>
+         <b id="bar-1">
+         </b>
+        </i>
+       </div>
+       <div>
+        <span id="bar-label-2">
+         Monitor
+        </span>
+        <i>
+         <b id="bar-2">
+         </b>
+        </i>
+       </div>
+      </div>
+     </div>
+     <div aria-label="Da planilha comum ao resultado com a Planex" class="demo-pipeline">
+      <span data-demo-step="0">
+       <i aria-hidden="true">1</i>
+       <span class="pipeline-copy">
+        <strong>Trabalho manual</strong>
+        <small>Dados ainda precisam de tratamento</small>
+       </span>
+      </span>
+      <span data-demo-step="1">
+       <i aria-hidden="true">2</i>
+       <span class="pipeline-copy">
+        <strong>Planex automatiza</strong>
+        <small>Regras executadas automaticamente</small>
+       </span>
+      </span>
+      <span data-demo-step="2">
+       <i aria-hidden="true">3</i>
+       <span class="pipeline-copy">
+        <strong>Resultado pronto</strong>
+        <small>Equipe confere e decide</small>
+       </span>
+      </span>
+     </div>
+     <div aria-label="Progresso da simulação" aria-valuemax="100" aria-valuemin="0" aria-valuenow="0" class="simulation-progress" role="progressbar">
+      <span>
+      </span>
+     </div>
+     <div class="simulation-bottom">
+      <p aria-live="polite" id="simulation-status" role="status">
+       Acompanhe o problema, a automação e o resultado final.
+      </p>
+      <div class="simulation-controls">
+       <button class="sim-control primary-control" id="demo-run" type="button">
+        Reproduzir
+       </button>
+       <button class="sim-control" disabled="" id="demo-pause" type="button">
+        Pausar
+       </button>
+       <button class="sim-control next-demo" id="demo-next" type="button">
+        Outra automação
+        <span aria-hidden="true">
+         →
+        </span>
+       </button>
+      </div>
+     </div>
+    </div>
+    <div class="home-extra">
+     <div class="pain-block">
+      <div class="section-heading">
+       <div>
+        <p class="eyebrow">
+         ISSO ACONTECE NA SUA EMPRESA?
+        </p>
+        <h2>
+         Se sua equipe repete a tarefa, existe algo para analisar.
+        </h2>
+        <p class="lead">
+         Processos manuais não custam apenas tempo: também criam retrabalho, dependência de pessoas específicas e dificuldade para escalar a rotina.
+        </p>
+       </div>
+      </div>
+      <div class="pain-grid">
+       <article>
+        <span aria-hidden="true">01</span>
+        <p>Copiar informações de uma planilha para outra.</p>
+       </article>
+       <article>
+        <span aria-hidden="true">02</span>
+        <p>Refazer o mesmo relatório toda semana ou todo mês.</p>
+       </article>
+       <article>
+        <span aria-hidden="true">03</span>
+        <p>Conferir valores e inconsistências linha por linha.</p>
+       </article>
+       <article>
+        <span aria-hidden="true">04</span>
+        <p>Depender de uma única pessoa para a planilha funcionar.</p>
+       </article>
+      </div>
+      <a class="text-link pain-link" href="#contato">
+       Quero analisar essa rotina →
+      </a>
+     </div>
+     <div class="section-heading">
+      <div>
+       <p class="eyebrow">
+        DA BAGUNÇA AO CONTROLE
+       </p>
+       <h2>
+        A sua planilha, antes e depois.
+       </h2>
+      </div>
+     </div>
+     <div class="transform-block">
+      <div class="transform-panel before">
+       <div class="transform-topline">
+        <p class="eyebrow">
+         ANTES
+        </p>
+        <span class="transform-state state-manual">PROCESSO MANUAL</span>
+       </div>
+       <h3>
+        12 arquivos, copiar e colar, padronização manual e conferência linha por linha
+       </h3>
+       <div class="sheet-frame" aria-label="Exemplo de planilha antes da automação">
+        <div class="sheet-caption">
+         <span>vendas_setembro.xlsx</span>
+         <small>Cenário ilustrativo · 12 arquivos · 428 linhas</small>
+        </div>
+        <table class="mini-sheet messy">
+         <thead>
+          <tr>
+           <th>Vendedor</th>
+           <th>Data</th>
+           <th>Pedido</th>
+           <th>Valor</th>
+           <th>Status</th>
+          </tr>
+         </thead>
+         <tbody>
+          <tr>
+           <td>ana</td>
+           <td>12/09/26</td>
+           <td>#1048</td>
+           <td>1250,00</td>
+           <td>pago</td>
+          </tr>
+          <tr>
+           <td>BRUNO</td>
+           <td class="err">13-09</td>
+           <td>#1049</td>
+           <td>R$ 890</td>
+           <td class="err">Pendente</td>
+          </tr>
+          <tr class="duplicate-row">
+           <td>bruno</td>
+           <td>13/09/2026</td>
+           <td class="err">#1049</td>
+           <td>890,00</td>
+           <td class="err">duplicado</td>
+          </tr>
+         </tbody>
+        </table>
+       </div>
+       <div class="transform-issues" aria-label="Problemas encontrados">
+        <span><i aria-hidden="true"></i>Copiar e colar</span>
+        <span><i aria-hidden="true"></i>Padronizar dados</span>
+        <span><i aria-hidden="true"></i>Conferir exceções</span>
+       </div>
+       <p>
+        Antes de chegar ao resultado, a equipe precisa montar a base manualmente, corrigir padrões e procurar erros que poderiam ser tratados pelo próprio fluxo.
+       </p>
+      </div>
+      <div aria-hidden="true" class="transform-arrow">
+       <span>PLANEX</span>
+       <i>→</i>
+      </div>
+      <div class="transform-panel after">
+       <div class="transform-topline">
+        <p class="eyebrow">
+         DEPOIS
+        </p>
+        <span class="transform-state state-auto">FLUXO AUTOMATIZADO</span>
+       </div>
+       <h3>
+        Um fluxo importa, padroniza, valida e atualiza a base para conferência
+       </h3>
+       <div class="sheet-frame" aria-label="Exemplo de planilha depois da automação">
+        <div class="sheet-caption">
+         <span>base_consolidada.xlsx</span>
+         <small>Atualizada automaticamente · validações concluídas</small>
+        </div>
+        <table class="mini-sheet clean">
+         <thead>
+          <tr>
+           <th>Vendedor</th>
+           <th>Data</th>
+           <th>Pedido</th>
+           <th>Valor</th>
+           <th>Status</th>
+          </tr>
+         </thead>
+         <tbody>
+          <tr>
+           <td>Ana</td>
+           <td>12/09/2026</td>
+           <td>#1048</td>
+           <td>R$ 1.250,00</td>
+           <td class="ok">Pago ✓</td>
+          </tr>
+          <tr>
+           <td>Bruno</td>
+           <td>13/09/2026</td>
+           <td>#1049</td>
+           <td>R$ 890,00</td>
+           <td class="ok">Validado ✓</td>
+          </tr>
+          <tr>
+           <td>Carla</td>
+           <td>13/09/2026</td>
+           <td>#1050</td>
+           <td>R$ 1.480,00</td>
+           <td class="ok">Pago ✓</td>
+          </tr>
+         </tbody>
+        </table>
+       </div>
+       <div class="transform-results" aria-label="Resultados gerados automaticamente">
+        <span><small>Consolidação</small><strong>12 → 1</strong><em>arquivos em uma base</em></span>
+        <span><small>Validação</small><strong>✓</strong><em>exceções sinalizadas</em></span>
+        <span><small>Saída</small><strong>1 fluxo</strong><em>relatório atualizado</em></span>
+       </div>
+       <p>
+        A equipe deixa de montar a base do zero e passa a conferir exceções e usar o resultado para acompanhar a operação.
+       </p>
+      </div>
+     </div>
+     <p class="plan-note">
+      Demonstração ilustrativa com dados fictícios. Automações sinalizam inconsistências; dados ausentes precisam ser confirmados. O resultado e o tempo economizado dependem do processo.
+     </p>
+     <div class="benefits-block">
+      <div class="section-heading">
+       <div>
+        <p class="eyebrow">
+         POR QUE AUTOMATIZAR
+        </p>
+        <h3>
+         Automatizar é reduzir trabalho que se repete.
+        </h3>
+       </div>
+      </div>
+      <div class="benefits-grid">
+       <article>
+        <span aria-hidden="true" class="benefit-check">
+         ✓
+        </span>
+        <div>
+         <h4>
+          Menos retrabalho
+         </h4>
+         <p>
+          Tarefas repetitivas deixam de depender de copiar, colar e refazer etapas manualmente.
+         </p>
+        </div>
+       </article>
+       <article>
+        <span aria-hidden="true" class="benefit-check">
+         ✓
+        </span>
+        <div>
+         <h4>
+          Mais consistência
+         </h4>
+         <p>
+          Regras padronizadas ajudam a reduzir diferenças de preenchimento e conferência.
+         </p>
+        </div>
+       </article>
+       <article>
+        <span aria-hidden="true" class="benefit-check">
+         ✓
+        </span>
+        <div>
+         <h4>
+          Informação pronta
+         </h4>
+         <p>
+          Bases e indicadores organizados para a equipe gastar menos tempo montando relatórios.
+         </p>
+        </div>
+       </article>
+      </div>
+      <div class="content-block time-example">
+       <div class="time-heading">
+        <p class="eyebrow">
+         QUANTO CUSTA FAZER À MÃO?
+        </p>
+        <h3>
+         Uma hora por dia pode virar
+         <br/>
+         264 horas por ano.
+        </h3>
+       </div>
+       <div class="time-metrics">
+        <div>
+         <span class="metric-label">
+          Tarefa manual
+         </span>
+         <strong>
+          <span data-count="60">
+           60
+          </span>
+          <small>
+           min/dia
+          </small>
+         </strong>
+        </div>
+        <div>
+         <span class="metric-label">
+          Em um mês
+         </span>
+         <strong>
+          <span data-count="22">
+           22
+          </span>
+          <small>
+           h/mês
+          </small>
+         </strong>
+        </div>
+        <div class="metric-highlight">
+         <span class="metric-label">
+          Em um ano
+         </span>
+         <strong>
+          <span data-count="264">
+           264
+          </span>
+          <small>
+           h/ano
+          </small>
+         </strong>
+        </div>
+       </div>
+       <p class="metric-note">
+        Exemplo de uma rotina manual de 1 hora por dia, em 22 dias úteis por mês, durante 12 meses. Nem toda tarefa é totalmente automatizável; a economia real depende do processo analisado.
+       </p>
+      </div>
+     </div>
+     <div class="home-about">
+      <div class="section-heading">
+       <div>
+        <p class="eyebrow">
+         SOBRE A PLANEX
+        </p>
+        <h2>
+         Você não precisa abandonar o que já funciona.
+        </h2>
+       </div>
+      </div>
+      <div class="about-grid">
+       <p class="about-intro">
+        Muitas empresas não precisam trocar o Excel por um sistema caro.
+        <br/>
+        Precisam de um processo melhor.
+       </p>
+       <p>
+        Planilhas que começaram simples podem acabar sustentando operações inteiras. A Planex organiza essa evolução sem complicar a rotina de quem já conhece as ferramentas.
+       </p>
+       <p>
+        Primeiro entendemos o trabalho manual e as regras do negócio. Depois, quando faz sentido, automatizamos o que se repete, estruturamos o controle e orientamos a equipe que vai utilizar a solução.
+       </p>
+       <div class="about-principles">
+        <span>
+         Regras claras
+        </span>
+        <span>
+         Uso simples
+        </span>
+        <span>
+         Suporte próximo
+        </span>
+       </div>
+      </div>
+     </div>
+    </div>
+   </section>
+   <section class="wrap section page" id="solucoes">
+    <div class="section-heading">
+     <div>
+      <p class="eyebrow">
+       <span class="section-index">
+        01
+       </span>
+       O QUE FAZEMOS
+      </p>
+      <h2>
+       Menos tarefas manuais. Mais controle na rotina.
+      </h2>
+      <p class="lead">
+       Você mostra o trabalho que se repete. Nós transformamos esse processo em uma rotina mais rápida, padronizada e fácil de acompanhar.
+      </p>
+     </div>
+    </div>
+    <div class="solutions">
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="M4 4h16v16H4z M4 10h16 M10 4v16" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Automação de planilhas
+      </h3>
+      <p>
+       Pare de repetir preenchimentos, cálculos e conferências. Automatizamos etapas que hoje consomem tempo da sua equipe.
+      </p>
+      <span class="service-tech">Excel · Google Sheets</span>
+     </article>
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="M5 3h11l3 3v15H5z M8 10h8 M8 14h8 M8 18h5" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Planilhas personalizadas
+      </h3>
+      <p>
+       Centralize controles que hoje vivem em arquivos improvisados ou difíceis de manter, com uma estrutura pensada para sua operação.
+      </p>
+      <span class="service-tech">Financeiro · Estoque · Vendas · RH</span>
+     </article>
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="m8 7-5 5 5 5 m8-10 5 5-5 5 m-3-12-2 14" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Macros e VBA
+      </h3>
+      <p>
+       Recupere rotinas automáticas que pararam de funcionar e transforme sequências de tarefas em processos executados com menos intervenção manual.
+      </p>
+      <span class="service-tech">Excel · VBA</span>
+     </article>
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="M4 4v16h16 M8 16v-4 M12 16V8 M16 16V5" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Dashboards e indicadores
+      </h3>
+      <p>
+       Acompanhe metas e resultados sem montar o mesmo relatório manualmente sempre que precisar analisar a operação.
+      </p>
+      <span class="service-tech">Excel · Power BI</span>
+     </article>
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="M4 5h16l-6 7v7l-4 2v-9z" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Power Query e dados
+      </h3>
+      <p>
+       Junte vários arquivos, limpe informações e atualize a base em um fluxo padronizado em vez de repetir copiar e colar.
+      </p>
+      <span class="service-tech">Power Query · Excel</span>
+     </article>
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="M8 8H4v12h12v-4 M8 4h12v12H8z" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Google Sheets e Apps Script
+      </h3>
+      <p>
+       Automatize formulários, organização de dados e tarefas recorrentes no ambiente Google sem mudar a ferramenta que sua equipe já utiliza.
+      </p>
+      <span class="service-tech">Google Sheets · Apps Script</span>
+     </article>
+     <article>
+      <span aria-hidden="true" class="service-icon">
+       <svg viewbox="0 0 24 24">
+        <path d="M4 13v-1a8 8 0 0 1 16 0v1 M4 12h3v7H4z M17 12h3v7h-3z M17 19v2h-5" stroke-linecap="round" stroke-linejoin="round">
+        </path>
+       </svg>
+      </span>
+      <h3>
+       Suporte contínuo
+      </h3>
+      <p>
+       Evite que uma fórmula quebrada, uma macro antiga ou uma dúvida deixe a rotina parada. Tenha apoio conforme o plano contratado.
+      </p>
+     </article>
+    </div>
+    <div class="story">
+     <div>
+      <p class="eyebrow">
+       EXEMPLO DE AUTOMAÇÃO · DADOS FICTÍCIOS
+      </p>
+      <h3>
+       Do trabalho manual ao resultado em poucos passos.
+      </h3>
+      <p>
+       O objetivo não é adicionar tecnologia por adicionar. É retirar etapas manuais do caminho e deixar a informação pronta para conferência.
+      </p>
+     </div>
+     <ol aria-label="Etapas da automação" class="automation-steps">
+      <li data-step="0">
+       <span class="step-number">
+        01
+       </span>
+       <div>
+        <strong>
+         Arquivos da rotina
+        </strong>
+        <span>
+         Você mantém as fontes que já utiliza.
+        </span>
+       </div>
+      </li>
+      <li data-step="1">
+       <span class="step-number">
+        02
+       </span>
+       <div>
+        <strong>
+         Regras automatizadas
+        </strong>
+        <span>
+         Cálculos, validações e consolidações são executados.
+        </span>
+       </div>
+      </li>
+      <li data-step="2">
+       <span class="step-number">
+        03
+       </span>
+       <div>
+        <strong>
+         Resultado para conferência
+        </strong>
+        <span>
+         Relatórios e indicadores ficam prontos para uso.
+        </span>
+       </div>
+      </li>
+     </ol>
+    </div>
+    <div class="content-block">
+     <p class="eyebrow">
+      COMO FUNCIONA
+     </p>
+     <h2>
+      Primeiro entendemos o problema. Depois automatizamos o que faz sentido.
+     </h2>
+     <ol class="process-list">
+      <li>
+       <strong>
+        Conte o que dá trabalho.
+       </strong>
+       Descreva a rotina, o retrabalho ou a tarefa que sua equipe repete.
+      </li>
+      <li>
+       <strong>
+        Analisamos as possibilidades.
+       </strong>
+       Identificamos o que pode ser automatizado, simplificado ou organizado.
+      </li>
+      <li>
+       <strong>
+        Você recebe uma proposta.
+       </strong>
+       Escopo, investimento e prazo ficam claros antes de qualquer desenvolvimento.
+      </li>
+      <li>
+       <strong>
+        Desenvolvemos e validamos.
+       </strong>
+       Construímos a solução e conferimos as regras do processo com você.
+      </li>
+      <li>
+       <strong>
+        Entregamos e orientamos.
+       </strong>
+       Sua equipe aprende a usar, e o suporte contínuo fica disponível quando fizer sentido.
+      </li>
+     </ol>
+     <a class="button" href="#contato">
+      Solicitar análise do meu processo
+     </a>
+    </div>
+   </section>
+   <section class="plans-section page" id="planos">
+    <div class="wrap section">
+     <div class="center">
+      <p class="eyebrow">
+       <span class="section-index">
+        02
+       </span>
+       PLANOS E SERVIÇOS
+      </p>
+      <h2>
+       Escolha como podemos ajudar.
+      </h2>
+      <p class="lead">
+       Planos de suporte para quem já depende das planilhas no dia a dia. Novos projetos e automações maiores recebem orçamento separado.
+      </p>
+     </div>
+     <div class="plans support-plans">
+      <article class="plan">
+       <p class="plan-kicker">
+        SUPORTE RECORRENTE
+       </p>
+       <h3>
+        Essencial
+       </h3>
+       <p class="plan-description">
+        Para quem quer segurança no uso diário das planilhas.
+       </p>
+       <div class="price">
+        <small>
+         A partir de
+        </small>
+        R$ 99
+        <small>
+         /mês · conforme o escopo
+        </small>
+       </div>
+       <ul class="plan-features" aria-label="Recursos do plano Essencial">
+        <li class="is-included">
+         Dúvidas e correções rápidas no uso diário
+        </li>
+        <li class="is-included">
+         Ajustes de fórmulas e pequenos erros
+        </li>
+        <li class="is-included">
+         Manutenção das planilhas previstas no escopo
+        </li>
+        <li class="is-unavailable">
+         Correção de macros
+        </li>
+        <li class="is-unavailable">
+         Pequenas automações para eliminar etapas manuais
+        </li>
+        <li class="is-unavailable">
+         Atendimento prioritário
+        </li>
+        <li class="is-unavailable">
+         Análise recorrente de processos
+        </li>
+        <li class="is-unavailable">
+         Acompanhamento contínuo personalizado
+        </li>
+       </ul>
+       <p class="plan-response"><strong>1ª resposta:</strong> em até 1 dia útil</p>
+       <button class="button" data-plan="Essencial">
+        Escolher Essencial
+       </button>
+      </article>
+      <article class="plan">
+       <p class="plan-kicker">
+        RECOMENDADO PARA ROTINAS RECORRENTES
+       </p>
+       <h3>
+        Profissional
+       </h3>
+       <p class="plan-description">
+        Para empresas que usam planilhas constantemente e precisam de suporte prioritário e pequenas melhorias.
+       </p>
+       <div class="price">
+        <small>
+         A partir de
+        </small>
+        R$ 249
+        <small>
+         /mês · conforme o escopo
+        </small>
+       </div>
+       <ul class="plan-features" aria-label="Recursos do plano Profissional">
+        <li class="is-included">
+         Dúvidas e correções rápidas no uso diário
+        </li>
+        <li class="is-included">
+         Ajustes de fórmulas e pequenos erros
+        </li>
+        <li class="is-included">
+         Manutenção das planilhas previstas no escopo
+        </li>
+        <li class="is-included">
+         Correção de macros
+        </li>
+        <li class="is-included">
+         Pequenas automações para eliminar etapas manuais
+        </li>
+        <li class="is-included">
+         Atendimento prioritário
+        </li>
+        <li class="is-unavailable">
+         Análise recorrente de processos
+        </li>
+        <li class="is-unavailable">
+         Acompanhamento contínuo personalizado
+        </li>
+       </ul>
+       <p class="plan-response"><strong>1ª resposta:</strong> prazo prioritário definido na proposta</p>
+       <button class="button" data-plan="Profissional">
+        Escolher Profissional
+       </button>
+      </article>
+      <article class="plan">
+       <p class="plan-kicker">
+        SUPORTE RECORRENTE
+       </p>
+       <h3>
+        Empresarial
+       </h3>
+       <p class="plan-description">
+        Para operações que dependem de planilhas e precisam de acompanhamento contínuo.
+       </p>
+       <div class="price price-consultation">
+        Sob consulta
+        <small>
+         Condições personalizadas para sua empresa
+        </small>
+       </div>
+       <ul class="plan-features" aria-label="Recursos do plano Empresarial">
+        <li class="is-included">
+         Dúvidas e correções rápidas no uso diário
+        </li>
+        <li class="is-included">
+         Ajustes de fórmulas e pequenos erros
+        </li>
+        <li class="is-included">
+         Manutenção das planilhas previstas no escopo
+        </li>
+        <li class="is-included">
+         Correção de macros
+        </li>
+        <li class="is-included">
+         Pequenas automações para eliminar etapas manuais
+        </li>
+        <li class="is-included">
+         Atendimento prioritário
+        </li>
+        <li class="is-included">
+         Análise recorrente de processos
+        </li>
+        <li class="is-included">
+         Acompanhamento contínuo personalizado
+        </li>
+       </ul>
+       <p class="plan-response"><strong>1ª resposta:</strong> prioridade e prazo personalizados</p>
+       <button class="button" data-plan="Empresarial">
+        Falar sobre Empresarial
+       </button>
+      </article>
+     </div>
+     <p class="plan-note">
+      <strong>
+       Chamados 24h. Atendimento em horário comercial.
+      </strong>
+      O prazo é de primeira resposta, não de resolução. Planilhas atendidas, horas incluídas, alterações e cobranças adicionais são definidos na proposta. Novos projetos têm orçamento próprio.
+     </p>
+     <div class="content-block faq">
+      <p class="eyebrow">
+       PERGUNTAS FREQUENTES
+      </p>
+      <h2>
+       O que costuma impedir uma empresa de começar.
+      </h2>
+      <details>
+       <summary>
+        Preciso abandonar minha planilha atual?
+       </summary>
+       <p>
+        Não necessariamente. Primeiro avaliamos o que já funciona e tentamos aproveitar a estrutura existente. Uma reconstrução só é proposta quando fizer mais sentido para o processo.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Minha planilha é antiga ou muito complicada. Vocês conseguem trabalhar nela?
+       </summary>
+       <p>
+        Podemos analisar fórmulas, macros, organização dos dados e fluxo de uso. A partir dessa análise, indicamos se vale corrigir, reorganizar ou reconstruir partes da solução.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Não sei exatamente o que automatizar. Vocês conseguem analisar?
+       </summary>
+       <p>
+        Sim. Você não precisa saber se a solução será VBA, Power Query ou Apps Script. Conte o que sua equipe faz manualmente e avaliamos as possibilidades.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Quanto custa e quanto tempo leva?
+       </summary>
+       <p>
+        Depende da complexidade, das regras e das integrações. Antes do desenvolvimento, você recebe o escopo, o investimento e o prazo para decidir se quer avançar.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Existe suporte depois da entrega?
+       </summary>
+       <p>
+        A proposta informa as condições de correção e acompanhamento da entrega. Para manutenção recorrente, existem os planos Essencial, Profissional e Empresarial.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Meus dados são confidenciais. Preciso enviar tudo no primeiro contato?
+       </summary>
+       <p>
+        Não. No primeiro contato, descreva o processo sem dados sensíveis. Se precisarmos analisar um arquivo, combinamos um canal adequado e recomendamos uma cópia anonimizada sempre que possível.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Isso funciona no Google Sheets também?
+       </summary>
+       <p>
+        Sim. Também desenvolvemos automações no ambiente Google. A tecnologia é escolhida depois de entender o processo e as ferramentas que sua equipe já utiliza.
+       </p>
+      </details>
+      <details>
+       <summary>
+        Minha necessidade é pequena demais?
+       </summary>
+       <p>
+        Podemos avaliar desde correções pontuais até rotinas maiores. Se a demanda não exigir um projeto completo, isso fica claro já na análise inicial.
+       </p>
+      </details>
+      <details>
+       <summary>
+        O suporte é humano 24 horas?
+       </summary>
+       <p>
+        Não. Os chamados podem ser abertos 24h pelo canal contratado. A equipe atende em horário comercial, com prazo de primeira resposta conforme o plano.
+       </p>
+      </details>
+     </div>
+    </div>
+   </section>
+   <section class="wrap section contact page" id="contato">
+    <div class="section-heading">
+     <div>
+      <p class="eyebrow">
+       <span class="section-index">
+        03
+       </span>
+       SOLICITAR ANÁLISE
+      </p>
+      <h2>
+       Mostre o que sua equipe faz manualmente. Nós ajudamos a enxergar o que pode ser automatizado.
+      </h2>
+      <p class="lead">
+       Não precisa saber se a solução é VBA, Power Query ou Apps Script. Descreva a rotina, o problema e o que mais toma tempo hoje.
+      </p>
+     </div>
+    </div>
+    <div class="contact-grid">
+     <form class="contact-form" id="contact-form">
+      <p class="selected-plan-notice" hidden="" id="selected-plan-notice">
+      </p>
+      <div class="field">
+       <label for="cf-name">
+        Nome
+       </label>
+       <input autocomplete="name" id="cf-name" name="nome" required="" type="text"/>
+      </div>
+      <div class="field">
+       <label for="cf-company">
+        Empresa (opcional)
+       </label>
+       <input autocomplete="organization" id="cf-company" name="empresa"/>
+      </div>
+      <div class="field">
+       <label for="cf-email">
+        E-mail
+       </label>
+       <input autocomplete="email" id="cf-email" name="email" required="" type="email"/>
+      </div>
+      <div class="field">
+       <label for="cf-phone">
+        Telefone / WhatsApp
+       </label>
+       <input autocomplete="tel" id="cf-phone" name="telefone" placeholder="(11) 90000-0000" type="tel"/>
+      </div>
+      <div class="field full">
+       <label for="cf-need">
+        O que mais incomoda na rotina hoje?
+       </label>
+       <select id="cf-need" name="necessidade">
+        <option>
+         Tarefas repetitivas / copiar e colar
+        </option>
+        <option>
+         Relatórios feitos manualmente
+        </option>
+        <option>
+         Planilha lenta, quebrada ou com erros
+        </option>
+        <option>
+         Vários arquivos para consolidar
+        </option>
+        <option>
+         Criar ou melhorar um controle
+        </option>
+        <option>
+         Contratar suporte recorrente
+        </option>
+        <option>
+         Ainda não sei / quero orientação
+        </option>
+       </select>
+      </div>
+      <div class="field full">
+       <label for="cf-sheets">
+        Qual é sua maior dificuldade hoje?
+       </label>
+       <textarea id="cf-sheets" name="planilhas" placeholder="Ex.: todo mês juntamos 8 arquivos, conferimos linhas manualmente e montamos o mesmo relatório..." required="" rows="4"></textarea>
+      </div>
+      <fieldset class="contact-plan-picker field full" id="contact-plan-picker">
+       <legend>
+        Escolha o plano que mais se aproxima da sua necessidade
+        <span>Obrigatório</span>
+       </legend>
+       <p class="plan-picker-intro" id="plan-picker-help">
+        A escolha serve como ponto de partida e pode ser ajustada depois da análise. O envio só é liberado após selecionar uma opção.
+       </p>
+       <div class="contact-plan-options">
+        <label class="contact-plan-card">
+         <input aria-describedby="plan-picker-help" name="plano" required type="radio" value="Essencial"/>
+         <span class="plan-choice-copy">
+          <strong>Essencial</strong>
+          <small>Para segurança no uso diário e correções pontuais.</small>
+         </span>
+         <span class="plan-choice-price">R$ 99<small>/mês</small></span>
+        </label>
+        <label class="contact-plan-card recommended">
+         <input aria-describedby="plan-picker-help" name="plano" required type="radio" value="Profissional"/>
+         <span class="plan-choice-copy">
+          <span class="choice-badge">RECOMENDADO</span>
+          <strong>Profissional</strong>
+          <small>Para quem usa planilhas todos os dias e precisa de prioridade.</small>
+         </span>
+         <span class="plan-choice-price">R$ 249<small>/mês</small></span>
+        </label>
+        <label class="contact-plan-card">
+         <input aria-describedby="plan-picker-help" name="plano" required type="radio" value="Empresarial"/>
+         <span class="plan-choice-copy">
+          <strong>Empresarial</strong>
+          <small>Para operações que dependem das planilhas continuamente.</small>
+         </span>
+         <span class="plan-choice-price consultation">Sob consulta</span>
+        </label>
+       </div>
+       <p class="plan-picker-lock" id="plan-picker-lock">
+        Selecione um plano acima para liberar o envio.
+       </p>
+      </fieldset>
+      <div class="field full form-actions">
+       <button aria-disabled="true" class="button" disabled type="submit">
+        Solicitar análise
+       </button>
+       <p id="form-status" role="status">
+       </p>
+       <p class="contact-note">
+        Use este formulário apenas para descrever a necessidade. Não inclua senhas, dados pessoais de terceiros ou informações financeiras sigilosas.
+       </p>
+      </div>
+     </form>
+     <aside class="contact-aside">
+      <p class="report-label">
+       PRIMEIRO PASSO
+      </p>
+      <h3 class="contact-aside-title">
+       Você não precisa chegar com a solução pronta.
+      </h3>
+      <ol class="contact-trust-list">
+       <li>
+        <strong>Você descreve a rotina.</strong>
+        <span>Conte o que dá trabalho, repete ou costuma gerar erro.</span>
+       </li>
+       <li>
+        <strong>Nós avaliamos as possibilidades.</strong>
+        <span>Identificamos o que pode ser simplificado ou automatizado.</span>
+       </li>
+       <li>
+        <strong>Você decide com clareza.</strong>
+        <span>Escopo, investimento e prazo são apresentados antes do desenvolvimento.</span>
+       </li>
+      </ol>
+      <button class="button outline" id="whatsapp">
+       Falar no WhatsApp sobre meu processo
+      </button>
+      <h3>
+       Seus dados merecem cuidado.
+      </h3>
+      <p>
+       No primeiro contato, descreva o processo sem senhas, dados pessoais de terceiros ou informações financeiras sigilosas. Se precisarmos analisar um arquivo, combinaremos um canal adequado e, sempre que possível, uma cópia anonimizada.
+      </p>
+     </aside>
+    </div>
+   </section>
+  </main>
+  <footer class="wrap">
+   <a aria-label="Planex, início" class="brand brand--footer" href="#inicio"><img alt="Planex" decoding="async" height="724" src="logo-planex-white.png" width="2172"/></a>
+   <span>
+    Menos trabalho manual. Mais controle.
+   </span>
+   <small>
+    ©
+    <span id="year">
+     2026
+    </span>
+    Planex.
+   </small>
+  </footer>
+  <dialog aria-labelledby="dialog-title" id="contact-dialog">
+   <button aria-label="Fechar" class="close">
+    ×
+   </button>
+   <p class="eyebrow">
+    CONTATO
+   </p>
+   <h2 id="dialog-title">
+    Vamos analisar
+    <br/>
+    o seu processo.
+   </h2>
+   <p id="selected-plan">
+   </p>
+   <p>
+    Nosso canal de WhatsApp será disponibilizado em breve.
+   </p>
+   <button class="button" id="close-dialog">
+    Entendi
+   </button>
+  </dialog>
+  <script src="./demo-data.js">
+  </script>
+  <script src="./script.js">
+  </script>
+ </body>
+</html>
