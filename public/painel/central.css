@@ -394,7 +394,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .cartao-setas { display: flex; gap: 4px; margin-left: auto; }
 
 /* ---------- Agenda ---------- */
-.agenda { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.agenda { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
 .calendario-caixa { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .agenda-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .agenda-mes { min-width: 170px; text-align: center; font-size: 17px; }
@@ -417,9 +417,13 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .evento.is-atrasado { background: var(--critico-fundo); color: var(--critico); }
 .dia-mais { color: var(--subtle); font-size: 11px; padding-left: 4px; }
 .dia-pontos { display: none; gap: 3px; }
-.proximos { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.proximos { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .proximos h2 { font-size: 15px; }
-.proximos-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.proximos-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; align-content: start; overflow-y: auto; }
+/* Ao lado do calendário, a lista não dita a altura: acompanha o calendário e rola por dentro. */
+@media (min-width: 981px) {
+  .proximos { contain: size; }
+}
 .proximo { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); cursor: pointer; text-align: left; }
 .proximo:hover { border-color: var(--line-forte); }
 .proximo-data { display: grid; justify-items: center; width: 42px; padding: 4px 0; border-radius: 8px; background: var(--surface-2); line-height: 1.1; }
@@ -432,9 +436,10 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .proximo-texto span { color: var(--muted); font-size: 12px; }
 
 /* ---------- Equipe ---------- */
-.equipe-grade { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.equipe-lado { display: grid; gap: 16px; }
-.bloco { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.equipe-grade { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+.equipe-lado { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.equipe-lado > :last-child { flex: 1; }
+.bloco { display: grid; gap: 14px; align-content: start; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .bloco-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
 .bloco-topo h2, .bloco-topo h3 { font-size: 15px; }
 .equipe { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -487,8 +492,10 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .trilha-passo--atual .trilha-ponto { border-color: var(--azul); background: var(--azul); color: #06101d; box-shadow: 0 0 0 4px #65aaf533; }
 .ficha-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
 .ficha-acoes .botao--perigo { margin-left: auto; }
-.ficha-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.ficha-coluna { display: grid; gap: 16px; min-width: 0; }
+/* Cartões lado a lado sempre com a mesma altura: a coluna estica e o último cartão ocupa a sobra. */
+.ficha-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.ficha-coluna { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ficha-coluna > :last-child { flex: 1; }
 .dados { margin: 0; display: grid; gap: 12px; }
 .dado dt { color: var(--subtle); font-size: 12px; font-weight: 500; margin-bottom: 2px; }
 .dado dd { margin: 0; overflow-wrap: anywhere; }
