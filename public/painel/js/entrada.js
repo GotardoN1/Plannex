@@ -89,11 +89,19 @@ function agrupar(lista, tipo) {
       el('ul', 'lista-contatos', itens.map(c => linha(c, tipo))))));
 }
 
+// Cada linha tem, à direita, uma grade de colunas fixas. Quando falta um dado, a célula fica
+// reservada (vazia ou com "—"), para as colunas não saírem do alinhamento de uma linha para outra.
+//   Concluídos (admin):   concluída | responsável | valor
+//   Concluídos (func.):   concluída
+//   Caixa de entrada:     situação | WhatsApp | responsável | ação     (func.: situação | WhatsApp | ação)
+//   Arquivo:              situação | WhatsApp | responsável | ação
 function linha(c, tipo) {
+  const admin = eAdmin();
   const concluida = tipo === 'concluidos';
   const item = el('li', `contato contato--${c.servico}${c.lido_em || concluida ? '' : ' is-novo'}${concluida ? ' is-concluido' : ''}`);
   const responsavel = usuarioPorId(c.responsavel_id);
   const previa = c.descricao || c.atividade_manual || c.observacoes || '';
+  const abrir = () => acoes.abrirFicha(c.id);
 
   const principal = el('button', 'contato-principal',
     el('span', 'contato-marcador', c.lido_em || concluida ? '' : el('span', 'ponto-novo', el('span', 'sr', 'Não lido'))),
@@ -102,31 +110,55 @@ function linha(c, tipo) {
       el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico),
         c.origem !== 'site' ? el('span', 'origem', ORIGENS[c.origem] || c.origem) : null,
         c.plano ? el('span', 'origem', c.plano) : null),
-      el('span', 'contato-previa', previa || (c.email || c.telefone || 'Sem descrição'))),
-    el('span', 'contato-lado',
-      el('time', '', concluida ? `concluída ${relativo(c.atualizado_em)}` : relativo(tipo === 'arquivo' ? c.arquivado_em : c.criado_em)),
-      concluida
-        ? el('span', 'etapa-pill etapa-pill--ok', icone('ok'), 'Concluída')
-        : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
-          c.etapa ? NOME_ETAPA[c.etapa] : 'Aguardando')));
+      el('span', 'contato-previa', previa || (c.email || c.telefone || 'Sem descrição'))));
   principal.type = 'button';
   principal.title = concluida ? `Ver a ficha de ${c.nome} · concluída em ${dataHora(c.atualizado_em)}` : `Abrir a ficha de ${c.nome} · chegou em ${dataHora(c.criado_em)}`;
-  principal.addEventListener('click', () => acoes.abrirFicha(c.id));
+  principal.addEventListener('click', abrir);
 
-  const rapidas = el('div', 'contato-acoes');
+  // Células
+  const situacao = el('div', 'celula celula--situacao',
+    el('time', '', concluida ? `concluída ${relativo(c.atualizado_em)}` : relativo(tipo === 'arquivo' ? c.arquivado_em : c.criado_em)),
+    concluida
+      ? el('span', 'etapa-pill etapa-pill--ok', icone('ok'), 'Concluída')
+      : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
+        c.etapa ? NOME_ETAPA[c.etapa] : 'Aguardando'));
+  situacao.addEventListener('click', abrir);
+
   const whatsapp = linkWhatsApp(c);
-  if (whatsapp && !concluida) rapidas.append(link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `Chamar ${c.nome} no WhatsApp` }));
-  if (responsavel && eAdmin()) rapidas.append(avatar(responsavel.nome, 'avatar--pequeno'));
-  if (concluida && eAdmin() && c.valor_centavos !== null && c.valor_centavos !== undefined) rapidas.append(el('span', 'cartao-valor', reais(c.valor_centavos)));
+  const celulaWhatsapp = el('div', 'celula celula--icone',
+    whatsapp ? link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `Chamar ${c.nome} no WhatsApp` }) : null);
+
+  const celulaResponsavel = el('div', 'celula celula--icone',
+    responsavel ? avatar(responsavel.nome, 'avatar--pequeno') : el('span', 'sem-responsavel', icone('usuario'), el('span', 'sr', 'Sem responsável')));
+
+  const temValor = c.valor_centavos !== null && c.valor_centavos !== undefined;
+  const celulaValor = el('div', `celula celula--valor${temValor ? '' : ' is-vazio'}`, temValor ? reais(c.valor_centavos) : '—');
+  if (!temValor) celulaValor.title = 'Sem valor registrado';
+
+  const celulaAcao = el('div', 'celula celula--acao');
   if (tipo === 'arquivo') {
-    rapidas.append(botao('Restaurar', 'botao--fantasma', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
-  } else if (!c.etapa && eAdmin()) {
-    rapidas.append(botao('Mover para Pedido', 'botao--primario', () => acoes.mover(c.id, 'pedido')));
-  } else if (!eAdmin() && ['pedido', 'nota_emitida'].includes(c.etapa || 'pedido')) {
+    celulaAcao.append(botao('Restaurar', 'botao--fantasma botao--pequeno', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
+  } else if (!c.etapa && admin) {
+    celulaAcao.append(botao('Mover para Pedido', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'pedido')));
+  } else if (!admin && ['pedido', 'nota_emitida'].includes(c.etapa || 'pedido')) {
     // O funcionário leva a demanda direto para Processo iniciado.
-    rapidas.append(botao('Iniciar processo', 'botao--primario', () => acoes.mover(c.id, 'processo_iniciado'), { icone: 'seta_dir' }));
+    celulaAcao.append(botao('Iniciar processo', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'processo_iniciado'), { icone: 'seta_dir' }));
   }
-  item.append(principal, rapidas);
+
+  let celulas;
+  let modelo;
+  if (concluida) {
+    celulas = admin ? [situacao, celulaResponsavel, celulaValor] : [situacao];
+    modelo = admin ? 'concluidos' : 'concluidos-func';
+  } else if (tipo === 'entrada' && !admin) {
+    celulas = [situacao, celulaWhatsapp, celulaAcao];
+    modelo = 'entrada-func';
+  } else {
+    celulas = [situacao, celulaWhatsapp, celulaResponsavel, celulaAcao];
+    modelo = tipo === 'arquivo' ? 'arquivo' : 'entrada';
+  }
+
+  item.append(principal, el('div', `contato-colunas contato-colunas--${modelo}`, celulas));
   return item;
 }
 

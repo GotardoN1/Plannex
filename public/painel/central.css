@@ -144,7 +144,6 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .nav-grupo { display: grid; gap: 3px; }
 /* O traço só aparece depois de um bloco visível (o funcionário não tem a Visão geral). */
 .nav-grupo:not([hidden]) ~ .nav-grupo { padding-top: 14px; border-top: 1px solid var(--line); }
-.nav-item--rodape { margin: 0 -8px; }
 .nav-item {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 0 12px;
   border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; text-align: left; font-weight: 500;
@@ -337,10 +336,20 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .contato.is-novo .contato-nome { color: #fff; }
 .contato:not(.is-novo) .contato-nome { font-weight: 500; }
 .contato-previa { color: var(--subtle); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.contato-lado { display: grid; justify-items: end; gap: 5px; flex: none; }
-.contato-lado time { color: var(--subtle); font-size: 12px; white-space: nowrap; }
-.contato-acoes { display: flex; align-items: center; gap: 6px; flex: none; }
-.contato-acoes .botao--icone { color: #7fe0a8; }
+/* Colunas fixas à direita de cada linha: o mesmo dado sempre na mesma posição. */
+.contato-colunas { display: grid; align-items: center; column-gap: 14px; flex: none; }
+.contato-colunas--entrada, .contato-colunas--arquivo { grid-template-columns: 150px 34px 28px 158px; }
+.contato-colunas--entrada-func { grid-template-columns: 150px 34px 158px; }
+.contato-colunas--concluidos { grid-template-columns: 150px 28px 112px; }
+.contato-colunas--concluidos-func { grid-template-columns: 150px; }
+.celula { display: flex; align-items: center; min-width: 0; }
+.celula--situacao { flex-direction: column; align-items: flex-end; gap: 5px; cursor: pointer; }
+.celula--situacao time { color: var(--subtle); font-size: 12px; white-space: nowrap; }
+.celula--icone { justify-content: center; }
+.celula--icone .botao--icone { color: #7fe0a8; }
+.celula--valor { justify-content: flex-end; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.celula--valor.is-vazio { color: var(--subtle); font-weight: 400; }
+.celula--acao { justify-content: flex-end; }
 .vazio { display: grid; justify-items: center; gap: 12px; padding: 56px 16px; border: 1px dashed var(--line-forte); border-radius: var(--radius); color: var(--muted); text-align: center; }
 .vazio-icone { width: 36px; height: 36px; color: var(--subtle); }
 
@@ -556,9 +565,6 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .nav { order: 3; width: 100%; display: flex; gap: 2px; overflow-x: auto; margin: 0 -4px; padding-bottom: 2px; scrollbar-width: none; }
   .nav-grupo { display: flex; gap: 2px; flex: none; }
   .nav-grupo:not([hidden]) ~ .nav-grupo { padding: 0 0 0 4px; margin-left: 2px; border-top: 0; border-left: 1px solid var(--line); }
-  .nav-item--rodape { margin: 0; min-height: 34px; padding: 0 10px; width: auto; }
-  .nav-item--rodape .nav-rotulo { display: none; }
-  .nav-item--rodape[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--azul); background: transparent; }
   .nav-item { width: auto; min-height: 44px; padding: 0 12px; border-radius: 10px 10px 0 0; white-space: nowrap; }
   .nav-item[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--azul); background: transparent; }
   .barra { padding: 10px 16px; }
@@ -585,8 +591,13 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .campo-filtro { max-width: none; }
   .contato { flex-wrap: wrap; padding: 0 12px 10px 0; }
   .contato-principal { flex-basis: 100%; padding-bottom: 6px; }
-  .contato-lado { display: none; }
-  .contato-acoes { margin-left: 30px; flex-wrap: wrap; }
+  /* No celular, as colunas descem para baixo do nome, lado a lado. */
+  .contato-colunas { width: 100%; padding-left: 30px; column-gap: 10px; }
+  .contato-colunas--entrada, .contato-colunas--arquivo { grid-template-columns: 1fr 34px 28px auto; }
+  .contato-colunas--entrada-func { grid-template-columns: 1fr 34px auto; }
+  .contato-colunas--concluidos { grid-template-columns: 1fr 28px 112px; }
+  .contato-colunas--concluidos-func { grid-template-columns: 1fr; }
+  .celula--situacao { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
   .quadro { grid-auto-columns: 84%; }
   .dia { min-height: 46px; padding: 4px; align-items: center; }
   .dia-eventos { display: none; }
