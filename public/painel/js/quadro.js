@@ -2,7 +2,7 @@
 import { estado, acoes, ativos, usuarioPorId } from './estado.js';
 import { listaSuspensa, campoFiltro } from './entrada.js';
 import {
-  el, botao, icone, avatar, etiquetaServico, ETAPAS, CAIXA, reais, reaisCurto, situacaoPrazo,
+  el, botao, icone, avatar, ETAPAS, CAIXA, SERVICOS, reais, reaisCurto, situacaoPrazo,
   normalizar, textoBusca, relativo,
 } from './util.js';
 
@@ -91,17 +91,22 @@ function cartao(c, indice) {
 
   const prazo = c.etapa !== 'entregue' ? situacaoPrazo(c.prazo) : null;
   const responsavel = usuarioPorId(c.responsavel_id);
-  const detalhes = [];
-  if (c.valor_centavos !== null && c.valor_centavos !== undefined) detalhes.push(el('span', `cartao-valor${c.pago_em ? ' is-pago' : ''}`, reais(c.valor_centavos), c.pago_em ? el('small', '', ' pago') : null));
-  if (c.nota_fiscal) detalhes.push(el('span', 'cartao-nf', `NF ${c.nota_fiscal}`));
+  const temValor = c.valor_centavos !== null && c.valor_centavos !== undefined;
+  const valor = temValor
+    ? el('span', `cartao-valor${c.pago_em ? ' is-pago' : ''}`, c.pago_em ? icone('ok') : null, reais(c.valor_centavos))
+    : null;
+  if (valor && c.pago_em) valor.title = 'Pago';
 
   const anterior = indice > 0 ? ETAPAS[indice - 1] : null;
   const proxima = ETAPAS[indice + 1];
   const concluir = proxima?.[0] === 'entregue';
+  // Três linhas curtas: nome e valor · serviço, nota e prazo · responsável, contadores e setas.
   artigo.append(...[
-    el('div', 'cartao-topo', etiquetaServico(c.servico), prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null),
-    el('strong', 'cartao-nome', c.nome),
-    detalhes.length ? el('div', 'cartao-detalhes', detalhes) : null,
+    el('div', 'cartao-linha1', el('strong', 'cartao-nome', c.nome), valor),
+    el('div', 'cartao-meta',
+      el('span', `servico-mini servico-mini--${c.servico}`, SERVICOS[c.servico]?.nome || c.servico),
+      c.nota_fiscal ? el('span', 'cartao-nf', `NF ${c.nota_fiscal}`) : null,
+      prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null),
     el('div', 'cartao-rodape',
       responsavel ? avatar(responsavel.nome, 'avatar--pequeno') : el('span', 'sem-responsavel', icone('usuario'), el('span', 'sr', 'Sem responsável')),
       c.total_notas ? el('span', 'cartao-notas', icone('nota'), String(c.total_notas)) : null,

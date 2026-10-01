@@ -340,7 +340,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .contato-colunas { display: grid; align-items: center; column-gap: 14px; flex: none; }
 .contato-colunas--entrada, .contato-colunas--arquivo { grid-template-columns: 150px 34px 28px 158px; }
 .contato-colunas--entrada-func { grid-template-columns: 150px 34px 158px; }
-.contato-colunas--concluidos { grid-template-columns: 150px 28px 112px; }
+.contato-colunas--concluidos { grid-template-columns: 150px 28px 112px 104px; }
 .contato-colunas--concluidos-func { grid-template-columns: 150px; }
 .celula { display: flex; align-items: center; min-width: 0; }
 .celula--situacao { flex-direction: column; align-items: flex-end; gap: 5px; cursor: pointer; }
@@ -350,6 +350,15 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .celula--valor { justify-content: flex-end; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .celula--valor.is-vazio { color: var(--subtle); font-weight: 400; }
 .celula--acao { justify-content: flex-end; }
+.mover-para {
+  width: 100%; min-height: 32px; padding: 0 30px 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  border-color: #2c5687; background-color: #132a47; color: #cfe3fb;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2365aaf5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center; background-size: 15px;
+}
+.mover-para:hover { border-color: var(--azul); }
+.mover-para option { background: var(--surface); color: var(--ink); font-weight: 400; }
 .vazio { display: grid; justify-items: center; gap: 12px; padding: 56px 16px; border: 1px dashed var(--line-forte); border-radius: var(--radius); color: var(--muted); text-align: center; }
 .vazio-icone { width: 36px; height: 36px; color: var(--subtle); }
 
@@ -595,7 +604,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .contato-colunas { width: 100%; padding-left: 30px; column-gap: 10px; }
   .contato-colunas--entrada, .contato-colunas--arquivo { grid-template-columns: 1fr 34px 28px auto; }
   .contato-colunas--entrada-func { grid-template-columns: 1fr 34px auto; }
-  .contato-colunas--concluidos { grid-template-columns: 1fr 28px 112px; }
+  .contato-colunas--concluidos { grid-template-columns: 1fr 28px auto auto; }
   .contato-colunas--concluidos-func { grid-template-columns: 1fr; }
   .celula--situacao { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
   .quadro { grid-auto-columns: 84%; }
@@ -754,6 +763,28 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .historico-completo[open] summary { border-bottom: 1px solid var(--line); }
 .historico-completo .linha-tempo { padding: 8px 16px 14px; }
 .nota-texto small { color: var(--subtle); font-weight: 400; }
+
+/* ---------- Cartão compacto do andamento ---------- */
+.cartao { gap: 6px; padding: 10px 11px; }
+.cartao-linha1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.cartao-linha1 .cartao-nome { font-size: 14px; line-height: 1.3; min-width: 0; }
+.cartao-linha1 .cartao-valor { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cartao-valor.is-pago { color: var(--ok); }
+.cartao-valor .icone { width: 13px; height: 13px; }
+.cartao-meta { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.cartao-meta .chip-prazo { padding: 1px 7px; font-size: 11px; }
+.cartao-meta .cartao-nf { color: var(--subtle); }
+.servico-mini { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-weight: 600; }
+.servico-mini::before { content: ""; width: 7px; height: 7px; border-radius: 50%; }
+.servico-mini--calculos::before { background: var(--laranja); }
+.servico-mini--automacao::before { background: var(--azul); }
+.cartao .cartao-rodape { padding-top: 6px; gap: 4px 6px; }
+.cartao .avatar--pequeno, .cartao .sem-responsavel { width: 22px; height: 22px; font-size: 9px; }
+.cartao .botao--pequeno.botao--icone { min-width: 26px; min-height: 26px; }
+.cartao .cartao-setas .botao--primario:not(.botao--icone) { min-height: 26px; padding: 0 8px; font-size: 12px; }
+
+/* Botões de etapa da ficha (voltar e avançar) */
+.acoes-etapa { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ---------- Confirmação de etapa ---------- */
 .confirmar-texto { color: var(--muted); }

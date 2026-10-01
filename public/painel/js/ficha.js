@@ -45,7 +45,7 @@ const podeVerAba = aba => !aba.admin || eAdmin();
 
 export const fichaAberta = () => (janela().open ? atualId : null);
 
-export function abrirFicha(id) {
+export function abrirFicha(id, abaInicial = null) {
   const contato = contatoPorId(id);
   if (!contato) {
     acoes.avisar('Esse contato não existe mais.', 'erro');
@@ -54,8 +54,8 @@ export function abrirFicha(id) {
   atualId = id;
   editandoDados = false;
   dados = { itens: [], arquivos: [], carregado: false };
-  const aba = ABAS.find(a => a.chave === abaDaEtapa(contato.etapa));
-  abaAberta = podeVerAba(aba) ? aba.chave : 'entrada';
+  const aba = ABAS.find(a => a.chave === (abaInicial || abaDaEtapa(contato.etapa)));
+  abaAberta = aba && podeVerAba(aba) ? aba.chave : 'entrada';
   desenhar();
   if (!janela().open) janela().showModal();
   janela().querySelector('.ficha-corpo').scrollTop = 0;
@@ -165,7 +165,18 @@ function andamento(c) {
   return el('section', 'ficha-etapas', el('div', 'ficha-etapas-topo', el('h3', '', 'Andamento'), acaoPrincipal(c)), trilha);
 }
 
+// Administrador: além de avançar, pode voltar uma etapa de cada vez, inclusive reabrir uma entregue.
 function acaoPrincipal(c) {
+  if (!eAdmin() || !c.etapa) return acaoAvancar(c);
+  const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
+  const [anterior, nomeAnterior] = indice > 0 ? ETAPAS[indice - 1] : [null, CAIXA];
+  const voltar = c.etapa === 'entregue'
+    ? botao(`Reabrir: voltar para ${nomeAnterior}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'restaurar', titulo: 'Tira a demanda de Concluídos e devolve ao Andamento' })
+    : botao(`Voltar para ${nomeAnterior}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'seta_esq' });
+  return el('div', 'acoes-etapa', voltar, acaoAvancar(c));
+}
+
+function acaoAvancar(c) {
   const admin = eAdmin();
   if (c.etapa === 'entregue') return el('span', 'concluido', icone('ok'), admin ? 'Entregue' : 'Concluída');
   if (!admin && !ETAPAS_FUNCIONARIO.includes(c.etapa)) {
@@ -202,7 +213,8 @@ function desenharPainel() {
     revisado: painelRevisado,
     entregue: painelEntregue,
   }[aba.chave](c);
-  painel.replaceChildren(topoDoPainel(c, aba), ...conteudo, rodapeDoPainel(c, aba));
+  // O replaceChildren do navegador escreve "null" para um vazio: só entra o que existe.
+  painel.replaceChildren(...[topoDoPainel(c, aba), ...conteudo, rodapeDoPainel(c, aba)].filter(Boolean));
   preencher();
 }
 

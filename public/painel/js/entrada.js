@@ -1,7 +1,7 @@
 // Caixa de entrada (ou Minhas demandas), Arquivo e Concluídos.
 import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
 import {
-  el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
+  el, botao, link, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
   relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
 } from './util.js';
 
@@ -39,7 +39,7 @@ export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = 
       ? 'Tudo o que chegou em Entregue. Para reabrir uma demanda, abra a ficha e volte a etapa.'
       : 'Demandas que você concluiu. Ficam aqui como registro, só para consulta. Para reabrir alguma, fale com um administrador.',
     entrada: admin
-      ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha e mova para Pedido para começar o atendimento.'
+      ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha ou use "Mover para…" para levar à etapa certa.'
       : 'As demandas em que você é o responsável. Abra para ver a ficha, anexar a ordem de serviço e avançar as etapas. Ao concluir, a demanda vai para Concluídos.',
   }[tipo];
 
@@ -91,7 +91,7 @@ function agrupar(lista, tipo) {
 
 // Cada linha tem, à direita, uma grade de colunas fixas. Quando falta um dado, a célula fica
 // reservada (vazia ou com "—"), para as colunas não saírem do alinhamento de uma linha para outra.
-//   Concluídos (admin):   concluída | responsável | valor
+//   Concluídos (admin):   concluída | responsável | valor | reabrir
 //   Concluídos (func.):   concluída
 //   Caixa de entrada:     situação | WhatsApp | responsável | ação     (func.: situação | WhatsApp | ação)
 //   Arquivo:              situação | WhatsApp | responsável | ação
@@ -138,17 +138,18 @@ function linha(c, tipo) {
   const celulaAcao = el('div', 'celula celula--acao');
   if (tipo === 'arquivo') {
     celulaAcao.append(botao('Restaurar', 'botao--fantasma botao--pequeno', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
-  } else if (!c.etapa && admin) {
-    celulaAcao.append(botao('Mover para Pedido', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'pedido')));
-  } else if (!admin && ['pedido', 'nota_emitida'].includes(c.etapa || 'pedido')) {
-    // O funcionário leva a demanda direto para Processo iniciado.
-    celulaAcao.append(botao('Iniciar processo', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'processo_iniciado'), { icone: 'seta_dir' }));
+  } else if (tipo === 'entrada') {
+    celulaAcao.append(moverPara(c, admin));
   }
 
   let celulas;
   let modelo;
   if (concluida) {
-    celulas = admin ? [situacao, celulaResponsavel, celulaValor] : [situacao];
+    if (admin) {
+      celulaAcao.append(botao('Reabrir', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, 'revisado'),
+        { icone: 'restaurar', titulo: 'Devolve ao Andamento, em Revisado pelo cliente' }));
+    }
+    celulas = admin ? [situacao, celulaResponsavel, celulaValor, celulaAcao] : [situacao];
     modelo = admin ? 'concluidos' : 'concluidos-func';
   } else if (tipo === 'entrada' && !admin) {
     celulas = [situacao, celulaWhatsapp, celulaAcao];
@@ -160,6 +161,34 @@ function linha(c, tipo) {
 
   item.append(principal, el('div', `contato-colunas contato-colunas--${modelo}`, celulas));
   return item;
+}
+
+// Lista "Mover para…" com todas as etapas, menos a atual. O funcionário vê só as dele;
+// para ele, "Entregue" abre a aba de entrega da ficha (precisa subir os arquivos finais antes de concluir).
+function moverPara(c, admin) {
+  const destinos = ETAPAS.filter(([chave]) => chave !== c.etapa && (admin || ['processo_iniciado', 'revisado', 'entregue'].includes(chave)));
+  const lista = el('select', 'mover-para');
+  lista.setAttribute('aria-label', `Mover ${c.nome} para outra etapa`);
+  const titulo = el('option', '', 'Mover para…');
+  titulo.value = '';
+  titulo.disabled = true;
+  titulo.selected = true;
+  lista.append(titulo);
+  const acoesFuncionario = { processo_iniciado: 'Iniciar processo', revisado: 'Aguardar revisão do cliente', entregue: 'Entregar (enviar arquivos finais)' };
+  for (const [chave, nome] of destinos) {
+    // Para trás, o rótulo diz "Voltar"; para frente, o funcionário vê o nome da ação.
+    const voltando = ETAPAS.findIndex(([k]) => k === chave) < ETAPAS.findIndex(([k]) => k === c.etapa);
+    const opcao = el('option', '', voltando ? `Voltar para ${nome}` : admin ? nome : acoesFuncionario[chave]);
+    opcao.value = chave;
+    lista.append(opcao);
+  }
+  lista.addEventListener('change', () => {
+    const destino = lista.value;
+    lista.value = '';
+    if (!admin && destino === 'entregue') acoes.abrirFicha(c.id, 'entregue');
+    else acoes.mover(c.id, destino);
+  });
+  return lista;
 }
 
 function vazio(tipo, totalBase) {
