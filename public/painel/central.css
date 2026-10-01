@@ -338,8 +338,11 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .contato-previa { color: var(--subtle); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Colunas fixas à direita de cada linha: o mesmo dado sempre na mesma posição. */
 .contato-colunas { display: grid; align-items: center; column-gap: 14px; flex: none; }
-.contato-colunas--entrada, .contato-colunas--arquivo { grid-template-columns: 150px 34px 28px 158px; }
-.contato-colunas--entrada-func { grid-template-columns: 150px 34px 158px; }
+.contato-colunas--entrada { grid-template-columns: 150px 150px 34px 28px 172px; }
+.contato-colunas--arquivo { grid-template-columns: 150px 34px 28px 158px; }
+.contato-colunas--entrada-func { grid-template-columns: 150px 34px 172px; }
+.botao--avancar { width: 100%; }
+.celula--mover .mover-para { width: 100%; }
 .contato-colunas--concluidos { grid-template-columns: 150px 28px 112px 104px; }
 .contato-colunas--concluidos-func { grid-template-columns: 150px; }
 .celula { display: flex; align-items: center; min-width: 0; }
@@ -496,14 +499,17 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .ficha-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .ficha-coluna { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .ficha-coluna > :last-child { flex: 1; }
-.dados { margin: 0; display: grid; gap: 12px; }
+/* Dados lado a lado: cabem quantos couberem na largura; textos longos usam a linha toda. */
+.dados { margin: 0; display: flex; flex-wrap: wrap; gap: 12px 36px; }
+.dado { min-width: 0; max-width: 100%; }
+.dado--largo { flex-basis: 100%; }
 .dado dt { color: var(--subtle); font-size: 12px; font-weight: 500; margin-bottom: 2px; }
 .dado dd { margin: 0; overflow-wrap: anywhere; }
 .dados--texto dd { white-space: pre-wrap; line-height: 1.55; }
 .com-acao { display: inline-flex; align-items: center; gap: 4px; }
 .form-dados { display: grid; gap: 12px; }
 .negocio { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.negocio .campo:first-child { grid-column: 1 / -1; }
+
 .prefixo { position: relative; display: block; }
 .prefixo i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--subtle); font-style: normal; font-size: 14px; }
 .prefixo input { padding-left: 38px; font-variant-numeric: tabular-nums; }
@@ -609,7 +615,10 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .contato-principal { flex-basis: 100%; padding-bottom: 6px; }
   /* No celular, as colunas descem para baixo do nome, lado a lado. */
   .contato-colunas { width: 100%; padding-left: 30px; column-gap: 10px; }
-  .contato-colunas--entrada, .contato-colunas--arquivo { grid-template-columns: 1fr 34px 28px auto; }
+  .contato-colunas--entrada { grid-template-columns: minmax(0, 1fr) 34px 28px auto; }
+  .contato-colunas--entrada .celula--mover { grid-column: 1 / -1; order: 9; margin-top: 6px; }
+  .contato-colunas--arquivo { grid-template-columns: 1fr 34px 28px auto; }
+  .botao--avancar { width: auto; }
   .contato-colunas--entrada-func { grid-template-columns: 1fr 34px auto; }
   .contato-colunas--concluidos { grid-template-columns: 1fr 28px auto auto; }
   .contato-colunas--concluidos-func { grid-template-columns: 1fr; }

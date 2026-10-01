@@ -414,24 +414,25 @@ function formularioDados(c) {
 function blocoSolicitacao(c) {
   const campos = [
     ['Plano de interesse', c.plano],
-    ['Necessidade', c.descricao],
-    ['Atividade a automatizar', c.atividade_manual],
-    ['O que deve continuar igual', c.manter_inalterado],
     ['Documentos', c.envio_documentos],
-    ['Observações', c.observacoes],
     ['Botão do site', c.chamada],
+    ['Necessidade', c.descricao, true],
+    ['Atividade a automatizar', c.atividade_manual, true],
+    ['O que deve continuar igual', c.manter_inalterado, true],
+    ['Observações', c.observacoes, true],
   ].filter(([, valor]) => valor);
   return el('section', 'bloco', el('div', 'bloco-topo', el('h3', '', 'Solicitação')),
     campos.length
-      ? el('dl', 'dados dados--texto', campos.map(([rotulo, valor]) => item(rotulo, valor)))
+      ? el('dl', 'dados dados--texto', campos.map(([rotulo, valor, largo]) => item(rotulo, valor, largo)))
       : el('p', 'vazio-mini', c.origem === 'site'
         ? 'Este contato chegou antes da Central guardar a ficha completa. Os detalhes estão no e-mail.'
         : 'Nenhum detalhe registrado. Use Editar para completar.'));
 }
 
-function item(rotulo, valor) {
+// "largo": textos longos ocupam a linha toda; os curtos ficam lado a lado.
+function item(rotulo, valor, largo = false) {
   if (valor === null || valor === undefined || valor === '') return null;
-  return el('div', 'dado', el('dt', '', rotulo), el('dd', '', valor));
+  return el('div', `dado${largo ? ' dado--largo' : ''}`, el('dt', '', rotulo), el('dd', '', valor));
 }
 
 // ---------- Entrega (responsável e prazo) e negócio (valores) ----------

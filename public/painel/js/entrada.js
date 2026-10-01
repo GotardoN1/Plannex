@@ -93,7 +93,7 @@ function agrupar(lista, tipo) {
 // reservada (vazia ou com "—"), para as colunas não saírem do alinhamento de uma linha para outra.
 //   Concluídos (admin):   concluída | responsável | valor | reabrir
 //   Concluídos (func.):   concluída
-//   Caixa de entrada:     situação | WhatsApp | responsável | ação     (func.: situação | WhatsApp | ação)
+//   Caixa de entrada:     mover para | situação | WhatsApp | responsável | avançar   (func.: situação | WhatsApp | avançar)
 //   Arquivo:              situação | WhatsApp | responsável | ação
 function linha(c, tipo) {
   const admin = eAdmin();
@@ -139,8 +139,11 @@ function linha(c, tipo) {
   if (tipo === 'arquivo') {
     celulaAcao.append(botao('Restaurar', 'botao--fantasma botao--pequeno', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
   } else if (tipo === 'entrada') {
-    celulaAcao.append(moverPara(c, admin));
+    const avancar = botaoAvancar(c, admin);
+    if (avancar) celulaAcao.append(avancar);
   }
+  // Administrador: "Mover para…" ao lado da etapa, para pular ou devolver a demanda.
+  const celulaMover = el('div', 'celula celula--mover', tipo === 'entrada' && admin ? moverPara(c, true) : null);
 
   let celulas;
   let modelo;
@@ -154,17 +157,47 @@ function linha(c, tipo) {
   } else if (tipo === 'entrada' && !admin) {
     celulas = [situacao, celulaWhatsapp, celulaAcao];
     modelo = 'entrada-func';
+  } else if (tipo === 'entrada') {
+    celulas = [celulaMover, situacao, celulaWhatsapp, celulaResponsavel, celulaAcao];
+    modelo = 'entrada';
   } else {
     celulas = [situacao, celulaWhatsapp, celulaResponsavel, celulaAcao];
-    modelo = tipo === 'arquivo' ? 'arquivo' : 'entrada';
+    modelo = 'arquivo';
   }
 
   item.append(principal, el('div', `contato-colunas contato-colunas--${modelo}`, celulas));
   return item;
 }
 
-// Lista "Mover para…" com todas as etapas, menos a atual. O funcionário vê só as dele;
-// para ele, "Entregue" abre a aba de entrega da ficha (precisa subir os arquivos finais antes de concluir).
+// Botão azul que avança um passo, com o nome da próxima ação. "Entregar" abre a aba de entrega
+// da ficha, onde se sobem os arquivos finais e se conclui.
+const PROXIMO_ADMIN = {
+  null: ['pedido', 'Aceitar pedido'],
+  pedido: ['nota_emitida', 'Notas e ordens'],
+  nota_emitida: ['processo_iniciado', 'Iniciar processo'],
+  processo_iniciado: ['revisado', 'Enviar para revisão'],
+  revisado: ['entregue', 'Entregar'],
+};
+const PROXIMO_FUNCIONARIO = {
+  null: ['processo_iniciado', 'Iniciar processo'],
+  pedido: ['processo_iniciado', 'Iniciar processo'],
+  nota_emitida: ['processo_iniciado', 'Iniciar processo'],
+  processo_iniciado: ['revisado', 'Enviar para revisão'],
+  revisado: ['entregue', 'Entregar'],
+};
+
+function botaoAvancar(c, admin) {
+  const proximo = (admin ? PROXIMO_ADMIN : PROXIMO_FUNCIONARIO)[c.etapa ?? null];
+  if (!proximo) return null;
+  const [destino, rotulo] = proximo;
+  const entregar = destino === 'entregue';
+  return botao(rotulo, 'botao--primario botao--pequeno botao--avancar', () => {
+    if (entregar) acoes.abrirFicha(c.id, 'entregue');
+    else acoes.mover(c.id, destino);
+  }, { icone: entregar ? 'ok' : 'seta_dir', titulo: entregar ? 'Abre a aba Entregue para enviar os arquivos finais e concluir' : `Avançar para ${NOME_ETAPA[destino]}` });
+}
+
+// Lista "Mover para…" (administrador): qualquer etapa, para frente ou para trás.
 function moverPara(c, admin) {
   const destinos = ETAPAS.filter(([chave]) => chave !== c.etapa && (admin || ['processo_iniciado', 'revisado', 'entregue'].includes(chave)));
   const lista = el('select', 'mover-para');
