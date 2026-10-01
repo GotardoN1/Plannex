@@ -51,7 +51,10 @@
         <span id="usuario-avatar"></span>
         <span class="eu-texto"><strong id="usuario-nome"></strong><small id="usuario-login"></small></span>
       </div>
-      <button type="button" class="botao botao--fantasma botao--pequeno" id="sair" data-icone="sair">Sair</button>
+      <div class="lateral-botoes">
+        <button type="button" class="botao botao--fantasma botao--pequeno" id="minha-senha" data-icone="chave">Minha senha</button>
+        <button type="button" class="botao botao--fantasma botao--pequeno" id="sair" data-icone="sair">Sair</button>
+      </div>
     </div>
   </aside>
 
@@ -75,6 +78,25 @@
 
 <dialog class="ficha" id="ficha" aria-label="Ficha do contato"></dialog>
 <dialog class="janela" id="novo" aria-label="Novo contato"></dialog>
+<dialog class="janela janela--pequena" id="janela-senha" aria-label="Minha senha">
+  <form id="form-minha-senha" class="form-senha" novalidate>
+    <h2>Minha senha</h2>
+    <label class="campo">Senha atual
+      <input type="password" name="atual" autocomplete="current-password" required>
+    </label>
+    <label class="campo">Nova senha (mín. 10 caracteres)
+      <input type="password" name="nova" autocomplete="new-password" minlength="10" required>
+    </label>
+    <label class="campo">Repita a nova senha
+      <input type="password" name="repetir" autocomplete="new-password" minlength="10" required>
+    </label>
+    <p class="aviso" id="senha-aviso" role="alert"></p>
+    <div class="form-acoes">
+      <button type="button" class="botao botao--fantasma" id="senha-cancelar">Cancelar</button>
+      <button type="submit" class="botao botao--primario">Salvar nova senha</button>
+    </div>
+  </form>
+</dialog>
 <div class="avisos" id="avisos" aria-live="polite"></div>
 
 <script type="module" src="./js/app.js"></script>

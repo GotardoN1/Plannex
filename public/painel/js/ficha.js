@@ -1,11 +1,13 @@
 // Ficha do contato: dados do formulário, negócio (valor, nota, pagamento, prazo, responsável),
 // etapas e linha do tempo com anotações da equipe.
-import { estado, acoes, contatoPorId, usuarioPorId } from './estado.js';
+import { estado, acoes, contatoPorId, usuarioPorId, eAdmin } from './estado.js';
 import { api } from './api.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, indiceEtapa,
-  dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr,
+  dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr, tamanhoArquivo,
 } from './util.js';
+
+const CATEGORIAS = { ordem: 'Ordem de serviço', nota: 'Nota fiscal', outro: 'Outro' };
 
 const janela = () => document.querySelector('#ficha');
 let atualId = null;
@@ -25,6 +27,7 @@ export function abrirFicha(id) {
   if (!janela().open) janela().showModal();
   janela().querySelector('.ficha-corpo').scrollTop = 0;
   carregarLinhaDoTempo();
+  carregarArquivos();
   if (!contato.lido_em) acoes.alterar(id, { lido: true }, null);
 }
 
@@ -38,6 +41,7 @@ export function atualizarFicha() {
   desenhar();
   janela().querySelector('.ficha-corpo').scrollTop = rolagem;
   carregarLinhaDoTempo();
+  carregarArquivos();
 }
 
 function desenhar() {
@@ -51,12 +55,16 @@ function desenhar() {
       el('p', '', etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`)))),
     fechar);
 
+  // Em "Notas e ordens", os documentos sobem para o topo da coluna.
+  const documentos = blocoDocumentos(c);
+  const emNotas = c.etapa === 'nota_emitida';
   const corpo = el('div', 'ficha-corpo',
     etapas(c),
     acoesRapidas(c),
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoContato(c), blocoSolicitacao(c)),
-      el('div', 'ficha-coluna', blocoNegocio(c), blocoLinhaDoTempo())));
+      el('div', 'ficha-coluna', emNotas ? documentos : null, eAdmin() ? blocoNegocio(c) : blocoPrazo(c), emNotas ? null : documentos, blocoLinhaDoTempo())));
+  janela().className = `ficha ficha--${c.servico}`;
 
   janela().replaceChildren(cabecalho, corpo);
 }
@@ -94,6 +102,7 @@ function acoesRapidas(c) {
   const email = linkEmail(c);
   if (whatsapp) barra.append(link('WhatsApp', whatsapp, 'botao botao--whatsapp', { icone: 'whatsapp', novaAba: true, titulo: 'Abrir conversa com mensagem pronta' }));
   if (email) barra.append(link('Responder por e-mail', email, 'botao', { icone: 'email' }));
+  if (!eAdmin()) return barra;
   if (c.arquivado_em) {
     barra.append(botao('Restaurar', 'botao--fantasma', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
   } else {
@@ -130,7 +139,7 @@ function acoesRapidas(c) {
 
 function blocoContato(c) {
   const titulo = el('div', 'bloco-topo', el('h3', '', 'Contato'),
-    botao(editandoDados ? 'Cancelar' : 'Editar', 'botao--fantasma botao--pequeno', () => { editandoDados = !editandoDados; desenhar(); carregarLinhaDoTempo(); }, { icone: editandoDados ? 'fechar' : 'editar' }));
+    !eAdmin() ? null : botao(editandoDados ? 'Cancelar' : 'Editar', 'botao--fantasma botao--pequeno', () => { editandoDados = !editandoDados; desenhar(); carregarLinhaDoTempo(); }, { icone: editandoDados ? 'fechar' : 'editar' }));
   if (editandoDados) return el('section', 'bloco', titulo, formularioDados(c));
 
   const copiar = (valor, rotulo) => botao('', 'botao--icone botao--fantasma botao--pequeno', async () => {
@@ -257,8 +266,21 @@ function blocoNegocio(c) {
   const data = (campo, valorAtual) => {
     const entrada = el('input');
     entrada.type = 'date';
+    entrada.min = '2000-01-01';
+    entrada.max = '2100-12-31';
     entrada.value = valorAtual || '';
-    entrada.addEventListener('change', () => salvar({ [campo]: entrada.value || null }));
+    let ultimo = valorAtual || '';
+    const gravar = () => {
+      const valor = entrada.value;
+      if (valor === ultimo) return;
+      if (valor && !dataCompleta(valor)) return;
+      ultimo = valor;
+      salvar({ [campo]: valor || null });
+    };
+    // Espera a digitação parar; ao sair do campo, grava na hora.
+    let espera;
+    entrada.addEventListener('change', () => { clearTimeout(espera); espera = setTimeout(gravar, 900); });
+    entrada.addEventListener('blur', () => { clearTimeout(espera); gravar(); });
     return entrada;
   };
 
@@ -275,6 +297,142 @@ function blocoNegocio(c) {
       ? el('p', `negocio-resumo${c.pago_em ? ' is-pago' : ''}`, icone(c.pago_em ? 'ok' : 'dinheiro'),
         c.pago_em ? `${reais(c.valor_centavos)} recebidos em ${diaBr(c.pago_em)}` : `${reais(c.valor_centavos)} a receber`)
       : null);
+}
+
+// Para o funcionário: só responsável e prazo, sem valores.
+function blocoPrazo(c) {
+  const responsavel = usuarioPorId(c.responsavel_id);
+  const prazo = c.etapa !== 'entregue' ? situacaoPrazo(c.prazo) : null;
+  return el('section', 'bloco',
+    el('div', 'bloco-topo', el('h3', '', 'Entrega')),
+    el('dl', 'dados',
+      item('Responsável', responsavel ? `${responsavel.nome}${responsavel.id === estado.usuario.id ? ' (você)' : ''}` : 'Ninguém'),
+      item('Prazo de entrega', c.prazo
+        ? el('span', 'com-acao', diaBr(c.prazo), prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, prazo.texto) : null)
+        : 'Sem prazo definido')));
+}
+
+function dataCompleta(valor) {
+  const ano = Number(String(valor).slice(0, 4));
+  return /^\d{4}-\d{2}-\d{2}$/.test(valor) && ano >= 2000 && ano <= 2100;
+}
+
+// ---------- Documentos (notas e ordens de serviço) ----------
+
+function blocoDocumentos(c) {
+  const admin = eAdmin();
+  const categorias = Object.entries(CATEGORIAS).filter(([chave]) => admin || chave !== 'nota');
+  const categoria = el('select');
+  categoria.setAttribute('aria-label', 'Tipo do arquivo');
+  for (const [valor, texto] of categorias) categoria.append(opcao(valor, texto));
+
+  const entrada = el('input');
+  entrada.type = 'file';
+  entrada.accept = '.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.xlsm,.csv,.doc,.docx,.xml,.txt,.zip';
+  entrada.className = 'sr';
+  entrada.id = 'documento-arquivo';
+
+  const status = el('p', 'aviso');
+  const zona = el('label', 'zona-envio', icone('enviar'),
+    el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
+    el('small', '', 'PDF, imagem, Excel ou Word · até 10 MB'));
+  zona.htmlFor = 'documento-arquivo';
+
+  const enviar = async arquivo => {
+    if (!arquivo) return;
+    if (arquivo.size > 10 * 1024 * 1024) { status.textContent = 'O arquivo passa de 10 MB.'; return; }
+    status.classList.remove('is-ok');
+    status.textContent = `Enviando ${arquivo.name}…`;
+    zona.classList.add('is-enviando');
+    const dados = new FormData();
+    dados.append('categoria', categoria.value);
+    dados.append('arquivo', arquivo);
+    try {
+      const resposta = await fetch(`/api/contatos/${c.id}/arquivos`, { method: 'POST', body: dados, credentials: 'same-origin' });
+      const corpo = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(corpo.erro || 'Não foi possível enviar.');
+      status.textContent = `${arquivo.name} anexado.`;
+      status.classList.add('is-ok');
+      entrada.value = '';
+      carregarArquivos();
+      carregarLinhaDoTempo();
+      acoes.recarregar({ silencioso: true });
+    } catch (e) {
+      status.textContent = e.message;
+    } finally {
+      zona.classList.remove('is-enviando');
+    }
+  };
+  entrada.addEventListener('change', () => enviar(entrada.files[0]));
+  zona.addEventListener('dragover', evento => { evento.preventDefault(); zona.classList.add('is-alvo'); });
+  zona.addEventListener('dragleave', () => zona.classList.remove('is-alvo'));
+  zona.addEventListener('drop', evento => {
+    evento.preventDefault();
+    zona.classList.remove('is-alvo');
+    enviar(evento.dataTransfer.files[0]);
+  });
+
+  const destaque = c.etapa === 'nota_emitida';
+  return el('section', `bloco bloco--documentos${destaque ? ' is-destaque' : ''}`,
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('anexo'), admin ? 'Notas e ordens de serviço' : 'Ordens de serviço')),
+    destaque
+      ? el('p', 'dica-etapa', admin ? 'Etapa de notas e ordens: anexe aqui a nota fiscal e a OS.' : 'Etapa de ordens: anexe aqui a OS.')
+      : null,
+    el('ul', 'documentos', el('li', 'carregando', 'Carregando…')),
+    el('div', 'envio', el('label', 'campo', 'Tipo', categoria), entrada, zona),
+    status);
+}
+
+async function carregarArquivos() {
+  const id = atualId;
+  const lista = janela().querySelector('.documentos');
+  if (!lista) return;
+  try {
+    const { arquivos } = await api(`/api/contatos/${id}/arquivos`);
+    if (id !== atualId || !lista.isConnected) return;
+    if (!arquivos.length) {
+      lista.replaceChildren(el('li', 'vazio-mini', 'Nenhum arquivo anexado ainda.'));
+      return;
+    }
+    lista.replaceChildren(...arquivos.map(a => {
+      const baixar = el('a', 'documento-nome', icone('documento'), el('span', '', a.nome));
+      baixar.href = `/api/arquivos/${a.id}`;
+      baixar.download = a.nome;
+      baixar.title = `Baixar ${a.nome}`;
+      const li = el('li', `documento documento--${a.categoria}`,
+        baixar,
+        el('span', 'documento-info', el('span', `categoria categoria--${a.categoria}`, CATEGORIAS[a.categoria]),
+          `${tamanhoArquivo(a.tamanho)} · ${a.usuario || 'usuário removido'} · ${dataHora(a.criado_em)}`));
+      if (eAdmin() || a.usuario_id === estado.usuario.id) li.append(botaoRemover(a));
+      return li;
+    }));
+  } catch (e) {
+    lista.replaceChildren(el('li', 'aviso', e.message));
+  }
+}
+
+// Remover pede um segundo clique.
+function botaoRemover(a) {
+  const remover = botao('', 'botao--icone botao--fantasma botao--pequeno', null, { icone: 'lixo', titulo: `Remover ${a.nome}` });
+  let confirmando = false;
+  remover.addEventListener('click', async () => {
+    if (!confirmando) {
+      confirmando = true;
+      remover.classList.add('is-confirmando');
+      remover.title = 'Clique de novo para remover';
+      setTimeout(() => { confirmando = false; remover.classList.remove('is-confirmando'); remover.title = `Remover ${a.nome}`; }, 3000);
+      return;
+    }
+    try {
+      await api(`/api/arquivos/${a.id}`, { method: 'DELETE' });
+      carregarArquivos();
+      carregarLinhaDoTempo();
+      acoes.recarregar({ silencioso: true });
+    } catch (e) {
+      acoes.avisar(e.message, 'erro');
+    }
+  });
+  return remover;
 }
 
 function opcao(valor, texto) {

@@ -19,6 +19,9 @@ export const acoes = {
   novoContato: () => {},
 };
 
+// Administrador vê e faz tudo; funcionário só as demandas dele (o servidor já manda só essas).
+export const eAdmin = () => estado.usuario?.papel === 'admin';
+
 export const contatoPorId = id => estado.contatos.find(c => c.id === id);
 export const usuarioPorId = id => estado.usuarios.find(u => u.id === id);
 

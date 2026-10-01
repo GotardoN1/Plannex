@@ -1,6 +1,6 @@
 // Central Plannex: login, navegação, busca, recarga automática e as ações compartilhadas.
 import { api, quandoExpirar } from './api.js';
-import { estado, acoes, contatoPorId } from './estado.js';
+import { estado, acoes, contatoPorId, eAdmin } from './estado.js';
 import { el, botao, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, normalizar, textoBusca, relativo, primeiroNome } from './util.js';
 import { desenharVisao } from './visao.js';
 import { desenharEntrada } from './entrada.js';
@@ -13,14 +13,17 @@ import { abrirNovo } from './novo.js';
 const $ = seletor => document.querySelector(seletor);
 const $$ = seletor => [...document.querySelectorAll(seletor)];
 
+// "admin: true": só administrador vê. O funcionário fica com as demandas dele e a agenda.
 const TELAS = {
-  visao: { titulo: 'Visão geral', desenhar: desenharVisao },
+  visao: { titulo: 'Visão geral', desenhar: desenharVisao, admin: true },
   entrada: { titulo: 'Caixa de entrada', desenhar: desenharEntrada },
-  andamento: { titulo: 'Andamento', desenhar: desenharQuadro },
+  andamento: { titulo: 'Andamento', desenhar: desenharQuadro, admin: true },
   agenda: { titulo: 'Agenda', desenhar: desenharAgenda },
-  arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }) },
-  equipe: { titulo: 'Equipe', desenhar: desenharEquipe },
+  arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
+  equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
 };
+const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin());
+const telaInicial = () => (eAdmin() ? 'visao' : 'entrada');
 const RECARGA_MS = 45000;
 
 let telaAtual = 'visao';
@@ -31,7 +34,7 @@ let redesenhoPendente = false;
 
 function telaDoEndereco() {
   const nome = location.hash.replace(/^#\/?/, '');
-  return TELAS[nome] ? nome : 'visao';
+  return podeVer(nome) ? nome : telaInicial();
 }
 
 function navegar(nome) {
@@ -40,6 +43,7 @@ function navegar(nome) {
 }
 
 function mostrarTela(nome) {
+  if (!podeVer(nome)) nome = telaInicial();
   telaAtual = nome;
   for (const b of $$('[data-tela]')) {
     if (b.dataset.tela === nome) b.setAttribute('aria-current', 'page');
@@ -52,6 +56,7 @@ function mostrarTela(nome) {
 
 function desenharTela() {
   redesenhoPendente = false;
+  if (!podeVer(telaAtual)) telaAtual = telaInicial();
   TELAS[telaAtual].desenhar($('#tela'));
   atualizarContadores();
 }
@@ -89,18 +94,21 @@ function atualizarContadores() {
 async function recarregar({ silencioso = false } = {}) {
   try {
     const dados = await api('/api/central');
-    const novos = idsConhecidos ? dados.contatos.filter(c => !idsConhecidos.has(c.id) && c.origem === 'site') : [];
+    const admin = dados.usuario.papel === 'admin';
+    const novos = idsConhecidos ? dados.contatos.filter(c => !idsConhecidos.has(c.id) && (!admin || c.origem === 'site')) : [];
     Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, atualizadoEm: new Date().toISOString() });
     idsConhecidos = new Set(dados.contatos.map(c => c.id));
     mostrarUsuario();
     redesenharQuandoPuder();
     atualizarFicha();
     for (const c of novos.slice(0, 3)) {
-      avisar(`Novo contato: ${c.nome} (${c.servico === 'calculos' ? 'Cálculos' : 'Automação'})`, 'novo', { rotulo: 'Abrir', aoClicar: () => abrirFicha(c.id) });
+      const servico = c.servico === 'calculos' ? 'Cálculos' : 'Automação';
+      avisar(admin ? `Novo contato: ${c.nome} (${servico})` : `Nova demanda para você: ${c.nome} (${servico})`, 'novo', { rotulo: 'Abrir', aoClicar: () => abrirFicha(c.id) });
     }
     if (novos.length > 3) avisar(`E mais ${novos.length - 3} contatos novos na caixa de entrada.`, 'novo');
     return true;
   } catch (e) {
+    console.error(e);
     if (!silencioso && estado.usuario) avisar(e.message, 'erro');
     return false;
   }
@@ -165,9 +173,15 @@ function mostrarLogin() {
 }
 
 function mostrarUsuario() {
+  const admin = eAdmin();
   $('#usuario-avatar').replaceChildren(avatar(estado.usuario.nome));
   $('#usuario-nome').textContent = estado.usuario.nome;
-  $('#usuario-login').textContent = `@${estado.usuario.usuario}`;
+  $('#usuario-login').textContent = admin ? 'Administrador' : 'Funcionário';
+  // Menu conforme o acesso.
+  for (const b of $$('[data-tela]')) b.hidden = !podeVer(b.dataset.tela);
+  $('[data-tela="entrada"] .nav-rotulo').textContent = admin ? 'Caixa de entrada' : 'Minhas demandas';
+  $('#novo-contato').hidden = !admin;
+  $('.marca').href = `#/${telaInicial()}`;
 }
 
 async function entrar() {
@@ -265,7 +279,7 @@ document.addEventListener('keydown', evento => {
   if ($('#tela-app').hidden || document.querySelector('dialog[open]')) return;
   if (evento.target.matches('input, textarea, select') || evento.ctrlKey || evento.metaKey || evento.altKey) return;
   if (evento.key === '/') { evento.preventDefault(); busca.focus(); }
-  if (evento.key === 'n') { evento.preventDefault(); abrirNovo(); }
+  if (evento.key === 'n' && eAdmin()) { evento.preventDefault(); abrirNovo(); }
 });
 
 // ---------- Eventos gerais ----------
@@ -273,6 +287,28 @@ document.addEventListener('keydown', evento => {
 for (const b of $$('[data-icone]')) b.prepend(icone(b.dataset.icone));
 for (const b of $$('[data-tela]')) b.addEventListener('click', () => navegar(b.dataset.tela));
 $('#novo-contato').addEventListener('click', () => abrirNovo());
+$('#minha-senha').addEventListener('click', () => {
+  $('#form-minha-senha').reset();
+  $('#senha-aviso').textContent = '';
+  $('#senha-aviso').classList.remove('is-ok');
+  $('#janela-senha').showModal();
+});
+$('#senha-cancelar').addEventListener('click', () => $('#janela-senha').close());
+$('#form-minha-senha').addEventListener('submit', async evento => {
+  evento.preventDefault();
+  const aviso = $('#senha-aviso');
+  aviso.classList.remove('is-ok');
+  const { atual, nova, repetir } = Object.fromEntries(new FormData(evento.target));
+  if (nova.length < 10) { aviso.textContent = 'A nova senha precisa ter pelo menos 10 caracteres.'; return; }
+  if (nova !== repetir) { aviso.textContent = 'As novas senhas não conferem.'; return; }
+  try {
+    await api('/api/senha', { method: 'POST', corpo: { atual, nova } });
+    $('#janela-senha').close();
+    avisar('Senha trocada. Suas outras sessões abertas foram encerradas.');
+  } catch (e) {
+    aviso.textContent = e.message;
+  }
+});
 $('#atualizar').addEventListener('click', async () => {
   $('#atualizar').classList.add('is-girando');
   await recarregar();
@@ -283,7 +319,7 @@ window.addEventListener('hashchange', () => { if (!$('#tela-app').hidden) mostra
 $('#tela').addEventListener('focusout', () => { setTimeout(() => { if (redesenhoPendente) redesenharQuandoPuder(); }, 0); });
 
 // Fecha a ficha e o cadastro clicando fora.
-for (const janela of [$('#ficha'), $('#novo')]) {
+for (const janela of [$('#ficha'), $('#novo'), $('#janela-senha')]) {
   janela.addEventListener('click', evento => { if (evento.target === janela) janela.close(); });
 }
 $('#ficha').addEventListener('close', () => { if (!fichaAberta()) redesenharQuandoPuder(); });

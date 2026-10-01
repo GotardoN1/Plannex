@@ -1,16 +1,16 @@
 // Utilitários da Central: montagem de elementos, formatos e dados fixos.
 // Os nomes e textos vêm de um formulário público: tudo vira textContent, nunca innerHTML.
 
+// As chaves vêm do banco; os nomes são os da versão resumida das etapas.
 export const ETAPAS = [
   ['pedido', 'Pedido'],
-  ['nota_emitida', 'Nota emitida'],
-  ['pagamento_efetuado', 'Pagamento efetuado'],
+  ['nota_emitida', 'Notas e ordens'],
   ['processo_iniciado', 'Processo iniciado'],
-  ['revisado', 'Revisado'],
-  ['concluido', 'Concluído'],
+  ['revisado', 'Revisado pelo cliente'],
   ['entregue', 'Entregue'],
 ];
-export const NOME_ETAPA = Object.fromEntries(ETAPAS);
+// Etapas antigas continuam com nome, para o histórico de quem já passou por elas.
+export const NOME_ETAPA = { ...Object.fromEntries(ETAPAS), pagamento_efetuado: 'Pagamento efetuado', concluido: 'Concluído' };
 export const CAIXA = 'Caixa de entrada';
 export const indiceEtapa = etapa => ETAPAS.findIndex(([chave]) => chave === etapa);
 
@@ -102,6 +102,10 @@ const ICONES = {
   sistema: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
   chegada: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  anexo: '<path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+  documento: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/>',
+  enviar: '<path d="M12 16V4M7 8.5l5-5 5 5M5 20h14"/>',
+  escudo: '<path d="M12 3l7 3v5.5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z"/>',
 };
 
 export function icone(nome, classe = 'icone') {
@@ -225,6 +229,17 @@ export function lerReais(texto) {
 export function centavosParaCampo(centavos) {
   return centavos === null || centavos === undefined ? '' : (centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+export function tamanhoArquivo(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`;
+}
+
+export const PAPEIS = {
+  admin: { nome: 'Administrador', descricao: 'Vê tudo: visão geral, todos os contatos, valores, arquivo e equipe.' },
+  funcionario: { nome: 'Funcionário', descricao: 'Vê só as demandas em que é responsável e a agenda dele. Sem valores nem controle interno.' },
+};
 
 // ---------- Contato ----------
 

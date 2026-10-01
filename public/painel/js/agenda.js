@@ -1,5 +1,5 @@
 // Agenda: calendário do mês com prazos de entrega e pagamentos, e a lista dos próximos dias.
-import { estado, acoes, ativos } from './estado.js';
+import { estado, acoes, ativos, eAdmin } from './estado.js';
 import { el, botao, icone, NOME_ETAPA, hoje, somarDias, nomeMes, reais, situacaoPrazo, diaBr } from './util.js';
 
 const visivel = { ano: null, mes: null };
@@ -24,7 +24,9 @@ export function desenharAgenda(raiz) {
   const cabecalho = el('header', 'tela-topo',
     el('div', '',
       el('h1', '', 'Agenda'),
-      el('p', '', 'Prazos de entrega e pagamentos recebidos. Defina o prazo e a data do pagamento na ficha de cada contato.')));
+      el('p', '', eAdmin()
+        ? 'Prazos de entrega e pagamentos recebidos. Defina o prazo e a data do pagamento na ficha de cada contato.'
+        : 'Os prazos de entrega das suas demandas.')));
 
   const navegacao = el('div', 'agenda-nav',
     botao('', 'botao--icone botao--fantasma', () => mudarMes(-1), { icone: 'seta_esq', titulo: 'Mês anterior' }),
@@ -33,7 +35,7 @@ export function desenharAgenda(raiz) {
     botao('Hoje', 'botao--fantasma botao--pequeno', () => { visivel.ano = null; desenharAgenda(raiz); }),
     el('div', 'agenda-resumo',
       el('span', '', el('i', 'ponto-evento ponto-evento--prazo'), `${entregas} ${entregas === 1 ? 'prazo' : 'prazos'}`),
-      el('span', '', el('i', 'ponto-evento ponto-evento--pagamento'), `${reais(recebido)} recebidos`)));
+      eAdmin() ? el('span', '', el('i', 'ponto-evento ponto-evento--pagamento'), `${reais(recebido)} recebidos`) : null));
 
   raiz.replaceChildren(cabecalho,
     el('div', 'agenda', el('section', 'calendario-caixa', navegacao, calendario(eventos, dia)), proximos(eventos, dia)));

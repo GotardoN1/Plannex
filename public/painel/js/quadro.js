@@ -1,6 +1,6 @@
 // Andamento: quadro com uma coluna por etapa. Cartões vão por arrastar ou pelas setas.
 import { estado, acoes, ativos, usuarioPorId } from './estado.js';
-import { segmentado, campoFiltro } from './entrada.js';
+import { listaSuspensa, campoFiltro } from './entrada.js';
 import {
   el, botao, icone, avatar, etiquetaServico, ETAPAS, CAIXA, reais, reaisCurto, situacaoPrazo,
   normalizar, textoBusca, diaDe, hoje, diasEntre, relativo,
@@ -18,10 +18,12 @@ export function desenharQuadro(raiz) {
   const quadro = el('div', 'quadro');
   const pintar = () => quadro.replaceChildren(...colunas());
 
+  // Responsável: atalhos e, abaixo, cada pessoa da equipe (sem encher a tela de nomes).
+  const pessoas = estado.usuarios.filter(u => u.id !== estado.usuario.id).map(u => [String(u.id), u.nome]);
   const ferramentas = el('div', 'ferramentas',
-    segmentado([['', 'Todos os serviços'], ['calculos', 'Cálculos'], ['automacao', 'Automação']], filtro.servico,
+    listaSuspensa('Serviço', [['', 'Todos os serviços'], ['calculos', 'Cálculos'], ['automacao', 'Automação']], filtro.servico,
       valor => { filtro.servico = valor; redesenhar(); }),
-    segmentado([['', 'Toda a equipe'], ['eu', 'Comigo'], ['ninguem', 'Sem responsável']], filtro.responsavel,
+    listaSuspensa('Responsável', [['', 'Toda a equipe'], ['eu', 'Comigo'], ['ninguem', 'Sem responsável'], ...pessoas], filtro.responsavel,
       valor => { filtro.responsavel = valor; redesenhar(); }),
     campoFiltro(filtro.texto, texto => { filtro.texto = texto; pintar(); }));
 
@@ -33,7 +35,8 @@ function filtrados() {
   const busca = normalizar(filtro.texto);
   return ativos().filter(c => c.etapa &&
     (!filtro.servico || c.servico === filtro.servico) &&
-    (!filtro.responsavel || (filtro.responsavel === 'eu' ? c.responsavel_id === estado.usuario.id : !c.responsavel_id)) &&
+    (!filtro.responsavel || (filtro.responsavel === 'eu' ? c.responsavel_id === estado.usuario.id
+      : filtro.responsavel === 'ninguem' ? !c.responsavel_id : c.responsavel_id === Number(filtro.responsavel))) &&
     (!busca || textoBusca(c).includes(busca)));
 }
 
@@ -77,7 +80,7 @@ function colunas() {
 }
 
 function cartao(c, indice) {
-  const artigo = el('article', `cartao${c.lido_em ? '' : ' is-novo'}`);
+  const artigo = el('article', `cartao cartao--${c.servico}${c.lido_em ? '' : ' is-novo'}`);
   artigo.draggable = true;
   artigo.tabIndex = 0;
   artigo.dataset.id = c.id;
@@ -106,17 +109,19 @@ function cartao(c, indice) {
 
   const anterior = indice > 0 ? ETAPAS[indice - 1] : null;
   const proxima = ETAPAS[indice + 1];
-  artigo.append(
+  artigo.append(...[
     el('div', 'cartao-topo', etiquetaServico(c.servico), prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null),
     el('strong', 'cartao-nome', c.nome),
     detalhes.length ? el('div', 'cartao-detalhes', detalhes) : null,
     el('div', 'cartao-rodape',
       responsavel ? avatar(responsavel.nome, 'avatar--pequeno') : el('span', 'sem-responsavel', icone('usuario'), el('span', 'sr', 'Sem responsável')),
       c.total_notas ? el('span', 'cartao-notas', icone('nota'), String(c.total_notas)) : null,
+      c.total_arquivos ? el('span', 'cartao-notas', icone('anexo'), String(c.total_arquivos)) : null,
       el('time', 'cartao-tempo', c.atualizado_em ? relativo(c.atualizado_em) : ''),
       el('span', 'cartao-setas',
         botao('', 'botao--icone botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior ? anterior[0] : null), { icone: 'seta_esq', titulo: `Voltar para ${anterior ? anterior[1] : CAIXA}` }),
-        proxima ? botao('', 'botao--icone botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir', titulo: `Avançar para ${proxima[1]}` }) : null)));
+        proxima ? botao('', 'botao--icone botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir', titulo: `Avançar para ${proxima[1]}` }) : null)),
+  ].filter(Boolean));
   return artigo;
 }
 

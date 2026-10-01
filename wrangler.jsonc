@@ -18,6 +18,10 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Arquivos anexados aos contatos (notas fiscais e ordens de serviço). Grátis até 1 GB.
+  "kv_namespaces": [
+    { "binding": "ARQUIVOS", "id": "915b1d70d2cb4b86b8fdac964303aa5f" }
+  ],
   // Limpeza diária de sessões vencidas e tentativas antigas (03h de Brasília).
   "triggers": { "crons": ["0 6 * * *"] },
   "observability": { "enabled": true }

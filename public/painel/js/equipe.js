@@ -1,19 +1,24 @@
-// Equipe: quem acessa a Central, novos acessos, senha provisória e a própria senha.
+// Equipe (só administrador): quem acessa a Central, tipo de acesso, novos acessos e senha provisória.
 import { estado, acoes, ativos } from './estado.js';
 import { api } from './api.js';
-import { el, botao, avatar, dataCurta } from './util.js';
+import { el, botao, icone, avatar, dataCurta, PAPEIS } from './util.js';
 
 export function desenharEquipe(raiz) {
   const cabecalho = el('header', 'tela-topo',
     el('div', '',
       el('h1', '', 'Equipe'),
-      el('p', '', 'Quem acessa a Central. Cada pessoa entra com o próprio usuário e senha, e o histórico mostra quem fez o quê.')));
+      el('p', '', 'Quem acessa a Central e o que cada um vê. Cada pessoa entra com o próprio usuário e senha, e o histórico mostra quem fez o quê.')));
 
-  const lista = el('ul', 'equipe', estado.usuarios.map(u => pessoa(u)));
+  const admins = estado.usuarios.filter(u => u.papel === 'admin');
+  const funcionarios = estado.usuarios.filter(u => u.papel !== 'admin');
+  const grupo = (titulo, pessoas) => el('section', 'bloco',
+    el('div', 'bloco-topo', el('h2', '', `${titulo} (${pessoas.length})`)),
+    pessoas.length ? el('ul', 'equipe', pessoas.map(pessoa)) : el('p', 'vazio-mini', 'Ninguém com este acesso ainda.'));
+
   raiz.replaceChildren(cabecalho,
     el('div', 'equipe-grade',
-      el('section', 'bloco', el('div', 'bloco-topo', el('h2', '', `Pessoas (${estado.usuarios.length})`)), lista),
-      el('div', 'equipe-lado', formularioNovo(), minhaSenha())));
+      el('div', 'equipe-lado', grupo('Administradores', admins), grupo('Funcionários', funcionarios)),
+      el('div', 'equipe-lado', formularioNovo(), explicacao())));
 }
 
 function pessoa(u) {
@@ -23,10 +28,32 @@ function pessoa(u) {
     avatar(u.nome, 'avatar--medio'),
     el('div', 'pessoa-texto',
       el('strong', '', u.nome, voce ? el('span', 'voce', 'você') : null),
-      el('span', '', `@${u.usuario} · desde ${dataCurta(u.criado_em)} · ${comEla} ${comEla === 1 ? 'contato ativo' : 'contatos ativos'} sob responsabilidade`)));
-  if (voce) return li;
+      el('span', '', `@${u.usuario} · desde ${dataCurta(u.criado_em)} · ${comEla} ${comEla === 1 ? 'demanda ativa' : 'demandas ativas'}`)));
+  if (voce) {
+    li.append(el('span', `papel papel--${u.papel}`, icone(u.papel === 'admin' ? 'escudo' : 'usuario'), PAPEIS[u.papel].nome));
+    return li;
+  }
 
-  const acoesPessoa = el('div', 'pessoa-acoes');
+  // Tipo de acesso em lista: muda na hora.
+  const papel = el('select', 'papel-select');
+  papel.setAttribute('aria-label', `Acesso de ${u.nome}`);
+  for (const [chave, info] of Object.entries(PAPEIS)) {
+    const opcao = el('option', '', info.nome);
+    opcao.value = chave;
+    opcao.selected = chave === u.papel;
+    papel.append(opcao);
+  }
+  papel.addEventListener('change', async () => {
+    try {
+      await api(`/api/usuarios/${u.id}`, { method: 'PATCH', corpo: { papel: papel.value } });
+      acoes.avisar(`${u.nome} agora é ${PAPEIS[papel.value].nome.toLowerCase()}.`);
+      acoes.recarregar();
+    } catch (e) {
+      papel.value = u.papel;
+      acoes.avisar(e.message, 'erro');
+    }
+  });
+
   const formSenha = el('form', 'pessoa-senha');
   formSenha.hidden = true;
   const campo = el('input');
@@ -41,7 +68,7 @@ function pessoa(u) {
     evento.preventDefault();
     try {
       await api(`/api/usuarios/${u.id}/senha`, { method: 'POST', corpo: { senha: campo.value } });
-      acoes.avisar(`Senha de ${u.nome} redefinida. Passe a senha por um canal seguro; ${u.nome.split(' ')[0]} pode trocá-la depois.`);
+      acoes.avisar(`Senha de ${u.nome} redefinida. Passe por um canal seguro; dá para trocar depois em "Minha senha".`);
       formSenha.hidden = true;
       campo.value = '';
     } catch (e) {
@@ -49,13 +76,13 @@ function pessoa(u) {
     }
   });
 
-  const remover = botao('Remover acesso', 'botao--perigo botao--pequeno', null);
+  const remover = botao('Remover', 'botao--perigo botao--pequeno', null);
   let confirmando = false;
   remover.addEventListener('click', async () => {
     if (!confirmando) {
       confirmando = true;
       remover.querySelector('span').textContent = 'Confirmar remoção';
-      setTimeout(() => { confirmando = false; if (remover.isConnected) remover.querySelector('span').textContent = 'Remover acesso'; }, 4000);
+      setTimeout(() => { confirmando = false; if (remover.isConnected) remover.querySelector('span').textContent = 'Remover'; }, 4000);
       return;
     }
     try {
@@ -67,10 +94,12 @@ function pessoa(u) {
     }
   });
 
-  acoesPessoa.append(
-    botao('Redefinir senha', 'botao--fantasma botao--pequeno', () => { formSenha.hidden = !formSenha.hidden; if (!formSenha.hidden) campo.focus(); }, { icone: 'chave' }),
-    remover);
-  li.append(acoesPessoa, formSenha);
+  li.append(
+    el('div', 'pessoa-acoes',
+      papel,
+      botao('Senha', 'botao--fantasma botao--pequeno', () => { formSenha.hidden = !formSenha.hidden; if (!formSenha.hidden) campo.focus(); }, { icone: 'chave', titulo: 'Definir uma senha provisória' }),
+      remover),
+    formSenha);
   return li;
 }
 
@@ -84,12 +113,21 @@ function formularioNovo() {
     Object.assign(entrada, extras);
     return el('label', 'campo', rotulo, entrada);
   };
+  const papeis = el('div', 'escolha-papel', Object.entries(PAPEIS).map(([chave, info]) => {
+    const radio = el('input');
+    radio.type = 'radio';
+    radio.name = 'papel';
+    radio.value = chave;
+    radio.checked = chave === 'funcionario';
+    return el('label', 'opcao-papel', radio, el('span', '', el('strong', '', info.nome), el('small', '', info.descricao)));
+  }));
   const aviso = el('p', 'aviso');
   form.append(
     el('div', 'bloco-topo', el('h2', '', 'Dar acesso a alguém')),
     campo('Nome', 'nome', 'text', { autocomplete: 'off', maxLength: 80, placeholder: 'Ex.: Maria Souza' }),
     campo('Usuário (para entrar)', 'usuario', 'text', { autocomplete: 'off', maxLength: 60, placeholder: 'Ex.: maria', autocapitalize: 'none', spellcheck: false }),
     campo('Senha provisória', 'senha', 'password', { autocomplete: 'new-password', minLength: 10, placeholder: 'Mínimo de 10 caracteres' }),
+    el('fieldset', 'campo', el('legend', '', 'Tipo de acesso'), papeis),
     aviso,
     el('div', 'form-acoes', botao('Criar acesso', 'botao--primario', null, { icone: 'mais' })));
   form.querySelector('.form-acoes button').type = 'submit';
@@ -99,7 +137,7 @@ function formularioNovo() {
     const dados = Object.fromEntries(new FormData(form));
     try {
       await api('/api/usuarios', { method: 'POST', corpo: dados });
-      acoes.avisar(`${dados.nome} já pode entrar com o usuário "${dados.usuario.toLowerCase()}".`);
+      acoes.avisar(`${dados.nome} já pode entrar com o usuário "${dados.usuario.toLowerCase()}" (${PAPEIS[dados.papel].nome.toLowerCase()}).`);
       form.reset();
       acoes.recarregar();
     } catch (e) {
@@ -109,40 +147,11 @@ function formularioNovo() {
   return form;
 }
 
-function minhaSenha() {
-  const form = el('form', 'bloco form-equipe');
-  const entrada = (rotulo, nome, autocomplete) => {
-    const i = el('input');
-    i.type = 'password';
-    i.name = nome;
-    i.required = true;
-    i.autocomplete = autocomplete;
-    return el('label', 'campo', rotulo, i);
-  };
-  const aviso = el('p', 'aviso');
-  form.append(
-    el('div', 'bloco-topo', el('h2', '', 'Trocar minha senha')),
-    entrada('Senha atual', 'atual', 'current-password'),
-    entrada('Nova senha (mín. 10 caracteres)', 'nova', 'new-password'),
-    entrada('Repita a nova senha', 'repetir', 'new-password'),
-    aviso,
-    el('div', 'form-acoes', botao('Salvar nova senha', 'botao--primario', null, { icone: 'chave' })));
-  form.querySelector('.form-acoes button').type = 'submit';
-  form.addEventListener('submit', async evento => {
-    evento.preventDefault();
-    aviso.classList.remove('is-ok');
-    const { atual, nova, repetir } = Object.fromEntries(new FormData(form));
-    if (nova.length < 10) { aviso.textContent = 'A nova senha precisa ter pelo menos 10 caracteres.'; return; }
-    if (nova !== repetir) { aviso.textContent = 'As novas senhas não conferem.'; return; }
-    try {
-      await api('/api/senha', { method: 'POST', corpo: { atual, nova } });
-      form.reset();
-      aviso.textContent = 'Senha trocada. Suas outras sessões abertas foram encerradas.';
-      aviso.classList.add('is-ok');
-    } catch (e) {
-      aviso.textContent = e.message;
-    }
-  });
-  return form;
+function explicacao() {
+  return el('section', 'bloco explicacao-papeis',
+    el('div', 'bloco-topo', el('h2', '', 'O que cada acesso vê')),
+    el('div', 'papel-linha', el('span', 'papel papel--admin', icone('escudo'), 'Administrador'),
+      el('p', '', 'Visão geral, caixa de entrada completa, andamento, agenda com pagamentos, arquivo e equipe. Vê valores, nota fiscal e pagamentos, e anexa notas fiscais.')),
+    el('div', 'papel-linha', el('span', 'papel papel--funcionario', icone('usuario'), 'Funcionário'),
+      el('p', '', 'Só as demandas em que é o responsável e a agenda dele. Move as etapas, anota e anexa ordens de serviço. Não vê valores, nota fiscal, pagamentos, outros contatos nem a equipe.')));
 }
-

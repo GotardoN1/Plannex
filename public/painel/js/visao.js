@@ -265,9 +265,9 @@ function calcularPendencias(contatos, dia) {
     }
     if (c.etapa === 'nota_emitida' && !c.pago_em && c.atualizado_em) {
       const dias = diasEntre(diaDe(c.atualizado_em), dia);
-      if (dias >= 5) itens.push({ contato: c, nivel: 'alerta', icone: 'dinheiro', texto: `Nota emitida há ${dias} dias, pagamento pendente`, ordem: -dias });
+      if (dias >= 5) itens.push({ contato: c, nivel: 'alerta', icone: 'dinheiro', texto: `Em Notas e ordens há ${dias} dias, sem pagamento registrado`, ordem: -dias });
     }
-    if (c.etapa && !['entregue', 'nota_emitida'].includes(c.etapa) && c.atualizado_em) {
+    if (c.etapa && c.etapa !== 'entregue' && !(c.etapa === 'nota_emitida' && !c.pago_em) && c.atualizado_em) {
       const parado = diasEntre(diaDe(c.atualizado_em), dia);
       if (parado >= 7) itens.push({ contato: c, nivel: 'neutro', icone: 'relogio', texto: `Parado em ${NOME_ETAPA[c.etapa]} há ${parado} dias`, ordem: -parado });
     }

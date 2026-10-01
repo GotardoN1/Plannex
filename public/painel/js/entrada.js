@@ -1,5 +1,5 @@
 // Caixa de entrada (todos os contatos ativos) e Arquivo (contatos arquivados).
-import { estado, acoes, ativos, usuarioPorId } from './estado.js';
+import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
   relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
@@ -21,13 +21,16 @@ export function desenharEntrada(raiz, { arquivo = false } = {}) {
   const aguardando = ativos().filter(c => !c.etapa).length;
   const naoLidos = ativos().filter(c => !c.lido_em).length;
 
+  const admin = eAdmin();
   const cabecalho = el('header', 'tela-topo',
     el('div', '',
-      el('h1', '', arquivo ? 'Arquivo' : 'Caixa de entrada'),
+      el('h1', '', arquivo ? 'Arquivo' : admin ? 'Caixa de entrada' : 'Minhas demandas'),
       el('p', '', arquivo
         ? 'Contatos que não seguiram adiante. Nada se perde: dá para restaurar quando quiser.'
-        : 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha e mova para Pedido para começar o atendimento.')),
-    botao('Exportar planilha', 'botao--fantasma', () => exportar(filtrar(), arquivo), { icone: 'baixar', titulo: 'Baixar os contatos desta lista em CSV (abre no Excel)' }));
+        : admin
+          ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha e mova para Pedido para começar o atendimento.'
+          : 'As demandas em que você é o responsável. Abra para ver a ficha, anexar a ordem de serviço e avançar as etapas.')),
+    admin ? botao('Exportar planilha', 'botao--fantasma', () => exportar(filtrar(), arquivo), { icone: 'baixar', titulo: 'Baixar os contatos desta lista em CSV (abre no Excel)' }) : null);
 
   const ferramentas = el('div', 'ferramentas');
   if (!arquivo) {
@@ -44,7 +47,7 @@ export function desenharEntrada(raiz, { arquivo = false } = {}) {
     conteudo.replaceChildren(lista.length ? agrupar(lista, arquivo) : vazio(arquivo, base.length));
   };
   ferramentas.append(
-    segmentado([['', 'Todos os serviços'], ['calculos', 'Cálculos'], ['automacao', 'Automação']], filtro.servico,
+    listaSuspensa('Serviço', [['', 'Todos os serviços'], ['calculos', 'Cálculos'], ['automacao', 'Automação']], filtro.servico,
       valor => { filtro.servico = valor; redesenhar(); }),
     campoFiltro(filtro.texto, texto => { filtro.texto = texto; pintarLista(); }));
 
@@ -67,7 +70,7 @@ function agrupar(lista, arquivo) {
 }
 
 function linha(c, arquivo) {
-  const item = el('li', `contato${c.lido_em ? '' : ' is-novo'}`);
+  const item = el('li', `contato contato--${c.servico}${c.lido_em ? '' : ' is-novo'}`);
   const responsavel = usuarioPorId(c.responsavel_id);
   const previa = c.descricao || c.atividade_manual || c.observacoes || '';
 
@@ -117,6 +120,20 @@ export function segmentado(opcoes, atual, aoEscolher) {
     grupo.append(b);
   }
   return grupo;
+}
+
+// Filtro em lista suspensa: mais limpo que uma fileira de botões quando há muitas opções.
+export function listaSuspensa(rotulo, opcoes, atual, aoEscolher) {
+  const select = el('select');
+  select.setAttribute('aria-label', rotulo);
+  for (const [valor, texto] of opcoes) {
+    const opcao = el('option', '', texto);
+    opcao.value = valor;
+    opcao.selected = valor === atual;
+    select.append(opcao);
+  }
+  select.addEventListener('change', () => aoEscolher(select.value));
+  return el('label', `lista-suspensa${atual ? ' is-ativa' : ''}`, el('span', 'lista-suspensa-rotulo', rotulo), select);
 }
 
 export function campoFiltro(valor, aoMudar) {

@@ -6,7 +6,7 @@
 //
 // O banco fica em .wrangler/previa.sqlite (ignorado pelo git).
 import { createServer } from 'node:http';
-import { mkdirSync, readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, existsSync, statSync, writeFileSync, rmSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +49,20 @@ const DB = {
       throw erro;
     }
   },
+};
+
+// KV simulado: cada chave vira um arquivo em .wrangler/kv-previa/.
+const pastaKv = join(raiz, '.wrangler', 'kv-previa');
+mkdirSync(pastaKv, { recursive: true });
+const caminhoKv = chave => join(pastaKv, encodeURIComponent(chave));
+const ARQUIVOS = {
+  async put(chave, valor) { writeFileSync(caminhoKv(chave), Buffer.from(valor)); },
+  async get(chave, opcoes = {}) {
+    if (!existsSync(caminhoKv(chave))) return null;
+    const conteudo = readFileSync(caminhoKv(chave));
+    return opcoes.type === 'stream' ? new Blob([conteudo]).stream() : conteudo;
+  },
+  async delete(chave) { rmSync(caminhoKv(chave), { force: true }); },
 };
 
 const args = process.argv.slice(2);
@@ -105,8 +119,8 @@ createServer(async (req, res) => {
     const partes = [];
     req.on('data', p => partes.push(p)).on('end', () => ok(Buffer.concat(partes)));
   });
-  const request = new Request(`http://localhost:${PORTA}${req.url}`, { method: req.method, headers: req.headers, body: corpo });
-  const resposta = await worker.fetch(request, { DB, ASSETS });
+  const request = new Request(`http://localhost:${PORTA}${req.url}`, { method: req.method, headers: req.headers, body: corpo, duplex: 'half' });
+  const resposta = await worker.fetch(request, { DB, ASSETS, ARQUIVOS });
   const cabecalhos = Object.fromEntries(resposta.headers);
   // O cookie Secure não pega em http no Node; na prévia ele sai sem a flag.
   if (cabecalhos['set-cookie']) cabecalhos['set-cookie'] = cabecalhos['set-cookie'].replace('; Secure', '');
