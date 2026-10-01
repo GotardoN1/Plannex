@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b1422">
+<title>Plannex | Painel</title>
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon-rounded.rev83.svg?v=83">
+<link rel="stylesheet" href="./painel.css">
+</head>
+<body>
+
+<!-- Login -->
+<main class="entrada" id="tela-login" hidden>
+  <form class="entrada-cartao" id="form-login" novalidate>
+    <img class="entrada-logo" src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385">
+    <h1>Painel interno</h1>
+    <label>Usuário
+      <input id="login-usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    </label>
+    <label>Senha
+      <input id="login-senha" name="senha" type="password" autocomplete="current-password" required>
+    </label>
+    <p class="aviso" id="login-erro" role="alert"></p>
+    <button class="botao botao--primario" type="submit" id="login-botao">Entrar</button>
+  </form>
+</main>
+
+<!-- Painel -->
+<div class="app" id="tela-app" hidden>
+  <header class="topo">
+    <a class="topo-marca" href="./"><img src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385"><span>Painel</span></a>
+    <div class="topo-usuario">
+      <span id="usuario-nome"></span>
+      <button class="botao botao--fantasma" type="button" id="abrir-senha">Trocar senha</button>
+      <button class="botao botao--fantasma" type="button" id="sair">Sair</button>
+    </div>
+  </header>
+
+  <nav class="abas" aria-label="Seções do painel">
+    <button type="button" class="aba" data-aba="entrada" aria-pressed="true">Caixa de entrada <b id="total-entrada">0</b></button>
+    <button type="button" class="aba" data-aba="andamento" aria-pressed="false">Andamento <b id="total-andamento">0</b></button>
+  </nav>
+
+  <div class="ferramentas">
+    <input type="search" id="busca" placeholder="Buscar por nome" aria-label="Buscar por nome" autocomplete="off">
+    <div class="filtros" role="group" aria-label="Filtrar por serviço">
+      <button type="button" class="filtro" data-servico="" aria-pressed="true">Todos</button>
+      <button type="button" class="filtro" data-servico="calculos" aria-pressed="false">Cálculos</button>
+      <button type="button" class="filtro" data-servico="automacao" aria-pressed="false">Automação</button>
+    </div>
+    <label class="so-novos" id="filtro-novos-rotulo"><input type="checkbox" id="filtro-novos"> Só os que não foram movidos</label>
+    <button type="button" class="botao botao--fantasma" id="atualizar" title="Atualizar">Atualizar</button>
+  </div>
+
+  <p class="aviso aviso--faixa" id="erro-geral" role="alert" hidden></p>
+
+  <section id="aba-entrada" aria-label="Caixa de entrada">
+    <ul class="lista" id="lista-entrada"></ul>
+    <p class="vazio" id="vazio-entrada" hidden>Nenhum contato por aqui.</p>
+  </section>
+
+  <section id="aba-andamento" aria-label="Andamento" hidden>
+    <div class="quadro" id="quadro"></div>
+  </section>
+</div>
+
+<!-- Histórico de um contato -->
+<dialog class="janela" id="janela-historico">
+  <form method="dialog">
+    <h2 id="historico-titulo">Histórico</h2>
+    <ol class="historico" id="historico-lista"></ol>
+    <div class="janela-acoes">
+      <button class="botao botao--perigo" type="button" id="historico-excluir">Excluir contato</button>
+      <button class="botao" value="fechar">Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Confirmação de exclusão -->
+<dialog class="janela" id="janela-excluir">
+  <form method="dialog">
+    <h2>Excluir contato?</h2>
+    <p id="excluir-texto"></p>
+    <div class="janela-acoes">
+      <button class="botao" value="cancelar">Cancelar</button>
+      <button class="botao botao--perigo" type="button" id="excluir-confirmar">Excluir</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Trocar senha -->
+<dialog class="janela" id="janela-senha">
+  <form id="form-senha" novalidate>
+    <h2>Trocar senha</h2>
+    <label>Senha atual
+      <input type="password" id="senha-atual" autocomplete="current-password" required>
+    </label>
+    <label>Nova senha <small>(mín. 10 caracteres)</small>
+      <input type="password" id="senha-nova" autocomplete="new-password" minlength="10" required>
+    </label>
+    <label>Repita a nova senha
+      <input type="password" id="senha-repetir" autocomplete="new-password" minlength="10" required>
+    </label>
+    <p class="aviso" id="senha-aviso" role="alert"></p>
+    <div class="janela-acoes">
+      <button class="botao" type="button" id="senha-cancelar">Cancelar</button>
+      <button class="botao botao--primario" type="submit">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="./painel.js"></script>
+</body>
+</html>

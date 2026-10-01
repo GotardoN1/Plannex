@@ -1,0 +1,196 @@
+/* Painel interno da Plannex. Mesmas cores do site (style.revNNN.css). */
+:root {
+  --bg: #0b1422;
+  --surface: #111e30;
+  --surface-2: #162741;
+  --ink: #eef3f8;
+  --muted: #b1bed0;
+  --line: #304158;
+  --calculos: #f29a63;
+  --automacao: #65aaf5;
+  --ok: #8de0b4;
+  --perigo: #ff8a8a;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { margin: 0; }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 "DM Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--automacao); outline-offset: 2px; }
+
+/* ---------- Botões ---------- */
+.botao {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 38px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface-2); cursor: pointer;
+  white-space: nowrap;
+}
+.botao:hover { border-color: #47607f; }
+.botao:disabled { opacity: .55; cursor: progress; }
+.botao--primario { background: var(--automacao); border-color: var(--automacao); color: #07111f; font-weight: 600; }
+.botao--primario:hover { background: #82bbf8; border-color: #82bbf8; }
+.botao--fantasma { background: transparent; }
+.botao--perigo { border-color: #6b3a44; color: var(--perigo); background: transparent; }
+.botao--pequeno { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.botao--icone { min-width: 32px; padding: 0; }
+
+/* ---------- Campos ---------- */
+label { display: grid; gap: 6px; color: var(--muted); font-size: 14px; }
+label small { color: var(--muted); font-size: 12px; }
+input[type="text"], input[type="password"], input[type="search"], input:not([type]) {
+  width: 100%; min-height: 42px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); color: var(--ink);
+}
+input::placeholder { color: #7f8ea3; }
+
+.aviso { min-height: 1.2em; margin: 0; color: var(--perigo); font-size: 14px; }
+.aviso.is-ok { color: var(--ok); }
+.aviso--faixa { margin: 0 16px 12px; padding: 10px 14px; border: 1px solid #6b3a44; border-radius: 10px; background: #2a1820; }
+
+/* ---------- Login ---------- */
+.entrada { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.entrada-cartao {
+  width: min(380px, 100%); display: grid; gap: 16px;
+  padding: 28px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface);
+}
+.entrada-logo { width: 150px; height: auto; }
+.entrada-cartao h1 { margin: 0 0 4px; font-size: 20px; }
+
+/* ---------- Topo e abas ---------- */
+.topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.topo-marca { display: flex; align-items: center; gap: 10px; color: var(--muted); text-decoration: none; }
+.topo-marca img { width: 118px; height: auto; }
+.topo-marca span { padding-left: 10px; border-left: 1px solid var(--line); font-size: 14px; }
+.topo-usuario { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+
+.abas { display: flex; gap: 4px; padding: 14px 16px 0; overflow-x: auto; }
+.aba {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border: 0; border-bottom: 2px solid transparent;
+  background: none; color: var(--muted); cursor: pointer; white-space: nowrap; font-weight: 600;
+}
+.aba b { min-width: 24px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); font-size: 12px; color: var(--ink); }
+.aba[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--automacao); }
+
+.ferramentas {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 16px; border-top: 1px solid var(--line);
+}
+.ferramentas input[type="search"] { flex: 1 1 220px; max-width: 360px; }
+.filtros { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; }
+.filtro { padding: 6px 12px; border: 0; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; }
+.filtro[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); }
+.so-novos { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.so-novos input { accent-color: var(--automacao); width: 16px; height: 16px; }
+#atualizar { margin-left: auto; }
+
+/* ---------- Etiquetas ---------- */
+.servico {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  border: 1px solid currentColor; white-space: nowrap;
+}
+.servico::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.servico--calculos { color: var(--calculos); }
+.servico--automacao { color: var(--automacao); }
+
+.etapa-atual { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.etapa-atual--entregue { color: var(--ok); }
+
+/* ---------- Caixa de entrada ---------- */
+.lista { list-style: none; margin: 0; padding: 0 16px 32px; display: grid; gap: 8px; }
+.linha {
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 14px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.linha .servico { justify-self: start; }
+.linha.is-nova { border-left: 3px solid var(--automacao); }
+.linha-nome { font-weight: 600; overflow-wrap: anywhere; }
+.linha-data { color: var(--muted); font-size: 13px; }
+.linha-acoes { display: flex; gap: 6px; }
+.vazio { margin: 32px 16px; color: var(--muted); text-align: center; }
+
+/* ---------- Andamento (quadro) ---------- */
+.quadro {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(236px, 1fr);
+  gap: 10px; padding: 0 16px 32px; overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
+}
+.coluna {
+  display: flex; flex-direction: column; min-height: 320px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  scroll-snap-align: start;
+}
+.coluna.is-alvo { border-color: var(--automacao); background: #13243b; }
+.coluna-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 12px 10px; border-bottom: 1px solid var(--line);
+  font-size: 13px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+}
+.coluna-topo span:first-child { display: flex; align-items: center; gap: 8px; }
+.coluna-numero { color: var(--muted); font-weight: 600; }
+.coluna-passo { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); font-size: 11px; color: var(--muted); }
+.coluna--entregue .coluna-passo { background: #1c3a31; color: var(--ok); }
+.coluna-cartoes { display: grid; align-content: start; gap: 8px; padding: 10px; flex: 1; }
+.coluna-vazia { margin: 8px 2px; color: #7f8ea3; font-size: 13px; }
+
+.cartao {
+  display: grid; gap: 8px; padding: 11px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+  cursor: grab;
+}
+.cartao .servico { justify-self: start; }
+.cartao.is-arrastando { opacity: .45; }
+.cartao-nome { font-weight: 600; overflow-wrap: anywhere; }
+.cartao-datas { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.cartao-acoes { display: flex; gap: 6px; }
+.cartao-acoes .botao--historico { margin-left: auto; }
+
+/* ---------- Janelas ---------- */
+.janela {
+  width: min(460px, calc(100% - 32px)); padding: 0;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink);
+}
+.janela::backdrop { background: #050a12cc; }
+.janela form { display: grid; gap: 14px; padding: 22px; }
+.janela h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.janela p { margin: 0; color: var(--muted); }
+.janela-acoes { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.janela-acoes .botao--perigo { margin-right: auto; }
+
+.historico { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-height: 50vh; overflow-y: auto; }
+.historico li { padding-left: 14px; border-left: 2px solid var(--line); font-size: 14px; }
+.historico time { display: block; color: var(--muted); font-size: 12px; }
+
+/* ---------- Telas estreitas ---------- */
+@media (max-width: 720px) {
+  .linha { grid-template-columns: 1fr auto; gap: 8px 10px; }
+  .linha-texto { grid-column: 1 / -1; order: -1; }
+  .linha .etapa-atual { justify-self: end; }
+  .linha-acoes { grid-column: 1 / -1; justify-content: flex-end; }
+  .quadro { grid-auto-columns: 82%; }
+  #atualizar { margin-left: 0; }
+  .topo-marca img { width: 100px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cartao, .linha, .botao { transition: border-color .15s, background-color .15s, opacity .15s; }
+}

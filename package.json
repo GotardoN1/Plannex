@@ -1,0 +1,17 @@
+{
+  "name": "plannex",
+  "private": true,
+  "type": "module",
+  "description": "Site da Plannex e painel interno de contatos (Cloudflare Workers + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrar:local": "wrangler d1 migrations apply plannex --local",
+    "db:migrar": "wrangler d1 migrations apply plannex --remote",
+    "usuario:local": "node tools/criar-usuario.mjs --local",
+    "usuario": "node tools/criar-usuario.mjs --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.145.0"
+  }
+}

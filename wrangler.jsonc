@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Mesmo nome do Worker que já publica o site (misty-king-c67fe.luh20123.workers.dev).
+  "name": "misty-king-c67fe",
+  "main": "src/index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // Só a API passa pelo código; o resto sai direto dos arquivos, com os cabeçalhos do _headers.
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "plannex",
+      "database_id": "PREENCHER_DEPOIS_DO_WRANGLER_D1_CREATE",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Limpeza diária de sessões vencidas e tentativas antigas (03h de Brasília).
+  "triggers": { "crons": ["0 6 * * *"] },
+  "observability": { "enabled": true }
+}
