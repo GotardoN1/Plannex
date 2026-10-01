@@ -248,6 +248,7 @@ function mostrarUsuario() {
   $('#usuario-login').textContent = admin ? 'Administrador' : 'Funcionário';
   // Menu conforme o acesso.
   for (const b of $$('[data-tela]')) b.hidden = !podeVer(b.dataset.tela);
+  for (const grupo of $$('.nav-grupo')) grupo.hidden = ![...grupo.querySelectorAll('[data-tela]')].some(b => !b.hidden);
   $('[data-tela="entrada"] .nav-rotulo').textContent = admin ? 'Caixa de entrada' : 'Minhas demandas';
   $('#novo-contato').hidden = !admin;
   $('.marca').href = `#/${telaInicial()}`;

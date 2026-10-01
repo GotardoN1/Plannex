@@ -140,7 +140,11 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .marca { display: flex; align-items: center; gap: 10px; padding: 0 8px; color: var(--muted); text-decoration: none; }
 .marca img { width: 112px; height: auto; }
 .marca span { padding-left: 10px; border-left: 1px solid var(--line-forte); font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.nav { display: grid; gap: 3px; }
+.nav { display: grid; gap: 14px; }
+.nav-grupo { display: grid; gap: 3px; }
+/* O traço só aparece depois de um bloco visível (o funcionário não tem a Visão geral). */
+.nav-grupo:not([hidden]) ~ .nav-grupo { padding-top: 14px; border-top: 1px solid var(--line); }
+.nav-item--rodape { margin: 0 -8px; }
 .nav-item {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 0 12px;
   border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; text-align: left; font-weight: 500;
@@ -549,6 +553,11 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .lateral-rodape { order: 2; margin: 0 0 0 auto; padding: 0; border: 0; display: flex; align-items: center; }
   .eu-texto { display: none; }
   .nav { order: 3; width: 100%; display: flex; gap: 2px; overflow-x: auto; margin: 0 -4px; padding-bottom: 2px; scrollbar-width: none; }
+  .nav-grupo { display: flex; gap: 2px; flex: none; }
+  .nav-grupo:not([hidden]) ~ .nav-grupo { padding: 0 0 0 4px; margin-left: 2px; border-top: 0; border-left: 1px solid var(--line); }
+  .nav-item--rodape { margin: 0; min-height: 34px; padding: 0 10px; width: auto; }
+  .nav-item--rodape .nav-rotulo { display: none; }
+  .nav-item--rodape[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--azul); background: transparent; }
   .nav-item { width: auto; min-height: 44px; padding: 0 12px; border-radius: 10px 10px 0 0; white-space: nowrap; }
   .nav-item[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--azul); background: transparent; }
   .barra { padding: 10px 16px; }

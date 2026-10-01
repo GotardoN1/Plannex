@@ -43,15 +43,21 @@
       <span>Central</span>
     </a>
     <nav class="nav" aria-label="Seções da Central">
-      <button type="button" class="nav-item" data-tela="visao" data-icone="visao"><span class="nav-rotulo">Visão geral</span></button>
-      <button type="button" class="nav-item" data-tela="entrada" data-icone="entrada"><span class="nav-rotulo">Caixa de entrada</span><span class="nav-contagem"></span></button>
-      <button type="button" class="nav-item" data-tela="concluidos" data-icone="ok"><span class="nav-rotulo">Concluídos</span><span class="nav-contagem nav-contagem--neutra"></span></button>
-      <button type="button" class="nav-item" data-tela="andamento" data-icone="andamento"><span class="nav-rotulo">Andamento</span><span class="nav-contagem"></span></button>
-      <button type="button" class="nav-item" data-tela="agenda" data-icone="agenda"><span class="nav-rotulo">Agenda</span></button>
-      <button type="button" class="nav-item" data-tela="arquivo" data-icone="arquivo"><span class="nav-rotulo">Arquivo</span></button>
-      <button type="button" class="nav-item" data-tela="equipe" data-icone="equipe"><span class="nav-rotulo">Equipe</span></button>
+      <div class="nav-grupo">
+        <button type="button" class="nav-item" data-tela="visao" data-icone="visao"><span class="nav-rotulo">Visão geral</span></button>
+      </div>
+      <div class="nav-grupo">
+        <button type="button" class="nav-item" data-tela="entrada" data-icone="entrada"><span class="nav-rotulo">Caixa de entrada</span><span class="nav-contagem"></span></button>
+        <button type="button" class="nav-item" data-tela="andamento" data-icone="andamento"><span class="nav-rotulo">Andamento</span><span class="nav-contagem"></span></button>
+        <button type="button" class="nav-item" data-tela="concluidos" data-icone="ok"><span class="nav-rotulo">Concluídos</span><span class="nav-contagem nav-contagem--neutra"></span></button>
+      </div>
+      <div class="nav-grupo">
+        <button type="button" class="nav-item" data-tela="agenda" data-icone="agenda"><span class="nav-rotulo">Agenda</span></button>
+        <button type="button" class="nav-item" data-tela="arquivo" data-icone="arquivo"><span class="nav-rotulo">Arquivo</span></button>
+      </div>
     </nav>
     <div class="lateral-rodape">
+      <button type="button" class="nav-item nav-item--rodape" data-tela="equipe" data-icone="equipe"><span class="nav-rotulo">Equipe</span></button>
       <div class="eu">
         <span id="usuario-avatar"></span>
         <span class="eu-texto"><strong id="usuario-nome"></strong><small id="usuario-login"></small></span>
