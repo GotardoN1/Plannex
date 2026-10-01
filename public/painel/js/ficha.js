@@ -1,7 +1,7 @@
 // Ficha do contato em abas, uma por etapa do andamento:
-//   Caixa de entrada (junta a chegada e o Pedido): contato, solicitação, entrega e documentos do cliente.
+//   Caixa de entrada (junta a chegada e o Pedido): contato e entrega (quem é e até quando entregar).
 //   Notas e ordens (só administrador): valores, pagamento, nota fiscal e ordem de serviço.
-//   Processo iniciado: prazo, documentos do cliente e anotações do processo.
+//   Processo iniciado: solicitação, documentos do cliente e anotações do processo.
 //   Revisado pelo cliente: o que o cliente pediu para ajustar.
 //   Entregue: arquivos finais (Excel, relatório), comentário e o registro do dia da entrega.
 // Clicar numa aba só mostra o conteúdo; mudar de etapa é pelo botão de ação, com confirmação.
@@ -225,9 +225,8 @@ function rodapeDoPainel(c, aba) {
 function painelEntrada(c) {
   return [
     el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoContato(c), blocoSolicitacao(c)),
-      el('div', 'ficha-coluna', blocoEntrega(c),
-        blocoArquivos(c, ['cliente'], { titulo: 'Documentos do cliente', icone: 'documento', dica: 'Os que a pessoa enviou pelo site aparecem aqui sozinhos.' }))),
+      el('div', 'ficha-coluna', blocoContato(c)),
+      el('div', 'ficha-coluna', blocoEntrega(c))),
     comentarios(c, 'entrada', 'Comentários', 'Anotar algo sobre este contato…'),
   ];
 }
@@ -246,7 +245,7 @@ function painelProcesso(c) {
   return [
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoSolicitacao(c)),
-      el('div', 'ficha-coluna', blocoEntrega(c), blocoArquivos(c, ['cliente'], { titulo: 'Documentos do cliente', icone: 'documento', semEnvio: true }))),
+      el('div', 'ficha-coluna', blocoArquivos(c, ['cliente'], { titulo: 'Documentos do cliente', icone: 'documento', dica: 'Os que a pessoa enviou pelo site aparecem aqui sozinhos. Dá para anexar outros que chegarem por WhatsApp ou e-mail.' }))),
     comentarios(c, 'processo_iniciado', 'Anotações do processo', 'Ex.: conferi os holerites, falta o índice de março…'),
   ];
 }
