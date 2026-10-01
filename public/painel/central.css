@@ -622,6 +622,8 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 /* ---------- Documentos ---------- */
 .titulo-icone { display: inline-flex; align-items: center; gap: 8px; }
 .titulo-icone .icone { width: 17px; height: 17px; color: var(--muted); }
+.bloco--documentos-anexados { gap: 10px; }
+.bloco--documentos-anexados .documento { padding: 7px 10px; }
 .bloco--documentos.is-destaque { border-color: #65aaf566; box-shadow: 0 0 0 3px #65aaf514; }
 .dica-etapa { padding: 8px 12px; border-radius: var(--radius-sm); background: #13284a; color: #cfe3fb; font-size: 13px; }
 .documentos { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }

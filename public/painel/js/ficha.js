@@ -55,9 +55,10 @@ function desenhar() {
       el('p', '', etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`)))),
     fechar);
 
-  // Notas e ordens: só administrador (mostram quanto a casa cobra). Na etapa delas, sobem para o topo.
-  const documentos = eAdmin() ? blocoDocumentos(c) : null;
+  // Notas e ordens: só administrador (mostram quanto a casa cobra). O envio aparece só na etapa
+  // "Notas e ordens"; nas outras, só a lista do que já foi anexado (e só se houver algo).
   const emNotas = c.etapa === 'nota_emitida';
+  const documentos = !eAdmin() ? null : emNotas ? blocoDocumentos(c) : c.total_arquivos ? blocoDocumentosAnexados(c) : null;
   const corpo = el('div', 'ficha-corpo',
     somenteLeitura(c) ? avisoConcluida(c) : null,
     etapas(c),
@@ -399,6 +400,15 @@ function blocoDocumentos(c) {
     status);
 }
 
+// Fora da etapa Notas e ordens: só consulta e download do que já foi anexado.
+function blocoDocumentosAnexados(c) {
+  const lista = el('ul', 'documentos', el('li', 'carregando', 'Carregando…'));
+  lista.dataset.somenteLeitura = '';
+  return el('section', 'bloco bloco--documentos-anexados',
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('anexo'), `Notas e ordens anexadas (${c.total_arquivos})`)),
+    lista);
+}
+
 async function carregarArquivos() {
   const id = atualId;
   const lista = janela().querySelector('.documentos');
@@ -419,7 +429,7 @@ async function carregarArquivos() {
         baixar,
         el('span', 'documento-info', el('span', `categoria categoria--${a.categoria}`, CATEGORIAS[a.categoria]),
           `${tamanhoArquivo(a.tamanho)} · ${a.usuario || 'usuário removido'} · ${dataHora(a.criado_em)}`));
-      if (eAdmin() || a.usuario_id === estado.usuario.id) li.append(botaoRemover(a));
+      if (!('somenteLeitura' in lista.dataset) && (eAdmin() || a.usuario_id === estado.usuario.id)) li.append(botaoRemover(a));
       return li;
     }));
   } catch (e) {
