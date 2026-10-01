@@ -5,6 +5,7 @@
 // sem valores, nota fiscal nem pagamento, e só move etapas, anota e anexa ordens.
 
 import { gerarHashSenha, conferirSenha, HASH_FALSO, base64 } from './senha.js';
+import { PERFIS_DEMO, resetarDemo } from './demo.js';
 
 // Chaves mantidas do banco; os nomes mudaram na versão resumida das etapas.
 const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
@@ -31,9 +32,16 @@ const LIMITE_LOGIN = [5, 15];
 
 const AGORA_SQL = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
 
+// Demonstração: só no Worker "plannex-demo", que tem DEMO=true. Sem a variável, nada disso existe.
+const emDemo = env => env.DEMO === 'true';
+const DEMO_ARQUIVO_MAXIMO = 1024 * 1024;
+const DEMO_LIMITE_ENVIOS = [40, 24 * 60];
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Na demonstração o site público leva direto à Central: o formulário de lá mandaria e-mail de verdade.
+    if (emDemo(env) && ['/', '/index.html'].includes(url.pathname)) return Response.redirect(new URL('/painel/', url), 302);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       return await api(request, env, url);
@@ -45,6 +53,8 @@ export default {
 
   // Limpeza diária: sessões vencidas e registros antigos de tentativas.
   async scheduled(_evento, env) {
+    // A demonstração volta aos dados de exemplo toda madrugada.
+    if (emDemo(env)) await resetarDemo(env);
     await env.DB.batch([
       env.DB.prepare(`DELETE FROM sessoes WHERE expira_em < ${AGORA_SQL}`),
       env.DB.prepare(`DELETE FROM tentativas WHERE quando < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day')`),
@@ -65,14 +75,17 @@ async function api(request, env, url) {
   }
 
   if (pathname === '/api/contato' && metodo === 'POST') return registrarContato(request, env);
-  if (pathname === '/api/login' && metodo === 'POST') return login(request, env);
+  if (pathname.startsWith('/api/demo/')) return emDemo(env) ? demo(request, env, pathname) : json({ erro: 'Rota não encontrada.' }, 404);
+  if (pathname === '/api/login' && metodo === 'POST') {
+    return emDemo(env) ? json({ erro: 'Na demonstração não há senha: escolha um perfil.' }, 403) : login(request, env);
+  }
   if (pathname === '/api/sair' && metodo === 'POST') return sair(request, env);
 
   const usuario = await usuarioDaSessao(request, env);
   if (!usuario) return json({ erro: 'Sessão expirada. Entre novamente.' }, 401);
   const admin = eAdmin(usuario);
 
-  if (pathname === '/api/sessao' && metodo === 'GET') return json({ usuario });
+  if (pathname === '/api/sessao' && metodo === 'GET') return json({ usuario, demo: emDemo(env) });
   if (pathname === '/api/central' && metodo === 'GET') return central(env, usuario);
   if (pathname === '/api/senha' && metodo === 'POST') return trocarSenha(request, env, usuario);
   if (pathname === '/api/contatos' && metodo === 'POST') return admin ? cadastrarContato(request, env, usuario) : negado();
@@ -185,14 +198,45 @@ async function login(request, env) {
     return json({ erro: 'Usuário ou senha incorretos.' }, 401);
   }
 
+  return json({ ok: true }, 200, { 'Set-Cookie': await criarSessao(env, registro.id) });
+}
+
+async function criarSessao(env, usuarioId) {
   const token = base64url(crypto.getRandomValues(new Uint8Array(32)));
   const expira = new Date(Date.now() + SESSAO_SEGUNDOS * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
   await env.DB.prepare('INSERT INTO sessoes (token_hash, usuario_id, expira_em) VALUES (?, ?, ?)')
-    .bind(await sha256(token), registro.id, expira).run();
+    .bind(await sha256(token), usuarioId, expira).run();
+  return `${COOKIE_SESSAO}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSAO_SEGUNDOS}`;
+}
 
-  return json({ ok: true }, 200, {
-    'Set-Cookie': `${COOKIE_SESSAO}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSAO_SEGUNDOS}`,
-  });
+// ---------- Demonstração ----------
+
+async function demo(request, env, pathname) {
+  const metodo = request.method;
+  // Perfis para escolher. Na primeira visita (banco vazio), monta os dados de exemplo.
+  if (pathname === '/api/demo/perfis' && metodo === 'GET') {
+    const existe = await env.DB.prepare('SELECT COUNT(*) AS total FROM usuarios').first();
+    if (!existe.total) await resetarDemo(env);
+    return json({ perfis: PERFIS_DEMO.map(({ usuario, nome, papel, dica }) => ({ usuario, nome, papel, dica })) });
+  }
+  if (pathname === '/api/demo/entrar' && metodo === 'POST') {
+    const dados = await lerJson(request);
+    const perfil = PERFIS_DEMO.find(p => p.usuario === dados?.usuario);
+    if (!perfil) return json({ erro: 'Perfil não encontrado.' }, 400);
+    const registro = await env.DB.prepare('SELECT id FROM usuarios WHERE id = ? AND usuario = ?').bind(perfil.id, perfil.usuario).first();
+    if (!registro) await resetarDemo(env);
+    return json({ ok: true }, 200, { 'Set-Cookie': await criarSessao(env, perfil.id) });
+  }
+  if (pathname === '/api/demo/reiniciar' && metodo === 'POST') {
+    const usuario = await usuarioDaSessao(request, env);
+    if (!usuario) return json({ erro: 'Escolha um perfil primeiro.' }, 401);
+    // No máximo uma vez por minuto, para ninguém travar a demonstração.
+    if (await excedeuLimite(env, 'demo-reiniciar', [1, 1])) return json({ erro: 'A demonstração acabou de ser reiniciada. Aguarde um minuto.' }, 429);
+    await resetarDemo(env);
+    await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-reiniciar').run();
+    return json({ ok: true });
+  }
+  return json({ erro: 'Rota não encontrada.' }, 404);
 }
 
 async function sair(request, env) {
@@ -328,7 +372,7 @@ async function central(env, usuario) {
     for (const campo of CAMPOS_FINANCEIROS) limpo[campo] = null;
     return limpo;
   });
-  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etapas: ETAPAS });
+  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etapas: ETAPAS, demo: emDemo(env) });
 }
 
 async function cadastrarContato(request, env, usuario) {
@@ -525,6 +569,11 @@ async function enviarArquivo(request, env, usuario, contatoId) {
   if (!(categoria in CATEGORIAS_ARQUIVO)) return json({ erro: 'Tipo de arquivo inválido.' }, 400);
   if (categoria === 'nota' && !eAdmin(usuario)) return negado();
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
+  if (emDemo(env)) {
+    if (arquivo.size > DEMO_ARQUIVO_MAXIMO) return json({ erro: 'Na demonstração, o limite é 1 MB por arquivo.' }, 413);
+    if (await excedeuLimite(env, 'demo-envio', DEMO_LIMITE_ENVIOS)) return json({ erro: 'A demonstração atingiu o limite de envios de hoje.' }, 429);
+    await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-envio').run();
+  }
   if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
 
   const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'arquivo';

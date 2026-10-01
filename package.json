@@ -9,7 +9,8 @@
     "db:migrar:local": "wrangler d1 migrations apply plannex --local",
     "db:migrar": "wrangler d1 migrations apply plannex --remote",
     "usuario:local": "node tools/criar-usuario.mjs --local",
-    "usuario": "node tools/criar-usuario.mjs --remote"
+    "usuario": "node tools/criar-usuario.mjs --remote",
+    "deploy:demo": "wrangler d1 migrations apply plannex-demo --env demo --remote && wrangler deploy --env demo"
   },
   "devDependencies": {
     "wrangler": "^4.145.0"

@@ -5,7 +5,7 @@ Site da **Plannex**, com duas frentes de serviço:
 - **Cálculos judiciais e financeiros**, feitos por economistas: atualização monetária, juros, apuração e liquidação, conferência e contestação. A entrega é a memória de cálculo em Excel e o parecer técnico assinado.
 - **Automação de planilhas** no Excel e no Office: planilhas sob medida, relatórios, macros, botões e VBA, gráficos e painéis.
 
-**[Abrir site →](https://misty-king-c67fe.luh20123.workers.dev/)**
+**[Abrir site →](https://misty-king-c67fe.luh20123.workers.dev/)** · **[Demonstração da Central →](https://plannex-demo.luh20123.workers.dev/painel/)** (dados fictícios, sem senha)
 
 ## O que tem no site
 
@@ -28,7 +28,7 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | --- | --- |
 | **Visão geral** | Saudação com o resumo do dia, números (novos na semana, em andamento, recebido e entregues no mês), contatos por semana, divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
 | **Caixa de entrada** | Todos os contatos agrupados por data, com prévia do pedido, filtros (aguardando, não lidos, serviço, texto), atalho para o WhatsApp e exportação para Excel |
-| **Andamento** | Quadro com as etapas Pedido → Nota emitida → Pagamento efetuado → Processo iniciado → Revisado → Concluído → Entregue. Cartões com valor, nota, prazo e responsável; arrastar, setas ou teclado |
+| **Andamento** | Quadro com as etapas Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente → Entregue. Cartões na cor do serviço (laranja: cálculos, azul: automação), com valor, nota, prazo, responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
 | **Equipe** | Quem acessa, novos acessos, senha provisória e troca da própria senha |
@@ -38,18 +38,44 @@ A **ficha do contato** abre de qualquer tela. Ela tem:
 - **Andamento:** a trilha das etapas, onde um clique move o contato.
 - **Atalhos:** WhatsApp com mensagem pronta e resposta por e-mail.
 - **Dados:** os dados do formulário e os do negócio (responsável, valor, número da nota, data do pagamento e prazo de entrega).
+- **Notas e ordens de serviço:** anexos de nota fiscal, OS e outros arquivos (até 10 MB cada, guardados no KV do Cloudflare). Na etapa "Notas e ordens", o bloco sobe para o topo da ficha.
 - **Linha do tempo:** anotações da equipe e o registro automático de cada mudança, com autor e horário.
 
-Ao chegar em "Pagamento efetuado", a data do pagamento é preenchida sozinha. Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
+Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
 
 A Central se atualiza sozinha a cada 45 segundos, avisa quando chega contato novo e mostra no título da aba quantos ainda não foram lidos. Mover um contato de etapa pode ser desfeito pelo aviso que aparece.
+
+### Acessos
+
+| | Administrador | Funcionário |
+| --- | --- | --- |
+| Telas | Todas | Minhas demandas e Agenda |
+| Contatos | Todos | Só os que tem como responsável |
+| Valor, nota fiscal, pagamento | Vê e edita | Não vê (nem na linha do tempo) |
+| Etapas, anotações, ordens de serviço | Sim | Sim |
+| Arquivar, excluir, cadastrar, equipe | Sim | Não |
+
+A regra vale na API: um funcionário não consegue buscar o que não vê na tela.
 
 ### Segurança e dados
 
 - **Login:** usuário e senha. Senhas guardadas com PBKDF2 (100 mil iterações, sal próprio). Sessão por cookie `HttpOnly`, `Secure` e `SameSite=Strict`, válida por 7 dias. Depois de 5 erros em 15 minutos, o login trava.
 - **Formulário:** no máximo 5 envios a cada 10 minutos por visitante, com o campo anti-robô do site. O IP não é guardado, só um hash dele para contar tentativas.
 - **Dados guardados:** os campos de texto do formulário (nome, WhatsApp, e-mail, plano, descrição e observações). Anexos ficam só no e-mail. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
-- **Equipe:** qualquer pessoa da equipe pode dar e remover acessos. Ninguém remove o próprio acesso, e a Central sempre fica com pelo menos um usuário.
+- **Equipe:** só administradores dão, mudam e removem acessos. Ninguém muda ou remove o próprio acesso, então sempre sobra um administrador.
+- **Anexos:** sempre baixados como arquivo, nunca abertos como página do site.
+
+## Demonstração
+
+Em **https://plannex-demo.luh20123.workers.dev/painel/** fica uma cópia da Central com dados fictícios, como a demonstração da intranet:
+
+- Escolha de perfil sem senha: duas pessoas administradoras e três funcionárias, cada uma com uma dica do que mostra, e um roteiro sugerido.
+- Faixa amarela no topo para trocar de perfil, reiniciar os dados ou voltar à escolha.
+- Os dados voltam ao exemplo toda madrugada (03h) e pelo botão "Reiniciar dados". As datas são relativas ao dia, então a demonstração nunca parece velha.
+- É outro Worker (`plannex-demo`), com banco e arquivos próprios. A Central real não tem as rotas de demonstração: elas só existem com `DEMO=true`.
+- Na demonstração, a página inicial do site leva direto à Central, para ninguém mandar e-mail de verdade pelo formulário. Anexos ficam limitados a 1 MB e 40 envios por dia, para não gastar a cota grátis da conta.
+
+Para publicar uma versão nova da demonstração: `npm run deploy:demo`. Para ver no computador: `PLANNEX_DEMO=1 PORT=5331 node tools/servidor-local.mjs`.
 
 ## Arquivos
 
@@ -64,6 +90,7 @@ public/                     tudo que o site publica
   painel/                   Central: index.html, central.css e js/ (uma tela por arquivo)
 src/index.js                Worker: serve public/ e responde a API em /api/
 src/senha.js                hash de senha (PBKDF2), usado pelo Worker e pelas ferramentas
+src/demo.js                 perfis e dados fictícios da demonstração
 migrations/                 tabelas do banco D1
 tools/criar-usuario.mjs     cria usuário do painel ou troca a senha
 tools/servidor-local.mjs    prévia local sem o workerd

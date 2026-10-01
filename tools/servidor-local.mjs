@@ -16,9 +16,12 @@ import { gerarHashSenha } from '../src/senha.js';
 const raiz = resolve(fileURLToPath(import.meta.url), '../..');
 const pastaPublica = join(raiz, 'public');
 const PORTA = Number(process.env.PORT || 5330);
+// PLANNEX_DEMO=1 roda como o Worker de demonstração, com banco e arquivos próprios.
+const DEMO = process.env.PLANNEX_DEMO === '1';
+const sufixo = DEMO ? '-demo' : '';
 
 mkdirSync(join(raiz, '.wrangler'), { recursive: true });
-const banco = new DatabaseSync(join(raiz, '.wrangler', 'previa.sqlite'));
+const banco = new DatabaseSync(join(raiz, '.wrangler', `previa${sufixo}.sqlite`));
 banco.exec('PRAGMA foreign_keys = ON; CREATE TABLE IF NOT EXISTS _migracoes (nome TEXT PRIMARY KEY)');
 for (const arquivo of readdirSync(join(raiz, 'migrations')).filter(n => n.endsWith('.sql')).sort()) {
   if (banco.prepare('SELECT 1 FROM _migracoes WHERE nome = ?').get(arquivo)) continue;
@@ -52,7 +55,7 @@ const DB = {
 };
 
 // KV simulado: cada chave vira um arquivo em .wrangler/kv-previa/.
-const pastaKv = join(raiz, '.wrangler', 'kv-previa');
+const pastaKv = join(raiz, '.wrangler', `kv-previa${sufixo}`);
 mkdirSync(pastaKv, { recursive: true });
 const caminhoKv = chave => join(pastaKv, encodeURIComponent(chave));
 const ARQUIVOS = {
@@ -120,10 +123,10 @@ createServer(async (req, res) => {
     req.on('data', p => partes.push(p)).on('end', () => ok(Buffer.concat(partes)));
   });
   const request = new Request(`http://localhost:${PORTA}${req.url}`, { method: req.method, headers: req.headers, body: corpo, duplex: 'half' });
-  const resposta = await worker.fetch(request, { DB, ASSETS, ARQUIVOS });
+  const resposta = await worker.fetch(request, { DB, ASSETS, ARQUIVOS, ...(DEMO ? { DEMO: 'true' } : {}) });
   const cabecalhos = Object.fromEntries(resposta.headers);
   // O cookie Secure não pega em http no Node; na prévia ele sai sem a flag.
   if (cabecalhos['set-cookie']) cabecalhos['set-cookie'] = cabecalhos['set-cookie'].replace('; Secure', '');
   res.writeHead(resposta.status, cabecalhos);
   res.end(Buffer.from(await resposta.arrayBuffer()));
-}).listen(PORTA, () => console.log(`Prévia da Plannex em http://localhost:${PORTA} (painel em /painel/)`));
+}).listen(PORTA, () => console.log(`Prévia da Plannex${DEMO ? ' (demonstração)' : ''} em http://localhost:${PORTA} (painel em /painel/)`));

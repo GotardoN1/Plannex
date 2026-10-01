@@ -24,5 +24,33 @@
   ],
   // Limpeza diária de sessões vencidas e tentativas antigas (03h de Brasília).
   "triggers": { "crons": ["0 6 * * *"] },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+
+  // Ambiente de demonstração: outro Worker, com banco e arquivos próprios e dados fictícios.
+  // Publicar: npm run deploy:demo  ·  Endereço: plannex-demo.luh20123.workers.dev/painel/
+  "env": {
+    "demo": {
+      "name": "plannex-demo",
+      "vars": { "DEMO": "true" },
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        // A página inicial também passa pelo código, que leva direto à Central.
+        "run_worker_first": ["/api/*", "/", "/index.html"]
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "plannex-demo",
+          "database_id": "74aed591-c1b2-4976-8c4d-dbafede8db2b",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [
+        { "binding": "ARQUIVOS", "id": "2de96451aff74c3db6ff49b88bea95d3" }
+      ],
+      // A demonstração volta aos dados de exemplo toda madrugada (03h de Brasília).
+      "triggers": { "crons": ["0 6 * * *"] }
+    }
+  }
 }

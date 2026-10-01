@@ -9,6 +9,7 @@ import { desenharAgenda } from './agenda.js';
 import { desenharEquipe } from './equipe.js';
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
+import { perfisDemo, desenharEscolha, desenharFaixa } from './demo.js';
 
 const $ = seletor => document.querySelector(seletor);
 const $$ = seletor => [...document.querySelectorAll(seletor)];
@@ -96,7 +97,7 @@ async function recarregar({ silencioso = false } = {}) {
     const dados = await api('/api/central');
     const admin = dados.usuario.papel === 'admin';
     const novos = idsConhecidos ? dados.contatos.filter(c => !idsConhecidos.has(c.id) && (!admin || c.origem === 'site')) : [];
-    Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, atualizadoEm: new Date().toISOString() });
+    Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, demo: Boolean(dados.demo), atualizadoEm: new Date().toISOString() });
     idsConhecidos = new Set(dados.contatos.map(c => c.id));
     mostrarUsuario();
     redesenharQuandoPuder();
@@ -169,7 +170,23 @@ function mostrarLogin() {
   $('#tela-app').hidden = true;
   $('#tela-login').hidden = false;
   for (const d of $$('dialog[open]')) d.close();
-  $('#login-usuario').focus();
+  $('#faixa-demo').hidden = true;
+  document.body.classList.remove('com-demo');
+  // Na demonstração, no lugar de usuário e senha, a escolha de perfil.
+  perfisDemo().then(perfis => {
+    const demo = perfis.length > 0;
+    $('#form-login').hidden = demo;
+    $('#demo-entrada').hidden = !demo;
+    if (demo) desenharEscolha($('#demo-entrada'), entrarDeNovo);
+    else $('#login-usuario').focus();
+  });
+}
+
+// Depois de trocar de usuário (login ou perfil da demonstração), começa do zero.
+async function entrarDeNovo() {
+  idsConhecidos = null;
+  location.hash = '';
+  await entrar();
 }
 
 function mostrarUsuario() {
@@ -189,6 +206,21 @@ async function entrar() {
   if (!ok) { mostrarLogin(); return; }
   $('#tela-login').hidden = true;
   $('#tela-app').hidden = false;
+  if (estado.demo && (await perfisDemo()).length) {
+    desenharFaixa($('#faixa-demo'), {
+      aoTrocar: entrarDeNovo,
+      aoReiniciar: async () => {
+        try {
+          await api('/api/demo/reiniciar', { method: 'POST' });
+          avisar('Dados da demonstração reiniciados.');
+          await recarregar();
+        } catch (e) {
+          avisar(e.message, 'erro');
+        }
+      },
+      aoSair: sair,
+    });
+  }
   mostrarTela(telaDoEndereco());
 }
 
@@ -206,7 +238,7 @@ $('#form-login').addEventListener('submit', async evento => {
   try {
     await api('/api/login', { method: 'POST', corpo: { usuario, senha }, semRedirecionar: true });
     $('#login-senha').value = '';
-    await entrar();
+    await entrarDeNovo();
   } catch (e) {
     erro.textContent = e.message;
   } finally {
@@ -214,12 +246,13 @@ $('#form-login').addEventListener('submit', async evento => {
   }
 });
 
-$('#sair').addEventListener('click', async () => {
+async function sair() {
   await api('/api/sair', { method: 'POST', semRedirecionar: true }).catch(() => {});
   Object.assign(estado, { usuario: null, contatos: [], usuarios: [], recentes: [] });
   idsConhecidos = null;
   mostrarLogin();
-});
+}
+$('#sair').addEventListener('click', sair);
 
 // ---------- Busca global ----------
 
