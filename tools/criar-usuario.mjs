@@ -7,7 +7,8 @@
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gerarHashSenha } from '../src/senha.js';
 
 const args = process.argv.slice(2);
@@ -35,9 +36,11 @@ DELETE FROM sessoes WHERE usuario_id = (SELECT id FROM usuarios WHERE usuario = 
 const pasta = mkdtempSync(join(tmpdir(), 'plannex-'));
 const arquivo = join(pasta, 'usuario.sql');
 writeFileSync(arquivo, sql);
-const resultado = spawnSync('npx', ['wrangler', 'd1', 'execute', 'plannex', destino, '--file', `"${arquivo}"`], {
+const resultado = spawnSync('npx', ['wrangler', 'd1', 'execute', 'plannex', destino, '--yes', '--file', `"${arquivo}"`], {
   stdio: 'inherit',
   shell: true,
+  // Roda o wrangler na raiz do projeto, onde está o wrangler.jsonc, de qualquer pasta.
+  cwd: resolve(fileURLToPath(import.meta.url), '../..'),
 });
 rmSync(pasta, { recursive: true, force: true });
 
