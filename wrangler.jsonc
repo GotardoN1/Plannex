@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "plannex",
-      "database_id": "PREENCHER_DEPOIS_DO_WRANGLER_D1_CREATE",
+      "database_id": "304bc724-c72d-47d0-a719-1eaedec0611b",
       "migrations_dir": "migrations"
     }
   ],
