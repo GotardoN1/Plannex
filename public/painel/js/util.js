@@ -238,7 +238,7 @@ export function tamanhoArquivo(bytes) {
 
 export const PAPEIS = {
   admin: { nome: 'Administrador', descricao: 'Vê tudo: visão geral, todos os contatos, valores, arquivo e equipe.' },
-  funcionario: { nome: 'Funcionário', descricao: 'Vê só as demandas em que é responsável e a agenda dele. Sem valores nem controle interno.' },
+  funcionario: { nome: 'Funcionário', descricao: 'Vê só as demandas em que é responsável, a agenda e os concluídos dele. Sem valores, notas nem ordens de serviço.' },
 };
 
 // ---------- Contato ----------

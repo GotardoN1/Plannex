@@ -676,6 +676,19 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .lateral-botoes .botao span { display: none; }
 }
 
+/* ---------- Concluídos e etapas do administrador ---------- */
+.aviso-concluida { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid #1d6b45; border-radius: var(--radius); background: var(--ok-fundo); color: #c9f2dc; font-size: 14px; }
+.aviso-concluida .icone { color: var(--ok); width: 20px; height: 20px; }
+.aviso-concluida strong { color: var(--ok); }
+.trilha-passo.is-travado { cursor: default; opacity: .55; }
+.trilha-passo.is-travado:hover .trilha-ponto { border-color: var(--line-forte); }
+.trilha-passo--feito.is-travado .trilha-ponto { border-color: var(--azul); }
+.aguardando-liberacao { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.aguardando-liberacao .icone { width: 16px; height: 16px; }
+.contato.is-concluido .contato-nome { font-weight: 500; }
+.etapa-pill .icone { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
+.nav-contagem--neutra { background: var(--ok-fundo); color: var(--ok); }
+
 /* ---------- Demonstração ---------- */
 .faixa-demo {
   position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; gap: 10px 16px; flex-wrap: wrap;

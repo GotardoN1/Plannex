@@ -58,7 +58,7 @@ export function desenharEscolha(raiz, aoEntrar) {
       el('ol', '',
         el('li', '', el('b', '', 'Carla'), ' abre a Visão geral, vê o que precisa de atenção e move um contato da Caixa de entrada para Pedido.'),
         el('li', '', 'No Andamento, ', el('b', '', 'Paulo'), ' filtra por responsável, abre um cartão em Notas e ordens e anexa a nota fiscal.'),
-        el('li', '', el('b', '', 'Fernanda'), ' entra e vê só as demandas dela, sem valores; anexa uma OS e avança a etapa.'),
+        el('li', '', el('b', '', 'Fernanda'), ' entra e vê só as demandas dela, sem valores nem notas e ordens; avança uma até "Concluir demanda" e confere a aba Concluídos.'),
         el('li', '', el('b', '', 'Juliana'), ' mostra uma demanda atrasada na Agenda; na Equipe, Carla muda o acesso de alguém.'))));
   const logo = raiz.querySelector('.login-logo');
   logo.src = '../assets/img/logo-plannex-full-white.rev83.png?v=83';

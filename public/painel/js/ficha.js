@@ -55,10 +55,11 @@ function desenhar() {
       el('p', '', etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`)))),
     fechar);
 
-  // Em "Notas e ordens", os documentos sobem para o topo da coluna.
-  const documentos = blocoDocumentos(c);
+  // Notas e ordens: só administrador (mostram quanto a casa cobra). Na etapa delas, sobem para o topo.
+  const documentos = eAdmin() ? blocoDocumentos(c) : null;
   const emNotas = c.etapa === 'nota_emitida';
   const corpo = el('div', 'ficha-corpo',
+    somenteLeitura(c) ? avisoConcluida(c) : null,
     etapas(c),
     acoesRapidas(c),
     el('div', 'ficha-grade',
@@ -71,27 +72,42 @@ function desenhar() {
 
 // ---------- Etapas ----------
 
+// Etapas em que o funcionário trabalha. Pedido e Notas e ordens são do administrador.
+const ETAPAS_FUNCIONARIO = ['processo_iniciado', 'revisado', 'entregue'];
+// Para o funcionário, a demanda concluída fica só para consulta.
+const somenteLeitura = c => !eAdmin() && c.etapa === 'entregue';
+const podeMoverPara = (c, chave) => eAdmin() || (ETAPAS_FUNCIONARIO.includes(c.etapa) && ETAPAS_FUNCIONARIO.includes(chave) && !somenteLeitura(c));
+
+function avisoConcluida(c) {
+  const quem = usuarioPorId(c.responsavel_id);
+  return el('p', 'aviso-concluida', icone('ok'),
+    el('span', '', el('strong', '', 'Demanda concluída'), ` em ${dataHora(c.atualizado_em)}${quem ? ` · ${quem.nome}` : ''}. Fica aqui só para consulta; para reabrir, fale com um administrador.`));
+}
+
 function etapas(c) {
+  const admin = eAdmin();
   const atual = c.etapa ? indiceEtapa(c.etapa) : -1;
   const passos = [[null, CAIXA], ...ETAPAS];
   const trilha = el('ol', 'trilha');
   passos.forEach(([chave, nome], i) => {
     const posicao = i - 1;
     const estadoPasso = posicao < atual ? 'feito' : posicao === atual ? 'atual' : 'futuro';
-    const b = el('button', `trilha-passo trilha-passo--${estadoPasso}`, el('span', 'trilha-ponto', estadoPasso === 'feito' ? icone('ok') : String(i)), el('span', 'trilha-nome', nome));
+    const livre = posicao !== atual && podeMoverPara(c, chave);
+    const b = el('button', `trilha-passo trilha-passo--${estadoPasso}${livre || posicao === atual ? '' : ' is-travado'}`, el('span', 'trilha-ponto', estadoPasso === 'feito' ? icone('ok') : String(i)), el('span', 'trilha-nome', nome));
     b.type = 'button';
-    b.title = posicao === atual ? `Etapa atual: ${nome}` : `Mover para ${nome}`;
+    b.title = posicao === atual ? `Etapa atual: ${nome}` : livre ? `Mover para ${nome}` : 'Etapa do administrador';
     if (posicao === atual) b.setAttribute('aria-current', 'step');
-    b.addEventListener('click', () => { if (posicao !== atual) acoes.mover(c.id, chave); });
+    if (!livre && posicao !== atual) b.disabled = true;
+    b.addEventListener('click', () => { if (livre) acoes.mover(c.id, chave); });
     trilha.append(el('li', '', b));
   });
   const proxima = ETAPAS[atual + 1];
-  return el('section', 'ficha-etapas',
-    el('div', 'ficha-etapas-topo',
-      el('h3', '', 'Andamento'),
-      proxima ? botao(`Avançar para ${proxima[1]}`, 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir' })
-        : el('span', 'concluido', icone('ok'), 'Entregue')),
-    trilha);
+  let acao;
+  if (!proxima) acao = el('span', 'concluido', icone('ok'), admin ? 'Entregue' : 'Concluída');
+  else if (!podeMoverPara(c, proxima[0])) acao = el('span', 'aguardando-liberacao', icone('relogio'), 'Aguardando o administrador liberar para Processo iniciado');
+  else if (!admin && proxima[0] === 'entregue') acao = botao('Concluir demanda', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'entregue'), { icone: 'ok' });
+  else acao = botao(`Avançar para ${proxima[1]}`, 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir' });
+  return el('section', 'ficha-etapas', el('div', 'ficha-etapas-topo', el('h3', '', 'Andamento'), acao), trilha);
 }
 
 // ---------- Ações rápidas ----------
@@ -469,9 +485,10 @@ function blocoLinhaDoTempo() {
   texto.addEventListener('keydown', evento => {
     if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) enviar();
   });
+  const c = contatoPorId(atualId);
   return el('section', 'bloco',
     el('div', 'bloco-topo', el('h3', '', 'Linha do tempo')),
-    el('div', 'anotar', texto, anotar),
+    c && somenteLeitura(c) ? null : el('div', 'anotar', texto, anotar),
     el('ol', 'linha-tempo', el('li', 'carregando', 'Carregando…')));
 }
 

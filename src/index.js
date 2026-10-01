@@ -2,7 +2,8 @@
 // Tudo que não começa com /api/ vai direto para os arquivos estáticos.
 //
 // Acessos: "admin" vê e faz tudo. "funcionario" vê só os contatos em que é responsável,
-// sem valores, nota fiscal nem pagamento, e só move etapas, anota e anexa ordens.
+// sem valores, nota fiscal, pagamento nem anexos (notas e ordens mostram quanto a casa cobra).
+// Ele só anota e move as etapas de trabalho: Processo iniciado, Revisado pelo cliente e Entregue.
 
 import { gerarHashSenha, conferirSenha, HASH_FALSO, base64 } from './senha.js';
 import { PERFIS_DEMO, resetarDemo } from './demo.js';
@@ -13,6 +14,8 @@ const SERVICOS = ['calculos', 'automacao'];
 const ORIGENS = ['site', 'whatsapp', 'indicacao', 'telefone', 'email', 'outro'];
 const PAPEIS = ['admin', 'funcionario'];
 const CATEGORIAS_ARQUIVO = { nota: 'a nota fiscal', ordem: 'a ordem de serviço', outro: 'o arquivo' };
+// Etapas em que o funcionário trabalha. Pedido e Notas e ordens são do administrador.
+const ETAPAS_FUNCIONARIO = ['processo_iniciado', 'revisado', 'entregue'];
 const ARQUIVO_MAXIMO = 10 * 1024 * 1024;
 
 // Tamanho máximo de cada campo do contato (os mesmos limites do formulário do site).
@@ -100,13 +103,14 @@ async function api(request, env, url) {
     if (!rota[2] && metodo === 'PATCH') return alterarContato(request, env, usuario, contato);
     if (!rota[2] && metodo === 'DELETE') return admin ? excluirContato(env, id) : negado();
     if (rota[2] === '/linha-do-tempo' && metodo === 'GET') return linhaDoTempo(env, usuario, id);
-    if (rota[2] === '/notas' && metodo === 'POST') return anotar(request, env, usuario, id);
-    if (rota[2] === '/arquivos' && metodo === 'GET') return listarArquivos(env, usuario, id);
-    if (rota[2] === '/arquivos' && metodo === 'POST') return enviarArquivo(request, env, usuario, id);
+    if (rota[2] === '/notas' && metodo === 'POST') return !admin && contato.etapa === 'entregue' ? concluida() : anotar(request, env, usuario, id);
+    if (rota[2] === '/arquivos' && metodo === 'GET') return admin ? listarArquivos(env, id) : negado();
+    if (rota[2] === '/arquivos' && metodo === 'POST') return admin ? enviarArquivo(request, env, usuario, id) : negado();
   }
 
   rota = pathname.match(/^\/api\/arquivos\/(\d+)$/);
-  if (rota && metodo === 'GET') return baixarArquivo(env, usuario, Number(rota[1]));
+  if (rota && !admin) return negado();
+  if (rota && metodo === 'GET') return baixarArquivo(env, Number(rota[1]));
   if (rota && metodo === 'DELETE') return excluirArquivo(env, usuario, Number(rota[1]));
 
   rota = pathname.match(/^\/api\/notas\/(\d+)$/);
@@ -341,7 +345,7 @@ async function removerUsuario(env, autor, id) {
 async function central(env, usuario) {
   const admin = eAdmin(usuario);
   const filtroContatos = admin ? '' : 'WHERE responsavel_id = ?1 AND arquivado_em IS NULL';
-  const filtroArquivos = admin ? '' : "AND a.categoria <> 'nota'";
+
   const filtroRecentes = admin ? '' : 'WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL';
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
@@ -351,7 +355,7 @@ async function central(env, usuario) {
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
               lido_em, arquivado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
               (SELECT COUNT(*) FROM notas n WHERE n.contato_id = contatos.id AND n.tipo = 'nota') AS total_notas,
-              (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${filtroArquivos}) AS total_arquivos
+              ${admin ? '(SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id)' : '0'} AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
     )),
     env.DB.prepare(`SELECT id, nome, papel${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
@@ -404,6 +408,13 @@ async function alterarContato(request, env, usuario, contato) {
 
   // Funcionário só move a etapa e marca como lido.
   if (!admin && Object.keys(dados).some(chave => !['etapa', 'lido'].includes(chave))) return negado();
+  if (!admin && 'etapa' in dados && (!ETAPAS_FUNCIONARIO.includes(dados.etapa) || !ETAPAS_FUNCIONARIO.includes(contato.etapa))) {
+    return json({ erro: 'Pedido e Notas e ordens são etapas do administrador. Você trabalha a partir de Processo iniciado.' }, 403);
+  }
+  // Depois de concluída, só dá para desfazer a conclusão: até 10 minutos e só quem concluiu.
+  if (!admin && contato.etapa === 'entregue' && 'etapa' in dados && dados.etapa !== 'entregue') {
+    if (!(await podeDesfazerConclusao(env, usuario, id))) return concluida();
+  }
 
   const sets = [];
   const valores = [];
@@ -524,6 +535,16 @@ async function linhaDoTempo(env, usuario, id) {
   return json({ itens: results });
 }
 
+const concluida = () => json({ erro: 'Esta demanda já foi concluída. Para reabrir, fale com um administrador.' }, 403);
+
+// A última movimentação foi a conclusão, feita por esta pessoa, há menos de 10 minutos.
+async function podeDesfazerConclusao(env, usuario, contatoId) {
+  const ultima = await env.DB.prepare(
+    "SELECT para, usuario_id, quando > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes') AS recente FROM movimentacoes WHERE contato_id = ? ORDER BY quando DESC, id DESC LIMIT 1"
+  ).bind(contatoId).first();
+  return Boolean(ultima && ultima.para === 'entregue' && ultima.usuario_id === usuario.id && ultima.recente);
+}
+
 async function anotar(request, env, usuario, id) {
   const dados = await lerJson(request);
   const texto = limparTextoLongo(dados?.texto, 2000);
@@ -547,13 +568,13 @@ function nota(env, contatoId, usuarioId, texto, tipo = 'sistema', restrito = fal
 
 // ---------- Arquivos (notas fiscais e ordens de serviço) ----------
 // O conteúdo vai para o KV; o banco guarda nome, tipo, tamanho e quem enviou.
-// Nota fiscal é controle interno: o funcionário não vê nem envia.
+// Só administrador: notas e ordens mostram quanto a casa cobra.
 
-async function listarArquivos(env, usuario, contatoId) {
+async function listarArquivos(env, contatoId) {
   const { results } = await env.DB.prepare(
     `SELECT a.id, a.categoria, a.nome, a.tipo, a.tamanho, a.usuario_id, a.criado_em, u.nome AS usuario
      FROM arquivos a LEFT JOIN usuarios u ON u.id = a.usuario_id
-     WHERE a.contato_id = ? ${eAdmin(usuario) ? '' : "AND a.categoria <> 'nota'"} ORDER BY a.criado_em DESC, a.id DESC`
+     WHERE a.contato_id = ? ORDER BY a.criado_em DESC, a.id DESC`
   ).bind(contatoId).all();
   return json({ arquivos: results });
 }
@@ -567,7 +588,6 @@ async function enviarArquivo(request, env, usuario, contatoId) {
   const categoria = String(formulario?.get('categoria') || 'outro');
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
   if (!(categoria in CATEGORIAS_ARQUIVO)) return json({ erro: 'Tipo de arquivo inválido.' }, 400);
-  if (categoria === 'nota' && !eAdmin(usuario)) return negado();
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   if (emDemo(env)) {
     if (arquivo.size > DEMO_ARQUIVO_MAXIMO) return json({ erro: 'Na demonstração, o limite é 1 MB por arquivo.' }, 413);
@@ -584,7 +604,7 @@ async function enviarArquivo(request, env, usuario, contatoId) {
     await env.DB.batch([
       env.DB.prepare('INSERT INTO arquivos (contato_id, categoria, nome, tipo, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
         .bind(contatoId, categoria, nome, tipo, arquivo.size, chave, usuario.id),
-      nota(env, contatoId, usuario.id, `anexou ${CATEGORIAS_ARQUIVO[categoria]} "${nome}"`, 'sistema', categoria === 'nota'),
+      nota(env, contatoId, usuario.id, `anexou ${CATEGORIAS_ARQUIVO[categoria]} "${nome}"`, 'sistema', true),
     ]);
   } catch (erro) {
     await env.ARQUIVOS.delete(chave);
@@ -593,16 +613,8 @@ async function enviarArquivo(request, env, usuario, contatoId) {
   return json({ ok: true }, 201);
 }
 
-async function arquivoVisivel(env, usuario, id) {
+async function baixarArquivo(env, id) {
   const arquivo = await env.DB.prepare('SELECT * FROM arquivos WHERE id = ?').bind(id).first();
-  if (!arquivo) return null;
-  if (eAdmin(usuario)) return arquivo;
-  if (arquivo.categoria === 'nota') return null;
-  return (await contatoVisivel(env, usuario, arquivo.contato_id)) ? arquivo : null;
-}
-
-async function baixarArquivo(env, usuario, id) {
-  const arquivo = await arquivoVisivel(env, usuario, id);
   if (!arquivo) return json({ erro: 'Arquivo não encontrado.' }, 404);
   const conteudo = await env.ARQUIVOS.get(arquivo.chave, { type: 'stream' });
   if (!conteudo) return json({ erro: 'O conteúdo do arquivo não foi encontrado.' }, 404);
@@ -619,13 +631,11 @@ async function baixarArquivo(env, usuario, id) {
 }
 
 async function excluirArquivo(env, usuario, id) {
-  const arquivo = await arquivoVisivel(env, usuario, id);
+  const arquivo = await env.DB.prepare('SELECT * FROM arquivos WHERE id = ?').bind(id).first();
   if (!arquivo) return json({ erro: 'Arquivo não encontrado.' }, 404);
-  // Funcionário só apaga o que ele mesmo enviou.
-  if (!eAdmin(usuario) && arquivo.usuario_id !== usuario.id) return negado();
   await env.DB.batch([
     env.DB.prepare('DELETE FROM arquivos WHERE id = ?').bind(id),
-    nota(env, arquivo.contato_id, usuario.id, `removeu ${CATEGORIAS_ARQUIVO[arquivo.categoria]} "${arquivo.nome}"`, 'sistema', arquivo.categoria === 'nota'),
+    nota(env, arquivo.contato_id, usuario.id, `removeu ${CATEGORIAS_ARQUIVO[arquivo.categoria]} "${arquivo.nome}"`, 'sistema', true),
   ]);
   await env.ARQUIVOS.delete(arquivo.chave);
   return json({ ok: true });

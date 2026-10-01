@@ -5,7 +5,7 @@ export const PERFIS_DEMO = [
   { id: 1, usuario: 'carla', nome: 'Carla Mendes', papel: 'admin', dica: 'Administradora: vê tudo, inclusive valores, pagamentos, arquivo e equipe.' },
   { id: 2, usuario: 'paulo', nome: 'Paulo Andrade', papel: 'admin', dica: 'Administrador: distribui as demandas entre a equipe e cuida das notas fiscais.' },
   { id: 3, usuario: 'fernanda', nome: 'Fernanda Lima', papel: 'funcionario', dica: 'Funcionária: só vê as demandas em que é responsável, sem valores nem pagamentos.' },
-  { id: 4, usuario: 'diego', nome: 'Diego Rocha', papel: 'funcionario', dica: 'Funcionário: anexa ordens de serviço, anota e avança as etapas das demandas dele.' },
+  { id: 4, usuario: 'diego', nome: 'Diego Rocha', papel: 'funcionario', dica: 'Funcionário: anota e avança as demandas dele até concluir. Não vê notas nem ordens de serviço.' },
   { id: 5, usuario: 'juliana', nome: 'Juliana Prado', papel: 'funcionario', dica: 'Funcionária recém-chegada: poucas demandas, uma delas atrasada.' },
 ];
 

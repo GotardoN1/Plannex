@@ -151,7 +151,7 @@ function explicacao() {
   return el('section', 'bloco explicacao-papeis',
     el('div', 'bloco-topo', el('h2', '', 'O que cada acesso vê')),
     el('div', 'papel-linha', el('span', 'papel papel--admin', icone('escudo'), 'Administrador'),
-      el('p', '', 'Visão geral, caixa de entrada completa, andamento, agenda com pagamentos, arquivo e equipe. Vê valores, nota fiscal e pagamentos, e anexa notas fiscais.')),
+      el('p', '', 'Visão geral, caixa de entrada completa, andamento, agenda com pagamentos, arquivo e equipe. Vê valores e pagamentos, cuida das etapas Pedido e Notas e ordens e anexa notas fiscais e ordens de serviço.')),
     el('div', 'papel-linha', el('span', 'papel papel--funcionario', icone('usuario'), 'Funcionário'),
-      el('p', '', 'Só as demandas em que é o responsável e a agenda dele. Move as etapas, anota e anexa ordens de serviço. Não vê valores, nota fiscal, pagamentos, outros contatos nem a equipe.')));
+      el('p', '', 'Só as demandas em que é o responsável, a agenda e os concluídos dele. Trabalha de Processo iniciado até concluir, e anota. Não vê valores, pagamentos, notas fiscais, ordens de serviço, outros contatos nem a equipe.')));
 }

@@ -49,11 +49,15 @@ A Central se atualiza sozinha a cada 45 segundos, avisa quando chega contato nov
 
 | | Administrador | Funcionário |
 | --- | --- | --- |
-| Telas | Todas | Minhas demandas e Agenda |
+| Telas | Todas | Minhas demandas, Agenda e Concluídos |
 | Contatos | Todos | Só os que tem como responsável |
 | Valor, nota fiscal, pagamento | Vê e edita | Não vê (nem na linha do tempo) |
-| Etapas, anotações, ordens de serviço | Sim | Sim |
+| Notas fiscais e ordens de serviço | Vê e anexa | Não vê (mostram quanto a casa cobra) |
+| Etapas | Todas | Só de Processo iniciado até concluir |
+| Anotações | Sim | Sim, até concluir |
 | Arquivar, excluir, cadastrar, equipe | Sim | Não |
+
+Quando o funcionário conclui (chega em Entregue), a demanda sai de "Minhas demandas" e vai para **Concluídos**, só para consulta. Ele pode desfazer a conclusão por 10 minutos; depois, só um administrador reabre.
 
 A regra vale na API: um funcionário não consegue buscar o que não vê na tela.
 

@@ -14,16 +14,17 @@ import { perfisDemo, desenharEscolha, desenharFaixa } from './demo.js';
 const $ = seletor => document.querySelector(seletor);
 const $$ = seletor => [...document.querySelectorAll(seletor)];
 
-// "admin: true": só administrador vê. O funcionário fica com as demandas dele e a agenda.
+// "admin: true": só administrador vê. "funcionario: true": só funcionário (o admin acompanha pelo Andamento).
 const TELAS = {
   visao: { titulo: 'Visão geral', desenhar: desenharVisao, admin: true },
   entrada: { titulo: 'Caixa de entrada', desenhar: desenharEntrada },
   andamento: { titulo: 'Andamento', desenhar: desenharQuadro, admin: true },
   agenda: { titulo: 'Agenda', desenhar: desenharAgenda },
   arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
+  concluidos: { titulo: 'Concluídos', desenhar: raiz => desenharEntrada(raiz, { concluidos: true }), funcionario: true },
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
 };
-const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin());
+const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin()) && (!TELAS[nome].funcionario || !eAdmin());
 const telaInicial = () => (eAdmin() ? 'visao' : 'entrada');
 const RECARGA_MS = 45000;
 
@@ -79,6 +80,7 @@ function atualizarContadores() {
   const contagens = {
     entrada: naoLidos || '',
     andamento: ativos.filter(c => c.etapa && c.etapa !== 'entregue').length || '',
+    concluidos: ativos.filter(c => c.etapa === 'entregue').length || '',
   };
   for (const [tela, valor] of Object.entries(contagens)) {
     for (const b of $$(`[data-tela="${tela}"] .nav-contagem`)) {
@@ -143,8 +145,11 @@ function mover(id, etapa) {
   const contato = contatoPorId(id);
   if (!contato || (contato.etapa || null) === etapa) return;
   const anterior = contato.etapa || null;
-  return alterar(id, { etapa }, `${primeiroNome(contato.nome)} → ${etapa ? NOME_ETAPA[etapa] : CAIXA}`,
-    { rotulo: 'Desfazer', aoClicar: () => alterar(id, { etapa: anterior }, 'Desfeito.') });
+  // Funcionário concluindo: a demanda sai de "Minhas demandas" e vai para "Concluídos".
+  const mensagem = !eAdmin() && etapa === 'entregue'
+    ? `Demanda de ${primeiroNome(contato.nome)} concluída. Ela foi para Concluídos.`
+    : `${primeiroNome(contato.nome)} → ${etapa ? NOME_ETAPA[etapa] : CAIXA}`;
+  return alterar(id, { etapa }, mensagem, { rotulo: 'Desfazer', aoClicar: () => alterar(id, { etapa: anterior }, 'Desfeito.') });
 }
 
 Object.assign(acoes, { abrirFicha, alterar, mover, recarregar, navegar, avisar, novoContato: abrirNovo });

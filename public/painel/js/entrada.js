@@ -1,4 +1,4 @@
-// Caixa de entrada (todos os contatos ativos) e Arquivo (contatos arquivados).
+// Caixa de entrada (ou Minhas demandas), Arquivo e Concluídos.
 import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
@@ -7,44 +7,57 @@ import {
 
 const filtro = { modo: 'todos', servico: '', texto: '' };
 
-export function desenharEntrada(raiz, { arquivo = false } = {}) {
-  const base = arquivo ? estado.contatos.filter(c => c.arquivado_em) : ativos();
+// Três listas na mesma tela: caixa de entrada (para o funcionário, "Minhas demandas"),
+// arquivo e concluídos (as demandas do funcionário que já chegaram em Entregue).
+const TIPOS = {
+  entrada: { data: 'criado_em', icone: 'entrada' },
+  arquivo: { data: 'arquivado_em', icone: 'arquivo' },
+  concluidos: { data: 'atualizado_em', icone: 'ok' },
+};
+
+export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = {}) {
+  const admin = eAdmin();
+  const tipo = arquivo ? 'arquivo' : concluidos ? 'concluidos' : 'entrada';
+  // Para o funcionário, o que já foi concluído sai de "Minhas demandas" e vai para "Concluídos".
+  const base = tipo === 'arquivo' ? estado.contatos.filter(c => c.arquivado_em)
+    : tipo === 'concluidos' ? ativos().filter(c => c.etapa === 'entregue')
+      : admin ? ativos() : ativos().filter(c => c.etapa !== 'entregue');
   const filtrar = () => {
     const busca = normalizar(filtro.texto);
     return base.filter(c =>
-      (arquivo || filtro.modo === 'todos' || (filtro.modo === 'aguardando' ? !c.etapa : !c.lido_em)) &&
+      (tipo !== 'entrada' || filtro.modo === 'todos' || (filtro.modo === 'aguardando' ? !c.etapa : !c.lido_em)) &&
       (!filtro.servico || c.servico === filtro.servico) &&
       (!busca || textoBusca(c).includes(busca)));
   };
-  const redesenhar = () => desenharEntrada(raiz, { arquivo });
+  const redesenhar = () => desenharEntrada(raiz, { arquivo, concluidos });
 
-  const aguardando = ativos().filter(c => !c.etapa).length;
-  const naoLidos = ativos().filter(c => !c.lido_em).length;
+  const titulo = tipo === 'arquivo' ? 'Arquivo' : tipo === 'concluidos' ? 'Concluídos' : admin ? 'Caixa de entrada' : 'Minhas demandas';
+  const descricao = {
+    arquivo: 'Contatos que não seguiram adiante. Nada se perde: dá para restaurar quando quiser.',
+    concluidos: 'Demandas que você concluiu. Ficam aqui como registro, só para consulta. Para reabrir alguma, fale com um administrador.',
+    entrada: admin
+      ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha e mova para Pedido para começar o atendimento.'
+      : 'As demandas em que você é o responsável. Abra para ver a ficha, anexar a ordem de serviço e avançar as etapas. Ao concluir, a demanda vai para Concluídos.',
+  }[tipo];
 
-  const admin = eAdmin();
   const cabecalho = el('header', 'tela-topo',
-    el('div', '',
-      el('h1', '', arquivo ? 'Arquivo' : admin ? 'Caixa de entrada' : 'Minhas demandas'),
-      el('p', '', arquivo
-        ? 'Contatos que não seguiram adiante. Nada se perde: dá para restaurar quando quiser.'
-        : admin
-          ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha e mova para Pedido para começar o atendimento.'
-          : 'As demandas em que você é o responsável. Abra para ver a ficha, anexar a ordem de serviço e avançar as etapas.')),
+    el('div', '', el('h1', '', titulo), el('p', '', descricao)),
     admin ? botao('Exportar planilha', 'botao--fantasma', () => exportar(filtrar(), arquivo), { icone: 'baixar', titulo: 'Baixar os contatos desta lista em CSV (abre no Excel)' }) : null);
 
   const ferramentas = el('div', 'ferramentas');
-  if (!arquivo) {
+  if (tipo === 'entrada') {
     ferramentas.append(segmentado([
-      ['todos', 'Todos', ativos().length],
-      ['aguardando', 'Aguardando', aguardando],
-      ['nao-lidos', 'Não lidos', naoLidos],
+      ['todos', 'Todos', base.length],
+      ['aguardando', 'Aguardando', base.filter(c => !c.etapa).length],
+      ['nao-lidos', 'Não lidos', base.filter(c => !c.lido_em).length],
     ], filtro.modo, valor => { filtro.modo = valor; redesenhar(); }));
   }
   const conteudo = el('div', 'lista-area');
   // O filtro de texto só redesenha a lista, para o campo não perder o foco.
   const pintarLista = () => {
     const lista = filtrar();
-    conteudo.replaceChildren(lista.length ? agrupar(lista, arquivo) : vazio(arquivo, base.length));
+    if (tipo === 'concluidos') lista.sort((a, b) => String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
+    conteudo.replaceChildren(lista.length ? agrupar(lista, tipo) : vazio(tipo, base.length));
   };
   ferramentas.append(
     listaSuspensa('Serviço', [['', 'Todos os serviços'], ['calculos', 'Cálculos'], ['automacao', 'Automação']], filtro.servico,
@@ -55,27 +68,28 @@ export function desenharEntrada(raiz, { arquivo = false } = {}) {
   raiz.replaceChildren(cabecalho, ferramentas, conteudo);
 }
 
-function agrupar(lista, arquivo) {
+function agrupar(lista, tipo) {
   const dia = hoje();
   const grupos = new Map();
   for (const c of lista) {
-    const dias = diasEntre(diaDe(arquivo ? c.arquivado_em : c.criado_em), dia);
+    const dias = diasEntre(diaDe(c[TIPOS[tipo].data] || c.criado_em), dia);
     const rotulo = dias === 0 ? 'Hoje' : dias === 1 ? 'Ontem' : dias < 7 ? 'Nesta semana' : dias < 31 ? 'Neste mês' : 'Mais antigos';
     if (!grupos.has(rotulo)) grupos.set(rotulo, []);
     grupos.get(rotulo).push(c);
   }
   return el('div', 'grupos', [...grupos].map(([rotulo, itens]) =>
     el('section', 'grupo', el('h2', 'grupo-titulo', rotulo, el('small', '', String(itens.length))),
-      el('ul', 'lista-contatos', itens.map(c => linha(c, arquivo))))));
+      el('ul', 'lista-contatos', itens.map(c => linha(c, tipo))))));
 }
 
-function linha(c, arquivo) {
-  const item = el('li', `contato contato--${c.servico}${c.lido_em ? '' : ' is-novo'}`);
+function linha(c, tipo) {
+  const concluida = tipo === 'concluidos';
+  const item = el('li', `contato contato--${c.servico}${c.lido_em || concluida ? '' : ' is-novo'}${concluida ? ' is-concluido' : ''}`);
   const responsavel = usuarioPorId(c.responsavel_id);
   const previa = c.descricao || c.atividade_manual || c.observacoes || '';
 
   const principal = el('button', 'contato-principal',
-    el('span', 'contato-marcador', c.lido_em ? '' : el('span', 'ponto-novo', el('span', 'sr', 'Não lido'))),
+    el('span', 'contato-marcador', c.lido_em || concluida ? '' : el('span', 'ponto-novo', el('span', 'sr', 'Não lido'))),
     avatar(c.nome),
     el('span', 'contato-texto',
       el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico),
@@ -83,30 +97,38 @@ function linha(c, arquivo) {
         c.plano ? el('span', 'origem', c.plano) : null),
       el('span', 'contato-previa', previa || (c.email || c.telefone || 'Sem descrição'))),
     el('span', 'contato-lado',
-      el('time', '', relativo(arquivo ? c.arquivado_em : c.criado_em)),
-      el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
-        c.etapa ? NOME_ETAPA[c.etapa] : 'Aguardando')));
+      el('time', '', concluida ? `concluída ${relativo(c.atualizado_em)}` : relativo(tipo === 'arquivo' ? c.arquivado_em : c.criado_em)),
+      concluida
+        ? el('span', 'etapa-pill etapa-pill--ok', icone('ok'), 'Concluída')
+        : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
+          c.etapa ? NOME_ETAPA[c.etapa] : 'Aguardando')));
   principal.type = 'button';
-  principal.title = `Abrir a ficha de ${c.nome} · chegou em ${dataHora(c.criado_em)}`;
+  principal.title = concluida ? `Ver a ficha de ${c.nome} · concluída em ${dataHora(c.atualizado_em)}` : `Abrir a ficha de ${c.nome} · chegou em ${dataHora(c.criado_em)}`;
   principal.addEventListener('click', () => acoes.abrirFicha(c.id));
 
   const rapidas = el('div', 'contato-acoes');
   const whatsapp = linkWhatsApp(c);
-  if (whatsapp) rapidas.append(link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `Chamar ${c.nome} no WhatsApp` }));
-  if (responsavel) rapidas.append(avatar(responsavel.nome, 'avatar--pequeno'));
-  if (arquivo) {
+  if (whatsapp && !concluida) rapidas.append(link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `Chamar ${c.nome} no WhatsApp` }));
+  if (responsavel && eAdmin()) rapidas.append(avatar(responsavel.nome, 'avatar--pequeno'));
+  if (tipo === 'arquivo') {
     rapidas.append(botao('Restaurar', 'botao--fantasma', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
-  } else if (!c.etapa) {
+  } else if (!c.etapa && eAdmin()) {
     rapidas.append(botao('Mover para Pedido', 'botao--primario', () => acoes.mover(c.id, 'pedido')));
   }
   item.append(principal, rapidas);
   return item;
 }
 
-function vazio(arquivo, totalBase) {
+function vazio(tipo, totalBase) {
   if (totalBase) return el('div', 'vazio', icone('busca', 'icone vazio-icone'), el('p', '', 'Nenhum contato com esses filtros.'));
-  return el('div', 'vazio', icone(arquivo ? 'arquivo' : 'entrada', 'icone vazio-icone'),
-    el('p', '', arquivo ? 'O arquivo está vazio.' : 'Nenhum contato ainda. Os pedidos do site aparecem aqui assim que alguém enviar o formulário.'));
+  const textos = {
+    arquivo: 'O arquivo está vazio.',
+    concluidos: 'Nenhuma demanda concluída ainda. Quando você concluir uma demanda, ela aparece aqui.',
+    entrada: eAdmin()
+      ? 'Nenhum contato ainda. Os pedidos do site aparecem aqui assim que alguém enviar o formulário.'
+      : 'Nenhuma demanda em aberto com você. As novas aparecem aqui quando um administrador te colocar como responsável.',
+  };
+  return el('div', 'vazio', icone(TIPOS[tipo].icone, 'icone vazio-icone'), el('p', '', textos[tipo]));
 }
 
 export function segmentado(opcoes, atual, aoEscolher) {
