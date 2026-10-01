@@ -6,112 +6,77 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0b1422">
-<title>Plannex | Painel</title>
+<title>Central Plannex</title>
 <link rel="icon" type="image/svg+xml" href="../assets/img/favicon-rounded.rev83.svg?v=83">
-<link rel="stylesheet" href="./painel.css">
+<link rel="stylesheet" href="./central.css">
 </head>
 <body>
 
 <!-- Login -->
-<main class="entrada" id="tela-login" hidden>
-  <form class="entrada-cartao" id="form-login" novalidate>
-    <img class="entrada-logo" src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385">
-    <h1>Painel interno</h1>
-    <label>Usuário
+<main class="login" id="tela-login" hidden>
+  <form class="login-cartao" id="form-login" novalidate>
+    <img class="login-logo" src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385">
+    <div>
+      <h1>Central Plannex</h1>
+      <p>Contatos, pedidos e prazos num lugar só.</p>
+    </div>
+    <label class="campo">Usuário
       <input id="login-usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required>
     </label>
-    <label>Senha
+    <label class="campo">Senha
       <input id="login-senha" name="senha" type="password" autocomplete="current-password" required>
     </label>
     <p class="aviso" id="login-erro" role="alert"></p>
-    <button class="botao botao--primario" type="submit" id="login-botao">Entrar</button>
+    <button class="botao botao--primario botao--largo" type="submit" id="login-botao">Entrar</button>
   </form>
 </main>
 
-<!-- Painel -->
+<!-- Central -->
 <div class="app" id="tela-app" hidden>
-  <header class="topo">
-    <a class="topo-marca" href="./"><img src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385"><span>Painel</span></a>
-    <div class="topo-usuario">
-      <span id="usuario-nome"></span>
-      <button class="botao botao--fantasma" type="button" id="abrir-senha">Trocar senha</button>
-      <button class="botao botao--fantasma" type="button" id="sair">Sair</button>
+  <aside class="lateral">
+    <a class="marca" href="#/visao" aria-label="Central Plannex, visão geral">
+      <img src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385">
+      <span>Central</span>
+    </a>
+    <nav class="nav" aria-label="Seções da Central">
+      <button type="button" class="nav-item" data-tela="visao" data-icone="visao"><span class="nav-rotulo">Visão geral</span></button>
+      <button type="button" class="nav-item" data-tela="entrada" data-icone="entrada"><span class="nav-rotulo">Caixa de entrada</span><span class="nav-contagem"></span></button>
+      <button type="button" class="nav-item" data-tela="andamento" data-icone="andamento"><span class="nav-rotulo">Andamento</span><span class="nav-contagem"></span></button>
+      <button type="button" class="nav-item" data-tela="agenda" data-icone="agenda"><span class="nav-rotulo">Agenda</span></button>
+      <button type="button" class="nav-item" data-tela="arquivo" data-icone="arquivo"><span class="nav-rotulo">Arquivo</span></button>
+      <button type="button" class="nav-item" data-tela="equipe" data-icone="equipe"><span class="nav-rotulo">Equipe</span></button>
+    </nav>
+    <div class="lateral-rodape">
+      <div class="eu">
+        <span id="usuario-avatar"></span>
+        <span class="eu-texto"><strong id="usuario-nome"></strong><small id="usuario-login"></small></span>
+      </div>
+      <button type="button" class="botao botao--fantasma botao--pequeno" id="sair" data-icone="sair">Sair</button>
     </div>
-  </header>
+  </aside>
 
-  <nav class="abas" aria-label="Seções do painel">
-    <button type="button" class="aba" data-aba="entrada" aria-pressed="true">Caixa de entrada <b id="total-entrada">0</b></button>
-    <button type="button" class="aba" data-aba="andamento" aria-pressed="false">Andamento <b id="total-andamento">0</b></button>
-  </nav>
-
-  <div class="ferramentas">
-    <input type="search" id="busca" placeholder="Buscar por nome" aria-label="Buscar por nome" autocomplete="off">
-    <div class="filtros" role="group" aria-label="Filtrar por serviço">
-      <button type="button" class="filtro" data-servico="" aria-pressed="true">Todos</button>
-      <button type="button" class="filtro" data-servico="calculos" aria-pressed="false">Cálculos</button>
-      <button type="button" class="filtro" data-servico="automacao" aria-pressed="false">Automação</button>
-    </div>
-    <label class="so-novos" id="filtro-novos-rotulo"><input type="checkbox" id="filtro-novos"> Só os que não foram movidos</label>
-    <button type="button" class="botao botao--fantasma" id="atualizar" title="Atualizar">Atualizar</button>
+  <div class="principal">
+    <header class="barra">
+      <div class="busca" role="combobox" aria-haspopup="listbox" aria-owns="busca-resultados">
+        <label class="busca-campo">
+          <span class="sr">Buscar contato</span>
+          <input type="search" id="busca-global" placeholder="Buscar contato…" autocomplete="off" aria-controls="busca-resultados" aria-autocomplete="list">
+          <kbd>/</kbd>
+        </label>
+        <ul class="busca-resultados" id="busca-resultados" role="listbox" hidden></ul>
+      </div>
+      <span class="atualizado" id="atualizado"></span>
+      <button type="button" class="botao botao--icone botao--fantasma" id="atualizar" data-icone="atualizar" title="Atualizar agora" aria-label="Atualizar agora"></button>
+      <button type="button" class="botao botao--primario" id="novo-contato" data-icone="mais" title="Cadastrar contato (atalho: N)"><span class="some-no-celular">Novo contato</span></button>
+    </header>
+    <main class="tela" id="tela" tabindex="-1"></main>
   </div>
-
-  <p class="aviso aviso--faixa" id="erro-geral" role="alert" hidden></p>
-
-  <section id="aba-entrada" aria-label="Caixa de entrada">
-    <ul class="lista" id="lista-entrada"></ul>
-    <p class="vazio" id="vazio-entrada" hidden>Nenhum contato por aqui.</p>
-  </section>
-
-  <section id="aba-andamento" aria-label="Andamento" hidden>
-    <div class="quadro" id="quadro"></div>
-  </section>
 </div>
 
-<!-- Histórico de um contato -->
-<dialog class="janela" id="janela-historico">
-  <form method="dialog">
-    <h2 id="historico-titulo">Histórico</h2>
-    <ol class="historico" id="historico-lista"></ol>
-    <div class="janela-acoes">
-      <button class="botao botao--perigo" type="button" id="historico-excluir">Excluir contato</button>
-      <button class="botao" value="fechar">Fechar</button>
-    </div>
-  </form>
-</dialog>
+<dialog class="ficha" id="ficha" aria-label="Ficha do contato"></dialog>
+<dialog class="janela" id="novo" aria-label="Novo contato"></dialog>
+<div class="avisos" id="avisos" aria-live="polite"></div>
 
-<!-- Confirmação de exclusão -->
-<dialog class="janela" id="janela-excluir">
-  <form method="dialog">
-    <h2>Excluir contato?</h2>
-    <p id="excluir-texto"></p>
-    <div class="janela-acoes">
-      <button class="botao" value="cancelar">Cancelar</button>
-      <button class="botao botao--perigo" type="button" id="excluir-confirmar">Excluir</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Trocar senha -->
-<dialog class="janela" id="janela-senha">
-  <form id="form-senha" novalidate>
-    <h2>Trocar senha</h2>
-    <label>Senha atual
-      <input type="password" id="senha-atual" autocomplete="current-password" required>
-    </label>
-    <label>Nova senha <small>(mín. 10 caracteres)</small>
-      <input type="password" id="senha-nova" autocomplete="new-password" minlength="10" required>
-    </label>
-    <label>Repita a nova senha
-      <input type="password" id="senha-repetir" autocomplete="new-password" minlength="10" required>
-    </label>
-    <p class="aviso" id="senha-aviso" role="alert"></p>
-    <div class="janela-acoes">
-      <button class="botao" type="button" id="senha-cancelar">Cancelar</button>
-      <button class="botao botao--primario" type="submit">Salvar</button>
-    </div>
-  </form>
-</dialog>
-
-<script src="./painel.js"></script>
+<script type="module" src="./js/app.js"></script>
 </body>
 </html>

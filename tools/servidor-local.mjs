@@ -36,11 +36,14 @@ class Consulta {
 }
 const DB = {
   prepare: sql => new Consulta(sql),
+  // Como no D1: tudo numa transação, devolvendo os resultados de cada consulta.
   async batch(consultas) {
     banco.exec('BEGIN');
     try {
-      for (const c of consultas) await c.run();
+      const resultados = [];
+      for (const c of consultas) resultados.push(await c.all());
       banco.exec('COMMIT');
+      return resultados;
     } catch (erro) {
       banco.exec('ROLLBACK');
       throw erro;
