@@ -5,7 +5,7 @@ import {
   relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
 } from './util.js';
 
-const filtro = { modo: 'todos', servico: '', texto: '' };
+const filtro = { modo: 'todos', servico: '', texto: '', responsavel: '' };
 
 // Três listas na mesma tela: caixa de entrada (para o funcionário, "Minhas demandas"),
 // arquivo e concluídos (as demandas do funcionário que já chegaram em Entregue).
@@ -18,15 +18,16 @@ const TIPOS = {
 export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = {}) {
   const admin = eAdmin();
   const tipo = arquivo ? 'arquivo' : concluidos ? 'concluidos' : 'entrada';
-  // Para o funcionário, o que já foi concluído sai de "Minhas demandas" e vai para "Concluídos".
+  // O que chega em Entregue sai da caixa de entrada (e de "Minhas demandas") e vai para Concluídos.
   const base = tipo === 'arquivo' ? estado.contatos.filter(c => c.arquivado_em)
     : tipo === 'concluidos' ? ativos().filter(c => c.etapa === 'entregue')
-      : admin ? ativos() : ativos().filter(c => c.etapa !== 'entregue');
+      : ativos().filter(c => c.etapa !== 'entregue');
   const filtrar = () => {
     const busca = normalizar(filtro.texto);
     return base.filter(c =>
       (tipo !== 'entrada' || filtro.modo === 'todos' || (filtro.modo === 'aguardando' ? !c.etapa : !c.lido_em)) &&
       (!filtro.servico || c.servico === filtro.servico) &&
+      (tipo !== 'concluidos' || !filtro.responsavel || c.responsavel_id === Number(filtro.responsavel)) &&
       (!busca || textoBusca(c).includes(busca)));
   };
   const redesenhar = () => desenharEntrada(raiz, { arquivo, concluidos });
@@ -34,7 +35,9 @@ export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = 
   const titulo = tipo === 'arquivo' ? 'Arquivo' : tipo === 'concluidos' ? 'Concluídos' : admin ? 'Caixa de entrada' : 'Minhas demandas';
   const descricao = {
     arquivo: 'Contatos que não seguiram adiante. Nada se perde: dá para restaurar quando quiser.',
-    concluidos: 'Demandas que você concluiu. Ficam aqui como registro, só para consulta. Para reabrir alguma, fale com um administrador.',
+    concluidos: admin
+      ? 'Tudo o que chegou em Entregue. Para reabrir uma demanda, abra a ficha e volte a etapa.'
+      : 'Demandas que você concluiu. Ficam aqui como registro, só para consulta. Para reabrir alguma, fale com um administrador.',
     entrada: admin
       ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha e mova para Pedido para começar o atendimento.'
       : 'As demandas em que você é o responsável. Abra para ver a ficha, anexar a ordem de serviço e avançar as etapas. Ao concluir, a demanda vai para Concluídos.',
@@ -59,6 +62,10 @@ export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = 
     if (tipo === 'concluidos') lista.sort((a, b) => String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
     conteudo.replaceChildren(lista.length ? agrupar(lista, tipo) : vazio(tipo, base.length));
   };
+  if (tipo === 'concluidos' && admin) {
+    ferramentas.append(listaSuspensa('Responsável', [['', 'Toda a equipe'], ...estado.usuarios.map(u => [String(u.id), u.nome])], filtro.responsavel,
+      valor => { filtro.responsavel = valor; redesenhar(); }));
+  }
   ferramentas.append(
     listaSuspensa('Serviço', [['', 'Todos os serviços'], ['calculos', 'Cálculos'], ['automacao', 'Automação']], filtro.servico,
       valor => { filtro.servico = valor; redesenhar(); }),
@@ -110,10 +117,14 @@ function linha(c, tipo) {
   const whatsapp = linkWhatsApp(c);
   if (whatsapp && !concluida) rapidas.append(link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `Chamar ${c.nome} no WhatsApp` }));
   if (responsavel && eAdmin()) rapidas.append(avatar(responsavel.nome, 'avatar--pequeno'));
+  if (concluida && eAdmin() && c.valor_centavos !== null && c.valor_centavos !== undefined) rapidas.append(el('span', 'cartao-valor', reais(c.valor_centavos)));
   if (tipo === 'arquivo') {
     rapidas.append(botao('Restaurar', 'botao--fantasma', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
   } else if (!c.etapa && eAdmin()) {
     rapidas.append(botao('Mover para Pedido', 'botao--primario', () => acoes.mover(c.id, 'pedido')));
+  } else if (!eAdmin() && ['pedido', 'nota_emitida'].includes(c.etapa || 'pedido')) {
+    // O funcionário leva a demanda direto para Processo iniciado.
+    rapidas.append(botao('Iniciar processo', 'botao--primario', () => acoes.mover(c.id, 'processo_iniciado'), { icone: 'seta_dir' }));
   }
   item.append(principal, rapidas);
   return item;
@@ -123,7 +134,7 @@ function vazio(tipo, totalBase) {
   if (totalBase) return el('div', 'vazio', icone('busca', 'icone vazio-icone'), el('p', '', 'Nenhum contato com esses filtros.'));
   const textos = {
     arquivo: 'O arquivo está vazio.',
-    concluidos: 'Nenhuma demanda concluída ainda. Quando você concluir uma demanda, ela aparece aqui.',
+    concluidos: 'Nenhuma demanda concluída ainda. Quando uma demanda chega em Entregue, ela aparece aqui.',
     entrada: eAdmin()
       ? 'Nenhum contato ainda. Os pedidos do site aparecem aqui assim que alguém enviar o formulário.'
       : 'Nenhuma demanda em aberto com você. As novas aparecem aqui quando um administrador te colocar como responsável.',

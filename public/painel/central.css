@@ -691,6 +691,12 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .etapa-pill .icone { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 .nav-contagem--neutra { background: var(--ok-fundo); color: var(--ok); }
 
+/* ---------- Confirmação de etapa ---------- */
+.confirmar-texto { color: var(--muted); }
+.confirmar-etapas { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.confirmar-etapas .icone { color: var(--subtle); }
+.etapa-pill--destino { background: var(--azul); color: #06101d; font-weight: 600; }
+
 /* ---------- Demonstração ---------- */
 .faixa-demo {
   position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; gap: 10px 16px; flex-wrap: wrap;

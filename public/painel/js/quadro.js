@@ -3,17 +3,17 @@ import { estado, acoes, ativos, usuarioPorId } from './estado.js';
 import { listaSuspensa, campoFiltro } from './entrada.js';
 import {
   el, botao, icone, avatar, etiquetaServico, ETAPAS, CAIXA, reais, reaisCurto, situacaoPrazo,
-  normalizar, textoBusca, diaDe, hoje, diasEntre, relativo,
+  normalizar, textoBusca, relativo,
 } from './util.js';
 
-const filtro = { servico: '', responsavel: '', texto: '', entreguesTodos: false };
+const filtro = { servico: '', responsavel: '', texto: '' };
 
 export function desenharQuadro(raiz) {
   const redesenhar = () => desenharQuadro(raiz);
   const cabecalho = el('header', 'tela-topo',
     el('div', '',
       el('h1', '', 'Andamento'),
-      el('p', '', 'Arraste os cartões entre as etapas ou use as setas. Clique num cartão para abrir a ficha.')));
+      el('p', '', 'O que está em trabalho. Arraste os cartões entre as etapas ou use as setas; ao concluir, a demanda vai para Concluídos.')));
 
   const quadro = el('div', 'quadro');
   const pintar = () => quadro.replaceChildren(...colunas());
@@ -40,21 +40,15 @@ function filtrados() {
     (!busca || textoBusca(c).includes(busca)));
 }
 
+// O quadro mostra só o que está em trabalho; o que chega em Entregue vai para Concluídos.
+const ETAPAS_QUADRO = ETAPAS.filter(([chave]) => chave !== 'entregue');
+
 function colunas() {
   const contatos = filtrados();
-  const dia = hoje();
-  return ETAPAS.map(([chave, nome], indice) => {
-    let daEtapa = contatos.filter(c => c.etapa === chave);
+  return ETAPAS_QUADRO.map(([chave, nome], indice) => {
+    const daEtapa = contatos.filter(c => c.etapa === chave);
     // Prazo mais próximo primeiro; sem prazo, o mais recente na etapa.
     daEtapa.sort((a, b) => (a.prazo || '9999').localeCompare(b.prazo || '9999') || String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
-
-    // Entregues antigos não lotam a coluna: mostra os últimos 30 dias, com opção de ver todos.
-    let ocultos = 0;
-    if (chave === 'entregue' && !filtro.entreguesTodos) {
-      const recentes = daEtapa.filter(c => !c.atualizado_em || diasEntre(diaDe(c.atualizado_em), dia) <= 30);
-      ocultos = daEtapa.length - recentes.length;
-      daEtapa = recentes;
-    }
 
     const soma = daEtapa.reduce((s, c) => s + (c.valor_centavos || 0), 0);
     const coluna = el('section', `coluna coluna--${chave}`);
@@ -62,17 +56,11 @@ function colunas() {
     coluna.setAttribute('aria-label', nome);
     coluna.append(el('header', 'coluna-topo',
       el('span', 'coluna-nome', el('span', 'coluna-passo', String(indice + 1)), nome),
-      el('span', 'coluna-info', el('b', '', String(daEtapa.length + ocultos)), soma ? el('small', '', reaisCurto(soma)) : null)));
+      el('span', 'coluna-info', el('b', '', String(daEtapa.length)), soma ? el('small', '', reaisCurto(soma)) : null)));
 
     const cartoes = el('div', 'coluna-cartoes');
     if (!daEtapa.length) cartoes.append(el('p', 'coluna-vazia', 'Arraste um cartão para cá.'));
     for (const c of daEtapa) cartoes.append(cartao(c, indice));
-    if (ocultos) {
-      cartoes.append(botao(`Ver mais ${ocultos} entregues há mais de 30 dias`, 'botao--fantasma botao--pequeno', () => {
-        filtro.entreguesTodos = true;
-        acoes.navegar('andamento');
-      }));
-    }
     coluna.append(cartoes);
     prepararSoltar(coluna);
     return coluna;
@@ -109,6 +97,7 @@ function cartao(c, indice) {
 
   const anterior = indice > 0 ? ETAPAS[indice - 1] : null;
   const proxima = ETAPAS[indice + 1];
+  const concluir = proxima?.[0] === 'entregue';
   artigo.append(...[
     el('div', 'cartao-topo', etiquetaServico(c.servico), prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null),
     el('strong', 'cartao-nome', c.nome),
@@ -120,7 +109,9 @@ function cartao(c, indice) {
       el('time', 'cartao-tempo', c.atualizado_em ? relativo(c.atualizado_em) : ''),
       el('span', 'cartao-setas',
         botao('', 'botao--icone botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior ? anterior[0] : null), { icone: 'seta_esq', titulo: `Voltar para ${anterior ? anterior[1] : CAIXA}` }),
-        proxima ? botao('', 'botao--icone botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir', titulo: `Avançar para ${proxima[1]}` }) : null)),
+        concluir
+          ? botao('Concluir', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'entregue'), { icone: 'ok', titulo: 'Concluir a demanda (vai para Concluídos)' })
+          : proxima ? botao('', 'botao--icone botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir', titulo: `Avançar para ${proxima[1]}` }) : null)),
   ].filter(Boolean));
   return artigo;
 }

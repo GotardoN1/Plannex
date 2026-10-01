@@ -59,7 +59,7 @@ export function desenharVisao(raiz) {
       () => acoes.navegar('agenda')),
     tile('Entregues', entreguesMes.length, nomeMesCurto(ano, numMes - 1),
       tempoMedio === null ? 'nenhuma entrega no mês' : `em média ${tempoMedio} ${tempoMedio === 1 ? 'dia' : 'dias'} do contato à entrega`,
-      () => acoes.navegar('andamento')),
+      () => acoes.navegar('concluidos')),
   ]);
 
   // ---------- Gráficos ----------
@@ -241,8 +241,9 @@ function funilEtapas(contatos) {
     preenchimento.style.width = `${l.n ? Math.max(3, (l.n / maximo) * 100) : 0}%`;
     const item = el('button', 'funil-linha', el('span', 'funil-nome', l.nome), el('span', 'funil-trilho', preenchimento), el('strong', 'funil-valor', String(l.n)));
     item.type = 'button';
-    item.title = l.chave ? `Ver ${l.nome} no andamento` : 'Ver a caixa de entrada';
-    item.addEventListener('click', () => acoes.navegar(l.chave ? 'andamento' : 'entrada'));
+    const destino = l.chave === 'entregue' ? 'concluidos' : l.chave ? 'andamento' : 'entrada';
+    item.title = destino === 'concluidos' ? 'Ver os concluídos' : l.chave ? `Ver ${l.nome} no andamento` : 'Ver a caixa de entrada';
+    item.addEventListener('click', () => acoes.navegar(destino));
     return el('li', '', item);
   }));
 }

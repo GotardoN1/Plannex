@@ -28,7 +28,8 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | --- | --- |
 | **Visão geral** | Saudação com o resumo do dia, números (novos na semana, em andamento, recebido e entregues no mês), contatos por semana, divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
 | **Caixa de entrada** | Todos os contatos agrupados por data, com prévia do pedido, filtros (aguardando, não lidos, serviço, texto), atalho para o WhatsApp e exportação para Excel |
-| **Andamento** | Quadro com as etapas Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente → Entregue. Cartões na cor do serviço (laranja: cálculos, azul: automação), com valor, nota, prazo, responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
+| **Concluídos** | Tudo o que chegou em Entregue, fora do quadro para ele não lotar; filtros por responsável e serviço. Para o funcionário, só os dele, para consulta |
+| **Andamento** | Quadro só com o que está em trabalho: Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente. Na última coluna, "Concluir" leva para Concluídos. Cartões na cor do serviço (laranja: cálculos, azul: automação), com valor, nota, prazo, responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
 | **Equipe** | Quem acessa, novos acessos, senha provisória e troca da própria senha |
@@ -43,7 +44,7 @@ A **ficha do contato** abre de qualquer tela. Ela tem:
 
 Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
 
-A Central se atualiza sozinha a cada 45 segundos, avisa quando chega contato novo e mostra no título da aba quantos ainda não foram lidos. Mover um contato de etapa pode ser desfeito pelo aviso que aparece.
+Toda mudança de etapa pede confirmação (de qual etapa para qual), seja pela seta, pela ficha, pela trilha ou arrastando. A Central se atualiza sozinha a cada 45 segundos, avisa quando chega contato novo e mostra no título da aba quantos ainda não foram lidos. Mover um contato de etapa pode ser desfeito pelo aviso que aparece.
 
 ### Acessos
 
@@ -53,11 +54,11 @@ A Central se atualiza sozinha a cada 45 segundos, avisa quando chega contato nov
 | Contatos | Todos | Só os que tem como responsável |
 | Valor, nota fiscal, pagamento | Vê e edita | Não vê (nem na linha do tempo) |
 | Notas fiscais e ordens de serviço | Vê e anexa | Não vê (mostram quanto a casa cobra) |
-| Etapas | Todas | Só de Processo iniciado até concluir |
+| Etapas | Todas | Leva de onde estiver para Processo iniciado, Revisado pelo cliente e Entregue; não entra em Pedido nem Notas e ordens |
 | Anotações | Sim | Sim, até concluir |
 | Arquivar, excluir, cadastrar, equipe | Sim | Não |
 
-Quando o funcionário conclui (chega em Entregue), a demanda sai de "Minhas demandas" e vai para **Concluídos**, só para consulta. Ele pode desfazer a conclusão por 10 minutos; depois, só um administrador reabre.
+Quando o funcionário conclui (chega em Entregue), a demanda sai de "Minhas demandas" e vai para **Concluídos**, só para consulta. Ele pode desfazer o próprio movimento por 10 minutos (inclusive um "Iniciar processo" feito por engano); depois, só um administrador reabre ou volta etapas.
 
 A regra vale na API: um funcionário não consegue buscar o que não vê na tela.
 

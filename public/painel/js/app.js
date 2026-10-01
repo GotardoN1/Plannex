@@ -1,7 +1,7 @@
 // Central Plannex: login, navegação, busca, recarga automática e as ações compartilhadas.
 import { api, quandoExpirar } from './api.js';
 import { estado, acoes, contatoPorId, eAdmin } from './estado.js';
-import { el, botao, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, normalizar, textoBusca, relativo, primeiroNome } from './util.js';
+import { el, botao, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, CAIXA, normalizar, textoBusca, relativo, primeiroNome } from './util.js';
 import { desenharVisao } from './visao.js';
 import { desenharEntrada } from './entrada.js';
 import { desenharQuadro } from './quadro.js';
@@ -14,17 +14,17 @@ import { perfisDemo, desenharEscolha, desenharFaixa } from './demo.js';
 const $ = seletor => document.querySelector(seletor);
 const $$ = seletor => [...document.querySelectorAll(seletor)];
 
-// "admin: true": só administrador vê. "funcionario: true": só funcionário (o admin acompanha pelo Andamento).
+// "admin: true": só administrador vê. O funcionário fica com as demandas dele, os concluídos e a agenda.
 const TELAS = {
   visao: { titulo: 'Visão geral', desenhar: desenharVisao, admin: true },
   entrada: { titulo: 'Caixa de entrada', desenhar: desenharEntrada },
   andamento: { titulo: 'Andamento', desenhar: desenharQuadro, admin: true },
   agenda: { titulo: 'Agenda', desenhar: desenharAgenda },
   arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
-  concluidos: { titulo: 'Concluídos', desenhar: raiz => desenharEntrada(raiz, { concluidos: true }), funcionario: true },
+  concluidos: { titulo: 'Concluídos', desenhar: raiz => desenharEntrada(raiz, { concluidos: true }) },
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
 };
-const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin()) && (!TELAS[nome].funcionario || !eAdmin());
+const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin());
 const telaInicial = () => (eAdmin() ? 'visao' : 'entrada');
 const RECARGA_MS = 45000;
 
@@ -141,15 +141,62 @@ async function alterar(id, campos, mensagem, desfazer) {
   }
 }
 
-function mover(id, etapa) {
+// Mover de etapa sempre pede confirmação. O "Desfazer" do aviso não pergunta.
+async function mover(id, etapa) {
   const contato = contatoPorId(id);
   if (!contato || (contato.etapa || null) === etapa) return;
   const anterior = contato.etapa || null;
-  // Funcionário concluindo: a demanda sai de "Minhas demandas" e vai para "Concluídos".
-  const mensagem = !eAdmin() && etapa === 'entregue'
+  const nomeDe = anterior ? NOME_ETAPA[anterior] : CAIXA;
+  const nomePara = etapa ? NOME_ETAPA[etapa] : CAIXA;
+  const ordem = chave => (chave ? ETAPAS.findIndex(([k]) => k === chave) : -1);
+  const concluindo = etapa === 'entregue';
+  const voltando = ordem(etapa) < ordem(anterior);
+  const ok = await confirmar({
+    titulo: concluindo ? 'Concluir a demanda?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
+    texto: concluindo
+      ? `${contato.nome} sai do andamento e vai para Concluídos.`
+      : `${contato.nome} sai de ${nomeDe} e vai para ${nomePara}.`,
+    de: nomeDe,
+    para: nomePara,
+    botao: concluindo ? 'Concluir' : voltando ? 'Voltar' : 'Enviar',
+  });
+  if (!ok) return;
+  const mensagem = concluindo
     ? `Demanda de ${primeiroNome(contato.nome)} concluída. Ela foi para Concluídos.`
-    : `${primeiroNome(contato.nome)} → ${etapa ? NOME_ETAPA[etapa] : CAIXA}`;
+    : `${primeiroNome(contato.nome)} → ${nomePara}`;
   return alterar(id, { etapa }, mensagem, { rotulo: 'Desfazer', aoClicar: () => alterar(id, { etapa: anterior }, 'Desfeito.') });
+}
+
+function confirmar({ titulo, texto, de, para, botao: rotuloBotao }) {
+  const janela = $('#janela-confirmar');
+  $('#confirmar-titulo').textContent = titulo;
+  $('#confirmar-texto').textContent = texto;
+  $('#confirmar-etapas').replaceChildren(el('span', 'etapa-pill', de), icone('seta_dir'), el('span', 'etapa-pill etapa-pill--destino', para));
+  $('#confirmar-sim').textContent = rotuloBotao;
+  janela.showModal();
+  $('#confirmar-sim').focus();
+  // Responde pelos próprios botões (e Esc / clique fora), sem depender do evento "close" da janela.
+  return new Promise(resolver => {
+    const terminar = resposta => {
+      $('#confirmar-sim').removeEventListener('click', sim);
+      $('#confirmar-nao').removeEventListener('click', nao);
+      janela.removeEventListener('keydown', tecla);
+      janela.removeEventListener('click', fora);
+      janela.removeEventListener('cancel', cancelar);
+      if (janela.open) janela.close();
+      resolver(resposta);
+    };
+    const sim = () => terminar(true);
+    const nao = () => terminar(false);
+    const tecla = evento => { if (evento.key === 'Escape') { evento.preventDefault(); terminar(false); } };
+    const fora = evento => { if (evento.target === janela) terminar(false); };
+    const cancelar = evento => { evento.preventDefault(); terminar(false); };
+    $('#confirmar-sim').addEventListener('click', sim);
+    $('#confirmar-nao').addEventListener('click', nao);
+    janela.addEventListener('keydown', tecla);
+    janela.addEventListener('click', fora);
+    janela.addEventListener('cancel', cancelar);
+  });
 }
 
 Object.assign(acoes, { abrirFicha, alterar, mover, recarregar, navegar, avisar, novoContato: abrirNovo });

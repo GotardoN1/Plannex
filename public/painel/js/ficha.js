@@ -77,7 +77,8 @@ function desenhar() {
 const ETAPAS_FUNCIONARIO = ['processo_iniciado', 'revisado', 'entregue'];
 // Para o funcionário, a demanda concluída fica só para consulta.
 const somenteLeitura = c => !eAdmin() && c.etapa === 'entregue';
-const podeMoverPara = (c, chave) => eAdmin() || (ETAPAS_FUNCIONARIO.includes(c.etapa) && ETAPAS_FUNCIONARIO.includes(chave) && !somenteLeitura(c));
+// O funcionário leva a demanda, de onde estiver, para Processo iniciado, Revisado pelo cliente e Entregue.
+const podeMoverPara = (c, chave) => eAdmin() || (ETAPAS_FUNCIONARIO.includes(chave) && !somenteLeitura(c));
 
 function avisoConcluida(c) {
   const quem = usuarioPorId(c.responsavel_id);
@@ -105,8 +106,8 @@ function etapas(c) {
   const proxima = ETAPAS[atual + 1];
   let acao;
   if (!proxima) acao = el('span', 'concluido', icone('ok'), admin ? 'Entregue' : 'Concluída');
-  else if (!podeMoverPara(c, proxima[0])) acao = el('span', 'aguardando-liberacao', icone('relogio'), 'Aguardando o administrador liberar para Processo iniciado');
-  else if (!admin && proxima[0] === 'entregue') acao = botao('Concluir demanda', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'entregue'), { icone: 'ok' });
+  else if (!admin && !ETAPAS_FUNCIONARIO.includes(c.etapa)) acao = botao('Iniciar processo', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'processo_iniciado'), { icone: 'seta_dir' });
+  else if (proxima[0] === 'entregue') acao = botao('Concluir demanda', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'entregue'), { icone: 'ok' });
   else acao = botao(`Avançar para ${proxima[1]}`, 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir' });
   return el('section', 'ficha-etapas', el('div', 'ficha-etapas-topo', el('h3', '', 'Andamento'), acao), trilha);
 }

@@ -408,12 +408,14 @@ async function alterarContato(request, env, usuario, contato) {
 
   // Funcionário só move a etapa e marca como lido.
   if (!admin && Object.keys(dados).some(chave => !['etapa', 'lido'].includes(chave))) return negado();
-  if (!admin && 'etapa' in dados && (!ETAPAS_FUNCIONARIO.includes(dados.etapa) || !ETAPAS_FUNCIONARIO.includes(contato.etapa))) {
-    return json({ erro: 'Pedido e Notas e ordens são etapas do administrador. Você trabalha a partir de Processo iniciado.' }, 403);
-  }
-  // Depois de concluída, só dá para desfazer a conclusão: até 10 minutos e só quem concluiu.
-  if (!admin && contato.etapa === 'entregue' && 'etapa' in dados && dados.etapa !== 'entregue') {
-    if (!(await podeDesfazerConclusao(env, usuario, id))) return concluida();
+  // Funcionário: de qualquer etapa, leva a demanda para Processo iniciado, Revisado pelo cliente e Entregue.
+  // Voltar para Pedido/Notas e ordens ou reabrir uma concluída, só desfazendo o próprio movimento em até 10 minutos.
+  if (!admin && 'etapa' in dados && (dados.etapa ?? null) !== contato.etapa) {
+    const desfazendo = await podeDesfazer(env, usuario, contato, dados.etapa ?? null);
+    if (contato.etapa === 'entregue' && !desfazendo) return concluida();
+    if (!ETAPAS_FUNCIONARIO.includes(dados.etapa) && !desfazendo) {
+      return json({ erro: 'Pedido e Notas e ordens são etapas do administrador.' }, 403);
+    }
   }
 
   const sets = [];
@@ -537,12 +539,13 @@ async function linhaDoTempo(env, usuario, id) {
 
 const concluida = () => json({ erro: 'Esta demanda já foi concluída. Para reabrir, fale com um administrador.' }, 403);
 
-// A última movimentação foi a conclusão, feita por esta pessoa, há menos de 10 minutos.
-async function podeDesfazerConclusao(env, usuario, contatoId) {
+// Desfazer: a última movimentação foi desta pessoa, há menos de 10 minutos, e o destino é de onde a demanda saiu.
+async function podeDesfazer(env, usuario, contato, alvo) {
   const ultima = await env.DB.prepare(
-    "SELECT para, usuario_id, quando > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes') AS recente FROM movimentacoes WHERE contato_id = ? ORDER BY quando DESC, id DESC LIMIT 1"
-  ).bind(contatoId).first();
-  return Boolean(ultima && ultima.para === 'entregue' && ultima.usuario_id === usuario.id && ultima.recente);
+    "SELECT de, para, usuario_id, quando > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes') AS recente FROM movimentacoes WHERE contato_id = ? ORDER BY quando DESC, id DESC LIMIT 1"
+  ).bind(contato.id).first();
+  return Boolean(ultima && ultima.recente && ultima.usuario_id === usuario.id
+    && (ultima.para ?? null) === contato.etapa && (ultima.de ?? null) === alvo);
 }
 
 async function anotar(request, env, usuario, id) {
