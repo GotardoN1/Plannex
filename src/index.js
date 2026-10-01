@@ -2,7 +2,8 @@
 // Tudo que não começa com /api/ vai direto para os arquivos estáticos.
 //
 // Acessos: "admin" vê e faz tudo. "funcionario" vê só os contatos em que é responsável,
-// sem valores, nota fiscal, pagamento nem anexos (notas e ordens mostram quanto a casa cobra).
+// sem valores, nota fiscal, pagamento, notas nem ordens (mostram quanto a casa cobra).
+// Ele vê e envia os documentos do cliente e os arquivos da entrega.
 // Ele só anota e move as etapas de trabalho: Processo iniciado, Revisado pelo cliente e Entregue.
 
 import { gerarHashSenha, conferirSenha, HASH_FALSO, base64 } from './senha.js';
@@ -13,7 +14,17 @@ const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entr
 const SERVICOS = ['calculos', 'automacao'];
 const ORIGENS = ['site', 'whatsapp', 'indicacao', 'telefone', 'email', 'outro'];
 const PAPEIS = ['admin', 'funcionario'];
-const CATEGORIAS_ARQUIVO = { nota: 'a nota fiscal', ordem: 'a ordem de serviço', outro: 'o arquivo' };
+const CATEGORIAS_ARQUIVO = {
+  cliente: 'documentos do cliente', nota: 'a nota fiscal', ordem: 'a ordem de serviço', outro: 'o arquivo', entrega: 'o arquivo da entrega',
+};
+// O funcionário vê e envia só os documentos do cliente e os arquivos da entrega.
+const CATEGORIAS_FUNCIONARIO = ['cliente', 'entrega'];
+// Abas da ficha: cada uma tem os seus comentários. "entrada" junta Caixa de entrada e Pedido.
+const ABAS = ['entrada', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
+// Documentos enviados pelo site: tipos aceitos, tamanho total e o teto do armazenamento grátis (1 GB no KV).
+const TIPOS_CLIENTE = /\.(pdf|jpe?g|png|webp|xlsx?|xlsm|csv|docx?|txt)$/i;
+const CLIENTE_TOTAL_MAXIMO = 10 * 1024 * 1024;
+const ARMAZENAMENTO_MAXIMO = 800 * 1024 * 1024;
 // Etapas em que o funcionário trabalha. Pedido e Notas e ordens são do administrador.
 const ETAPAS_FUNCIONARIO = ['processo_iniciado', 'revisado', 'entregue'];
 const ARQUIVO_MAXIMO = 10 * 1024 * 1024;
@@ -104,13 +115,12 @@ async function api(request, env, url) {
     if (!rota[2] && metodo === 'DELETE') return admin ? excluirContato(env, id) : negado();
     if (rota[2] === '/linha-do-tempo' && metodo === 'GET') return linhaDoTempo(env, usuario, id);
     if (rota[2] === '/notas' && metodo === 'POST') return !admin && contato.etapa === 'entregue' ? concluida() : anotar(request, env, usuario, id);
-    if (rota[2] === '/arquivos' && metodo === 'GET') return admin ? listarArquivos(env, id) : negado();
-    if (rota[2] === '/arquivos' && metodo === 'POST') return admin ? enviarArquivo(request, env, usuario, id) : negado();
+    if (rota[2] === '/arquivos' && metodo === 'GET') return listarArquivos(env, usuario, id);
+    if (rota[2] === '/arquivos' && metodo === 'POST') return enviarArquivo(request, env, usuario, contato);
   }
 
   rota = pathname.match(/^\/api\/arquivos\/(\d+)$/);
-  if (rota && !admin) return negado();
-  if (rota && metodo === 'GET') return baixarArquivo(env, Number(rota[1]));
+  if (rota && metodo === 'GET') return baixarArquivo(env, usuario, Number(rota[1]));
   if (rota && metodo === 'DELETE') return excluirArquivo(env, usuario, Number(rota[1]));
 
   rota = pathname.match(/^\/api\/notas\/(\d+)$/);
@@ -138,7 +148,22 @@ async function contatoVisivel(env, usuario, id) {
 // ---------- Formulário do site ----------
 
 async function registrarContato(request, env) {
-  const dados = await lerJson(request);
+  // Com documentos, o site manda multipart; sem, manda JSON.
+  const multipart = (request.headers.get('Content-Type') || '').startsWith('multipart/form-data');
+  let dados;
+  let arquivos = [];
+  if (multipart) {
+    if (Number(request.headers.get('Content-Length') || 0) > CLIENTE_TOTAL_MAXIMO + 256 * 1024) return json({ erro: 'Arquivos grandes demais.' }, 413);
+    const formulario = await request.formData().catch(() => null);
+    if (!formulario) return json({ erro: 'Dados inválidos.' }, 400);
+    dados = {};
+    for (const [chave, valor] of formulario.entries()) {
+      if (typeof valor === 'string') dados[chave] = valor;
+      else if (chave === 'arquivos') arquivos.push(valor);
+    }
+  } else {
+    dados = await lerJson(request);
+  }
   // Campo invisível: só robô preenche. Responde ok para não dar pista.
   if (!dados || dados._honey) return json({ ok: true });
 
@@ -153,10 +178,23 @@ async function registrarContato(request, env) {
   const repetido = await env.DB.prepare(
     "SELECT id FROM contatos WHERE servico = ? AND nome = ? AND criado_em > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes')"
   ).bind(servico, campos.nome).first();
+  await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind(chave).run();
+  if (repetido) return json({ ok: true }, 201);
 
-  const escritas = [env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind(chave)];
-  if (!repetido) escritas.push(inserirContato(env, { ...campos, servico, origem: 'site' }));
-  await env.DB.batch(escritas);
+  const novo = await inserirContato(env, { ...campos, servico, origem: 'site' }, true).first();
+
+  // Documentos que a pessoa anexou: mesmas regras do formulário (até 10 arquivos, 10 MB no total),
+  // só tipos de documento e só enquanto houver espaço no armazenamento grátis.
+  arquivos = arquivos.filter(a => a.size > 0 && TIPOS_CLIENTE.test(a.name || '')).slice(0, 10);
+  const total = arquivos.reduce((soma, a) => soma + a.size, 0);
+  if (arquivos.length && total <= CLIENTE_TOTAL_MAXIMO) {
+    const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM arquivos').first();
+    if (usado + total <= ARMAZENAMENTO_MAXIMO) {
+      await guardarArquivos(env, novo.id, null, 'cliente', arquivos);
+    } else {
+      await nota(env, novo.id, null, 'enviou documentos pelo site, mas o armazenamento da Central está cheio: eles estão só no e-mail', 'sistema', false, 'entrada').run();
+    }
+  }
   return json({ ok: true }, 201);
 }
 
@@ -171,9 +209,9 @@ function camposDoContato(dados) {
   return campos;
 }
 
-function inserirContato(env, campos) {
+function inserirContato(env, campos, devolverId = false) {
   const colunas = Object.keys(campos);
-  return env.DB.prepare(`INSERT INTO contatos (${colunas.join(', ')}) VALUES (${colunas.map(() => '?').join(', ')})`)
+  return env.DB.prepare(`INSERT INTO contatos (${colunas.join(', ')}) VALUES (${colunas.map(() => '?').join(', ')})${devolverId ? ' RETURNING id' : ''}`)
     .bind(...colunas.map(c => campos[c]));
 }
 
@@ -234,10 +272,14 @@ async function demo(request, env, pathname) {
   if (pathname === '/api/demo/reiniciar' && metodo === 'POST') {
     const usuario = await usuarioDaSessao(request, env);
     if (!usuario) return json({ erro: 'Escolha um perfil primeiro.' }, 401);
-    // No máximo uma vez por minuto, para ninguém travar a demonstração.
-    if (await excedeuLimite(env, 'demo-reiniciar', [1, 1])) return json({ erro: 'A demonstração acabou de ser reiniciada. Aguarde um minuto.' }, 429);
+    // Limitado: as cotas grátis do banco e dos arquivos são da conta toda, inclusive da Central real.
+    if (await excedeuLimite(env, 'demo-reiniciar', [1, 10])) return json({ erro: 'A demonstração foi reiniciada há pouco. Tente de novo em alguns minutos.' }, 429);
+    if (await excedeuLimite(env, 'demo-reiniciar-dia', [20, 24 * 60])) return json({ erro: 'A demonstração já foi reiniciada muitas vezes hoje. Ela volta ao exemplo sozinha de madrugada.' }, 429);
     await resetarDemo(env);
-    await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-reiniciar').run();
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-reiniciar'),
+      env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-reiniciar-dia'),
+    ]);
     return json({ ok: true });
   }
   return json({ erro: 'Rota não encontrada.' }, 404);
@@ -355,7 +397,7 @@ async function central(env, usuario) {
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
               lido_em, arquivado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
               (SELECT COUNT(*) FROM notas n WHERE n.contato_id = contatos.id AND n.tipo = 'nota') AS total_notas,
-              ${admin ? '(SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id)' : '0'} AS total_arquivos
+              (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${admin ? '' : "AND a.categoria IN ('cliente', 'entrega')"}) AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
     )),
     env.DB.prepare(`SELECT id, nome, papel${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
@@ -527,10 +569,10 @@ async function linhaDoTempo(env, usuario, id) {
   const restrito = eAdmin(usuario) ? '' : 'AND n.restrito = 0';
   const { results } = await env.DB.prepare(
     `SELECT * FROM (
-       SELECT 'etapa' AS tipo, NULL AS nota_id, m.usuario_id, u.nome AS usuario, m.de, m.para, NULL AS texto, m.quando
+       SELECT 'etapa' AS tipo, NULL AS nota_id, m.usuario_id, u.nome AS usuario, m.de, m.para, NULL AS texto, NULL AS aba, m.quando
        FROM movimentacoes m LEFT JOIN usuarios u ON u.id = m.usuario_id WHERE m.contato_id = ?1
        UNION ALL
-       SELECT n.tipo, n.id, n.usuario_id, u.nome, NULL, NULL, n.texto, n.criado_em
+       SELECT n.tipo, n.id, n.usuario_id, u.nome, NULL, NULL, n.texto, n.etapa, n.criado_em
        FROM notas n LEFT JOIN usuarios u ON u.id = n.usuario_id WHERE n.contato_id = ?1 ${restrito}
      ) ORDER BY quando, nota_id`
   ).bind(id).all();
@@ -552,7 +594,9 @@ async function anotar(request, env, usuario, id) {
   const dados = await lerJson(request);
   const texto = limparTextoLongo(dados?.texto, 2000);
   if (!texto) return json({ erro: 'Escreva a anotação.' }, 400);
-  await nota(env, id, usuario.id, texto, 'nota').run();
+  const aba = ABAS.includes(dados?.aba) ? dados.aba : 'entrada';
+  if (aba === 'nota_emitida' && !eAdmin(usuario)) return negado();
+  await nota(env, id, usuario.id, texto, 'nota', aba === 'nota_emitida', aba).run();
   return json({ ok: true }, 201);
 }
 
@@ -564,25 +608,31 @@ async function excluirNota(env, usuario, id) {
   return json({ ok: true });
 }
 
-function nota(env, contatoId, usuarioId, texto, tipo = 'sistema', restrito = false) {
-  return env.DB.prepare('INSERT INTO notas (contato_id, usuario_id, tipo, texto, restrito) VALUES (?, ?, ?, ?, ?)')
-    .bind(contatoId, usuarioId, tipo, texto, restrito ? 1 : 0);
+function nota(env, contatoId, usuarioId, texto, tipo = 'sistema', restrito = false, aba = null) {
+  return env.DB.prepare('INSERT INTO notas (contato_id, usuario_id, tipo, texto, restrito, etapa) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(contatoId, usuarioId, tipo, texto, restrito ? 1 : 0, aba);
 }
 
-// ---------- Arquivos (notas fiscais e ordens de serviço) ----------
+// ---------- Arquivos ----------
 // O conteúdo vai para o KV; o banco guarda nome, tipo, tamanho e quem enviou.
-// Só administrador: notas e ordens mostram quanto a casa cobra.
+// Notas fiscais, ordens de serviço e "outros" são do administrador (mostram quanto a casa cobra).
+// Documentos do cliente e arquivos da entrega são do trabalho: o funcionário vê e envia.
 
-async function listarArquivos(env, contatoId) {
+const podeVerCategoria = (usuario, categoria) => eAdmin(usuario) || CATEGORIAS_FUNCIONARIO.includes(categoria);
+// Aba da ficha em que cada tipo de arquivo aparece.
+const ABA_DA_CATEGORIA = { cliente: 'entrada', nota: 'nota_emitida', ordem: 'nota_emitida', outro: 'nota_emitida', entrega: 'entregue' };
+
+async function listarArquivos(env, usuario, contatoId) {
+  const filtro = eAdmin(usuario) ? '' : `AND a.categoria IN (${CATEGORIAS_FUNCIONARIO.map(c => `'${c}'`).join(', ')})`;
   const { results } = await env.DB.prepare(
     `SELECT a.id, a.categoria, a.nome, a.tipo, a.tamanho, a.usuario_id, a.criado_em, u.nome AS usuario
      FROM arquivos a LEFT JOIN usuarios u ON u.id = a.usuario_id
-     WHERE a.contato_id = ? ORDER BY a.criado_em DESC, a.id DESC`
+     WHERE a.contato_id = ? ${filtro} ORDER BY a.criado_em DESC, a.id DESC`
   ).bind(contatoId).all();
   return json({ arquivos: results });
 }
 
-async function enviarArquivo(request, env, usuario, contatoId) {
+async function enviarArquivo(request, env, usuario, contato) {
   if (Number(request.headers.get('Content-Length') || 0) > ARQUIVO_MAXIMO + 64 * 1024) {
     return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   }
@@ -591,33 +641,54 @@ async function enviarArquivo(request, env, usuario, contatoId) {
   const categoria = String(formulario?.get('categoria') || 'outro');
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
   if (!(categoria in CATEGORIAS_ARQUIVO)) return json({ erro: 'Tipo de arquivo inválido.' }, 400);
+  if (!podeVerCategoria(usuario, categoria)) return negado();
+  // Funcionário não mexe mais numa demanda concluída.
+  if (!eAdmin(usuario) && contato.etapa === 'entregue') return concluida();
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
+  if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
   if (emDemo(env)) {
     if (arquivo.size > DEMO_ARQUIVO_MAXIMO) return json({ erro: 'Na demonstração, o limite é 1 MB por arquivo.' }, 413);
     if (await excedeuLimite(env, 'demo-envio', DEMO_LIMITE_ENVIOS)) return json({ erro: 'A demonstração atingiu o limite de envios de hoje.' }, 429);
     await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-envio').run();
   }
-  if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
-
-  const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'arquivo';
-  const tipo = limparTexto(arquivo.type, 100) || 'application/octet-stream';
-  const chave = `contato/${contatoId}/${crypto.randomUUID()}`;
-  await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
-  try {
-    await env.DB.batch([
-      env.DB.prepare('INSERT INTO arquivos (contato_id, categoria, nome, tipo, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .bind(contatoId, categoria, nome, tipo, arquivo.size, chave, usuario.id),
-      nota(env, contatoId, usuario.id, `anexou ${CATEGORIAS_ARQUIVO[categoria]} "${nome}"`, 'sistema', true),
-    ]);
-  } catch (erro) {
-    await env.ARQUIVOS.delete(chave);
-    throw erro;
-  }
+  await guardarArquivos(env, contato.id, usuario.id, categoria, [arquivo]);
   return json({ ok: true }, 201);
 }
 
-async function baixarArquivo(env, id) {
+// Grava no KV e registra no banco; se o banco falhar, apaga do KV para não sobrar lixo.
+async function guardarArquivos(env, contatoId, usuarioId, categoria, arquivos) {
+  const registros = [];
+  for (const arquivo of arquivos) {
+    const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'arquivo';
+    const tipo = limparTexto(arquivo.type, 100) || 'application/octet-stream';
+    const chave = `contato/${contatoId}/${crypto.randomUUID()}`;
+    await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
+    registros.push({ nome, tipo, chave, tamanho: arquivo.size });
+  }
+  const restrito = !CATEGORIAS_FUNCIONARIO.includes(categoria);
+  const texto = registros.length === 1
+    ? `anexou ${CATEGORIAS_ARQUIVO[categoria]} "${registros[0].nome}"`
+    : `anexou ${registros.length} arquivos (${CATEGORIAS_ARQUIVO[categoria]})`;
+  try {
+    await env.DB.batch([
+      ...registros.map(r => env.DB.prepare('INSERT INTO arquivos (contato_id, categoria, nome, tipo, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(contatoId, categoria, r.nome, r.tipo, r.tamanho, r.chave, usuarioId)),
+      nota(env, contatoId, usuarioId, texto, 'sistema', restrito, ABA_DA_CATEGORIA[categoria]),
+    ]);
+  } catch (erro) {
+    await Promise.all(registros.map(r => env.ARQUIVOS.delete(r.chave)));
+    throw erro;
+  }
+}
+
+async function arquivoVisivel(env, usuario, id) {
   const arquivo = await env.DB.prepare('SELECT * FROM arquivos WHERE id = ?').bind(id).first();
+  if (!arquivo || !podeVerCategoria(usuario, arquivo.categoria)) return null;
+  return (await contatoVisivel(env, usuario, arquivo.contato_id)) ? arquivo : null;
+}
+
+async function baixarArquivo(env, usuario, id) {
+  const arquivo = await arquivoVisivel(env, usuario, id);
   if (!arquivo) return json({ erro: 'Arquivo não encontrado.' }, 404);
   const conteudo = await env.ARQUIVOS.get(arquivo.chave, { type: 'stream' });
   if (!conteudo) return json({ erro: 'O conteúdo do arquivo não foi encontrado.' }, 404);
@@ -634,11 +705,18 @@ async function baixarArquivo(env, id) {
 }
 
 async function excluirArquivo(env, usuario, id) {
-  const arquivo = await env.DB.prepare('SELECT * FROM arquivos WHERE id = ?').bind(id).first();
+  const arquivo = await arquivoVisivel(env, usuario, id);
   if (!arquivo) return json({ erro: 'Arquivo não encontrado.' }, 404);
+  if (!eAdmin(usuario)) {
+    // Funcionário só apaga o que ele mesmo enviou, e não depois de concluída.
+    if (arquivo.usuario_id !== usuario.id) return negado();
+    const contato = await env.DB.prepare('SELECT etapa FROM contatos WHERE id = ?').bind(arquivo.contato_id).first();
+    if (contato?.etapa === 'entregue') return concluida();
+  }
   await env.DB.batch([
     env.DB.prepare('DELETE FROM arquivos WHERE id = ?').bind(id),
-    nota(env, arquivo.contato_id, usuario.id, `removeu ${CATEGORIAS_ARQUIVO[arquivo.categoria]} "${arquivo.nome}"`, 'sistema', true),
+    nota(env, arquivo.contato_id, usuario.id, `removeu ${CATEGORIAS_ARQUIVO[arquivo.categoria]} "${arquivo.nome}"`, 'sistema',
+      !CATEGORIAS_FUNCIONARIO.includes(arquivo.categoria), ABA_DA_CATEGORIA[arquivo.categoria]),
   ]);
   await env.ARQUIVOS.delete(arquivo.chave);
   return json({ ok: true });

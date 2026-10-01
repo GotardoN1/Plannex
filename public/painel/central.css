@@ -691,6 +691,48 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .etapa-pill .icone { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 .nav-contagem--neutra { background: var(--ok-fundo); color: var(--ok); }
 
+/* ---------- Ficha em abas ---------- */
+.trilha-passo.is-aberta .trilha-nome { color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: var(--azul); text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.trilha-passo.is-aberta .trilha-ponto { box-shadow: 0 0 0 4px #65aaf540; }
+.trilha-passo.is-bloqueado { cursor: not-allowed; opacity: 1; }
+.trilha-passo.is-bloqueado .trilha-ponto { border-color: var(--critico); background: var(--critico-fundo); color: var(--critico); }
+.trilha-passo.is-bloqueado .trilha-ponto .icone { width: 15px; height: 15px; }
+.trilha-passo.is-bloqueado .trilha-nome { color: var(--critico); }
+.trilha-passo.is-bloqueado:hover .trilha-ponto { border-color: var(--critico); }
+.ficha-painel { display: grid; gap: 16px; padding: 16px; border: 1px solid var(--line-forte); border-radius: var(--radius); background: #0d1828; min-width: 0; }
+.painel-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.painel-topo h3 { font-size: 17px; }
+.estado-aba { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.estado-aba--atual { background: #213a5c; color: #cfe3fb; }
+.estado-aba--feito { background: var(--ok-fundo); color: var(--ok); }
+.estado-aba--futuro { background: var(--surface-3); color: var(--muted); }
+.painel-rodape { display: flex; justify-content: flex-end; }
+.painel-rodape--destaque { padding-top: 4px; }
+.bloco-dica { color: var(--subtle); font-size: 12px; margin-top: -6px; }
+.dica-etapa { display: flex; align-items: center; gap: 8px; }
+.dica-etapa .icone { width: 16px; height: 16px; flex: none; }
+.campo--largo { grid-column: 1 / -1; }
+.envio--simples { grid-template-columns: 1fr; }
+.comentarios { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.comentario { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; }
+.comentario-corpo { padding: 9px 12px; border: 1px solid var(--line); border-radius: 4px 12px 12px 12px; background: var(--bg); min-width: 0; }
+.comentario-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.comentario-topo time { color: var(--subtle); font-size: 11px; }
+.comentario-corpo p { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; font-size: 14px; }
+.comentario:hover .apagar-nota { opacity: 1; }
+.bloco--comentarios.is-destaque { border-color: #f2c46b66; background: linear-gradient(160deg, #2a2414, var(--surface) 55%); }
+.bloco--comentarios.is-destaque .titulo-icone .icone { color: var(--alerta); }
+.chamada-entrega { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid #2c5687; border-radius: var(--radius); background: #132a47; color: #cfe3fb; font-size: 14px; line-height: 1.5; }
+.chamada-entrega .icone { flex: none; margin-top: 2px; color: var(--azul); }
+.chamada-entrega.is-feita { border-color: #1d6b45; background: var(--ok-fundo); color: #c9f2dc; }
+.chamada-entrega.is-feita .icone, .chamada-entrega.is-feita strong { color: var(--ok); }
+.historico-completo { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.historico-completo summary { display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: var(--muted); font-weight: 600; cursor: pointer; }
+.historico-completo summary .icone { width: 16px; height: 16px; }
+.historico-completo[open] summary { border-bottom: 1px solid var(--line); }
+.historico-completo .linha-tempo { padding: 8px 16px 14px; }
+.nota-texto small { color: var(--subtle); font-weight: 400; }
+
 /* ---------- Confirmação de etapa ---------- */
 .confirmar-texto { color: var(--muted); }
 .confirmar-etapas { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }

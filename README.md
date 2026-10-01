@@ -34,13 +34,17 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
 | **Equipe** | Quem acessa, novos acessos, senha provisória e troca da própria senha |
 
-A **ficha do contato** abre de qualquer tela. Ela tem:
+A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação.
 
-- **Andamento:** a trilha das etapas, onde um clique move o contato.
-- **Atalhos:** WhatsApp com mensagem pronta e resposta por e-mail.
-- **Dados:** os dados do formulário e os do negócio (responsável, valor, número da nota, data do pagamento e prazo de entrega).
-- **Notas e ordens de serviço:** anexos de nota fiscal, OS e outros arquivos (até 10 MB cada, guardados no KV do Cloudflare). Na etapa "Notas e ordens", o bloco sobe para o topo da ficha.
-- **Linha do tempo:** anotações da equipe e o registro automático de cada mudança, com autor e horário.
+| Aba | Conteúdo |
+| --- | --- |
+| Caixa de entrada (junta a chegada e o Pedido) | Contato, solicitação, entrega (responsável e prazo), **documentos que a pessoa enviou pelo site** e comentários |
+| Notas e ordens | Só administrador (em vermelho e trancada para o funcionário): valor, nota fiscal, pagamento, notas fiscais e ordens de serviço |
+| Processo iniciado | Prazo, solicitação, documentos do cliente e anotações do processo |
+| Revisado pelo cliente | O que o cliente pediu para ajustar |
+| Entregue | Excel e relatório finais, comentário da entrega e o registro de quando e quem entregou |
+
+Para concluir, o funcionário sobe os arquivos finais na aba Entregue e clica em "Concluir e registrar entrega"; o dia e a hora ficam registrados. No fim da ficha fica o histórico completo (movimentações, anexos e alterações).
 
 Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
 
@@ -54,6 +58,7 @@ Toda mudança de etapa pede confirmação (de qual etapa para qual), seja pela s
 | Contatos | Todos | Só os que tem como responsável |
 | Valor, nota fiscal, pagamento | Vê e edita | Não vê (nem na linha do tempo) |
 | Notas fiscais e ordens de serviço | Vê e anexa | Não vê (mostram quanto a casa cobra) |
+| Documentos do cliente e arquivos da entrega | Vê e anexa | Vê e anexa |
 | Etapas | Todas | Leva de onde estiver para Processo iniciado, Revisado pelo cliente e Entregue; não entra em Pedido nem Notas e ordens |
 | Anotações | Sim | Sim, até concluir |
 | Arquivar, excluir, cadastrar, equipe | Sim | Não |
@@ -66,7 +71,7 @@ A regra vale na API: um funcionário não consegue buscar o que não vê na tela
 
 - **Login:** usuário e senha. Senhas guardadas com PBKDF2 (100 mil iterações, sal próprio). Sessão por cookie `HttpOnly`, `Secure` e `SameSite=Strict`, válida por 7 dias. Depois de 5 erros em 15 minutos, o login trava.
 - **Formulário:** no máximo 5 envios a cada 10 minutos por visitante, com o campo anti-robô do site. O IP não é guardado, só um hash dele para contar tentativas.
-- **Dados guardados:** os campos de texto do formulário (nome, WhatsApp, e-mail, plano, descrição e observações). Anexos ficam só no e-mail. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
+- **Dados guardados:** os campos do formulário (nome, WhatsApp, e-mail, plano, descrição e observações) e os documentos anexados (até 10 arquivos e 10 MB; só PDF, imagem, Excel, Word, CSV e texto). Se o armazenamento passar de 800 MB, os documentos novos ficam só no e-mail e a ficha avisa. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
 - **Equipe:** só administradores dão, mudam e removem acessos. Ninguém muda ou remove o próprio acesso, então sempre sobra um administrador.
 - **Anexos:** sempre baixados como arquivo, nunca abertos como página do site.
 
@@ -104,7 +109,7 @@ wrangler.jsonc              configuração do Worker, do banco e da limpeza diá
 
 O número `revNNN` no nome dos arquivos é o controle de cache: a cada versão nova o arquivo muda de nome, então o navegador nunca usa um CSS ou JS antigo. O `_headers` guarda esses arquivos em cache por um ano e sempre revalida o `index.html` e o painel.
 
-> Ao trocar o site por uma versão nova, mantenha em `public/index.html` a linha `<script src="./assets/js/registro-contato.rev141.js"></script>` e as regras do painel no `_headers`. Sem ela, os contatos param de chegar ao painel (o e-mail continua).
+> Ao trocar o site por uma versão nova, mantenha em `public/index.html` a linha `<script src="./assets/js/registro-contato.rev142.js"></script>` e as regras do painel no `_headers`. Sem ela, os contatos param de chegar ao painel (o e-mail continua).
 
 ## Como rodar no computador
 

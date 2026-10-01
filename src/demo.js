@@ -47,6 +47,22 @@ const ANOTACOES = [
 
 const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
 
+// Comentários de exemplo para as abas da ficha.
+const NO_PROCESSO = [
+  'Conferi os holerites e as datas. Falta só o índice de correção do último mês.',
+  'Planilha montada com as três abas. Testando os botões antes de mandar para o cliente.',
+  'Juros calculados desde a citação, como pede a sentença.',
+];
+const AJUSTES = [
+  'O cliente pediu para incluir as horas extras de março e refazer o relatório.',
+  'Ajustar o nome das colunas do relatório mensal e incluir o total por vendedor.',
+  'Cliente achou que faltou o reflexo no 13º. Revisar e reenviar.',
+];
+const NA_ENTREGA = [
+  'Entregue por e-mail com a memória de cálculo e o parecer.',
+  'Planilha entregue com vídeo explicativo. Cliente aprovou.',
+];
+
 // Roteiro de cada contato: [etapa ou null, dias desde a chegada, dias na etapa atual, responsável, prazo em dias a partir de hoje]
 // Montado à mão para a demonstração contar uma história: atrasos, pagamentos pendentes, novidades na caixa.
 const ROTEIRO = [
@@ -112,23 +128,34 @@ export async function resetarDemo(env) {
         movimentacoes.push({ contato_id: id, de, para: ETAPAS[k], usuario_id: k === 0 ? 1 + (i % 2) : responsavel || 1, quando: iso(quando) });
         de = ETAPAS[k];
       }
-      if (responsavel) notas.push({ contato_id: id, usuario_id: 1 + (i % 2), tipo: 'sistema', restrito: 0, texto: `definiu ${PERFIS_DEMO[responsavel - 1].nome} como responsável`, criado_em: iso(criado + DIA / 2) });
-      notas.push({ contato_id: id, usuario_id: 2, tipo: 'sistema', restrito: 1, texto: `definiu o valor em ${reais(valor)}`, criado_em: iso(criado + DIA / 2 + 60000) });
-      if (i % 3 === 0) notas.push({ contato_id: id, usuario_id: responsavel || 1, tipo: 'nota', restrito: 0, texto: ANOTACOES[i % ANOTACOES.length], criado_em: iso(atualizado - 3600000) });
-      // Ordem de serviço anexada nos que já passaram de "Notas e ordens".
-      if (indice >= 1 && i % 4 === 0) arquivos.push({ contato_id: id, nome: `OS-${String(id).padStart(4, '0')}.pdf`, usuario_id: responsavel || 2, criado_em: iso(criado + DIA), contato: nome });
+      const anotar = (usuario, tipo, restrito, texto, quando, aba) => notas.push({ contato_id: id, usuario_id: usuario, tipo, restrito, texto, criado_em: iso(quando), etapa: aba });
+      if (responsavel) anotar(1 + (i % 2), 'sistema', 0, `definiu ${PERFIS_DEMO[responsavel - 1].nome} como responsável`, criado + DIA / 2, null);
+      anotar(2, 'sistema', 1, `definiu o valor em ${reais(valor)}`, criado + DIA / 2 + 60000, null);
+      if (i % 3 === 0) anotar(responsavel || 1, 'nota', 0, ANOTACOES[i % ANOTACOES.length], criado + DIA / 3, 'entrada');
+      if (indice >= 1 && i % 5 === 1) anotar(2, 'nota', 1, 'Nota emitida e enviada ao cliente. Aguardando o pagamento.', criado + DIA, 'nota_emitida');
+      if (indice >= 2 && i % 2 === 0) anotar(responsavel || 1, 'nota', 0, NO_PROCESSO[i % NO_PROCESSO.length], atualizado - 5 * 3600000, 'processo_iniciado');
+      if (indice >= 3) anotar(1 + (i % 2), 'nota', 0, AJUSTES[i % AJUSTES.length], atualizado - 2 * 3600000, 'revisado');
+      if (indice === 4) anotar(responsavel || 1, 'nota', 0, NA_ENTREGA[i % NA_ENTREGA.length], atualizado - 60000, 'entregue');
+
+      // Arquivos de exemplo: OS (administrador), versão para revisão e arquivos finais.
+      if (indice >= 1 && i % 4 === 0) arquivos.push({ contato_id: id, categoria: 'ordem', nome: `OS-${String(id).padStart(4, '0')}.pdf`, usuario_id: 2, criado_em: iso(criado + DIA), contato: nome });
+      if (indice >= 3 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Relatorio-final.pdf', usuario_id: responsavel || 1, criado_em: iso(atualizado - 3 * 3600000), contato: nome });
+      if (indice === 4 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Memoria-de-calculo.csv', usuario_id: responsavel || 1, criado_em: iso(atualizado - 2 * 3600000), contato: nome });
     }
+    // Documentos que a pessoa enviou pelo site.
+    if (i % 3 === 0 && i < 30) arquivos.push({ contato_id: id, categoria: 'cliente', nome: servico === 'calculos' ? 'Sentenca-e-holerites.pdf' : 'Planilha-atual.csv', usuario_id: null, criado_em: iso(criado), contato: nome });
   });
 
-  // Uploads de visitantes e os arquivos de exemplo antigos saem do KV.
-  const { results: antigos } = await env.DB.prepare('SELECT chave FROM arquivos').all();
+  // O KV grátis tem poucas gravações por dia, compartilhadas com a Central real. Por isso os arquivos
+  // de exemplo têm chave fixa e só são gravados quando faltam; o reinício apaga só os enviados por visitantes.
+  const { results: antigos } = await env.DB.prepare("SELECT chave FROM arquivos WHERE chave NOT LIKE 'demo/amostra/%'").all();
   await Promise.all(antigos.map(a => env.ARQUIVOS.delete(a.chave)));
 
-  const arquivosComChave = await Promise.all(arquivos.map(async (a, i) => {
-    const chave = `demo/os-${a.contato_id}-${i}`;
-    const pdf = pdfDeExemplo(`Ordem de servico ${a.nome.replace('.pdf', '')}`, a.contato);
-    await env.ARQUIVOS.put(chave, pdf);
-    return { ...a, chave, tamanho: pdf.byteLength };
+  const arquivosComChave = await Promise.all(arquivos.map(async a => {
+    const chave = `demo/amostra/${a.contato_id}/${a.categoria}/${a.nome}`;
+    const conteudo = conteudoDeExemplo(a);
+    if (!(await env.ARQUIVOS.get(chave, { type: 'arrayBuffer' }))) await env.ARQUIVOS.put(chave, conteudo);
+    return { ...a, chave, tamanho: conteudo.byteLength };
   }));
 
   // Poucas consultas grandes: o plano grátis limita quantas consultas cada acesso faz.
@@ -138,14 +165,15 @@ export async function resetarDemo(env) {
     env.DB.prepare('DELETE FROM notas'),
     env.DB.prepare('DELETE FROM movimentacoes'),
     env.DB.prepare('DELETE FROM contatos'),
-    env.DB.prepare('DELETE FROM tentativas'),
+    // Mantém os contadores de limite da própria demonstração.
+    env.DB.prepare("DELETE FROM tentativas WHERE chave NOT LIKE 'demo-%'"),
     env.DB.prepare(`DELETE FROM usuarios WHERE id NOT IN (${ids})`),
     env.DB.prepare(inserir('usuarios', PERFIS_DEMO.map(p => ({ id: p.id, usuario: p.usuario, nome: p.nome, papel: p.papel, senha_hash: 'demo-sem-senha' })))
       + ' ON CONFLICT (id) DO UPDATE SET usuario = excluded.usuario, nome = excluded.nome, papel = excluded.papel, senha_hash = excluded.senha_hash'),
     env.DB.prepare(inserir('contatos', contatos)),
     env.DB.prepare(inserir('movimentacoes', movimentacoes)),
     env.DB.prepare(inserir('notas', notas)),
-    env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: 'ordem', nome: a.nome, tipo: 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),
+    env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: a.categoria, nome: a.nome, tipo: a.nome.endsWith('.csv') ? 'text/csv' : 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),
   ]);
 }
 
@@ -161,7 +189,18 @@ function reais(centavos) {
   return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// PDF de uma página, só com texto, para as ordens de serviço de exemplo poderem ser abertas.
+function conteudoDeExemplo(a) {
+  if (a.nome.endsWith('.csv')) {
+    const linhas = a.categoria === 'cliente'
+      ? ['Data;Produto;Quantidade;Valor', '01/09/2026;Produto A;12;1.440,00', '02/09/2026;Produto B;5;620,00', '03/09/2026;Produto A;8;960,00']
+      : ['Competencia;Historico;Fator;Corrigido;Juros;Total', 'Jan/2025;10000,00;1,0400;10400,00;312,00;10712,00', 'Fev/2025;8000,00;1,0350;8280,00;207,00;8487,00', 'Total;18000,00;;18680,00;519,00;19199,00'];
+    return new TextEncoder().encode('\ufeff' + linhas.join('\r\n'));
+  }
+  const titulos = { ordem: `Ordem de servico ${a.nome.replace('.pdf', '')}`, entrega: 'Relatorio final', cliente: 'Documentos enviados pelo cliente' };
+  return pdfDeExemplo(titulos[a.categoria] || a.nome, a.contato);
+}
+
+// PDF de uma página, só com texto, para os arquivos de exemplo poderem ser abertos.
 function pdfDeExemplo(titulo, cliente) {
   const texto = s => s.normalize('NFD').replace(/[^\x20-\x7e]/g, '').replace(/[()\\]/g, '');
   const linhas = [

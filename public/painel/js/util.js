@@ -105,6 +105,7 @@ const ICONES = {
   anexo: '<path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
   documento: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/>',
   enviar: '<path d="M12 16V4M7 8.5l5-5 5 5M5 20h14"/>',
+  cadeado: '<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   escudo: '<path d="M12 3l7 3v5.5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z"/>',
 };
 
