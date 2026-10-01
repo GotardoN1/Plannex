@@ -1,38 +1,61 @@
-# Planex — GitHub Pages
+# 📊 Plannex
 
-Site estático pronto para publicação, sem instalação ou compilação.
-Layout, animações e conteúdo do projeto original preservados.
+Site da **Plannex**, com duas frentes de serviço:
 
-## Publicar pelo navegador
+- **Cálculos judiciais e financeiros**, feitos por economistas: atualização monetária, juros, apuração e liquidação, conferência e contestação. A entrega é a memória de cálculo em Excel e o parecer técnico assinado.
+- **Automação de planilhas** no Excel e no Office: planilhas sob medida, relatórios, macros, botões e VBA, gráficos e painéis.
 
-1. Extraia este ZIP no computador. Não envie o ZIP ou RAR ao repositório.
-2. Crie um repositório público no GitHub, por exemplo `planex`.
-3. Clique em **Add file → Upload files** e envie os arquivos que estão dentro da pasta extraída. O `index.html` deve aparecer diretamente na raiz do repositório, ao lado de `style.css` e `script.js`, sem pastas `PlaneX-projeto` ou `Planex` acima dele.
-4. Inclua o arquivo `.nojekyll`. Caso ele não apareça ao selecionar arquivos, use **Add file → Create new file**, nomeie como `.nojekyll` e salve com uma linha vazia.
-5. Clique em **Commit changes** para salvar os arquivos na branch `main`.
-6. Abra **Settings → Pages**.
-7. Em **Build and deployment → Source**, escolha **Deploy from a branch**.
-8. Selecione **main** e **/(root)**. Clique em **Save**.
-9. Aguarde a publicação. O endereço ficará disponível nessa mesma tela, geralmente `https://SEU-USUARIO.github.io/planex/`.
+**[Abrir site →](https://misty-king-c67fe.luh20123.workers.dev/)** · [Espelho no GitHub Pages](https://gotardon1.github.io/Plannex/)
 
-Para atualizar, envie os arquivos alterados à mesma branch. A publicação será atualizada automaticamente.
+## O que tem no site
 
-## Configurar os contatos
+| Seção | O que mostra |
+| --- | --- |
+| Início | Serviços de cálculo, formas de contratação (cálculo simples e personalizado) e o passo a passo do atendimento |
+| Laboratório Plannex | Demonstração animada de uma memória de cálculo indo dos documentos ao parecer, com dados fictícios |
+| Exemplo de memória | Tabela ilustrativa com competência, fator, valor corrigido, juros e total |
+| Serviço de Automação | Planos de automação, a demonstração "da bagunça ao controle" e a lista do que pode ser automatizado |
+| Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta |
 
-No início de `script.js`, preencha `WHATSAPP_NUMBER` com 55 + DDD + número, somente dígitos, e `CONTACT_EMAIL` com o e-mail comercial real. Mantenha os valores entre aspas.
+Os exemplos de cálculo e de planilha usam valores fictícios.
 
-Esses campos vieram vazios no projeto original. Enquanto estiverem vazios, o envio ficará indisponível. O formulário utiliza o serviço externo FormSubmit: confirme o e-mail conforme as instruções do serviço e teste uma entrega real após publicar. O GitHub Pages hospeda o site; não processa e-mails.
+## Arquivos
 
-## Compatibilidade
+```
+index.html                  página única, navegação por âncoras (#inicio, #automacao, #contato)
+_headers                    cabeçalhos de segurança e cache para o Cloudflare
+.nojekyll                   publica no GitHub Pages sem processar com Jekyll
+assets/css/style.revNNN.css estilos
+assets/css/noscript.css     ajuste para quem navega sem JavaScript
+assets/js/script.revNNN.js  navegação, animações, demonstrações e formulário de contato
+assets/js/calculos-ui.revNNN.js  demonstração do laboratório de cálculo
+assets/img/                 logo, ícones e imagem de compartilhamento
+```
 
-- `index.html` na raiz do pacote.
-- Arquivos locais com caminhos relativos, compatíveis com um repositório de qualquer nome.
-- Navegação por âncoras (`#inicio`, `#solucoes`, `#planos`, `#contato`), sem necessidade de reescrita de rotas.
-- `.nojekyll` incluído para servir o projeto estático sem processamento Jekyll.
-- Nenhuma dependência de Node.js, npm, servidor PHP ou banco de dados.
+O número `revNNN` no nome dos arquivos é o controle de cache: a cada versão nova o arquivo muda de nome, então o navegador nunca usa um CSS ou JS antigo. O `_headers` guarda esses arquivos em cache por um ano e sempre revalida o `index.html`.
 
-## Conferência realizada
+## Como rodar
 
-Sintaxe dos dois arquivos JavaScript, existência dos arquivos referenciados pelo HTML e acesso HTTP aos recursos na raiz e sob `/planex/`. Publicação real no GitHub e entrega de contatos não foram realizadas.
+É um site estático, sem instalação nem compilação. Para ver no computador, sirva a pasta com qualquer servidor local, por exemplo:
 
-Documentação: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site
+```bash
+npx serve .
+```
+
+Abrir o `index.html` direto pelo arquivo também funciona, mas o envio do formulário só é testável num endereço `http(s)`.
+
+## Configuração do contato
+
+No início de `assets/js/script.revNNN.js`:
+
+- `WHATSAPP_NUMBER`: 55 + DDD + número, só dígitos.
+- `FORM_SUBMIT_ENDPOINT`: endereço do FormSubmit com o e-mail que recebe os pedidos.
+
+## Publicação
+
+- **Cloudflare** (endereço principal): publica a pasta como site estático e aplica o `_headers`.
+- **GitHub Pages**: branch `master`, pasta raiz. O Pages ignora o `_headers`, mas a política de segurança também está numa `<meta>` do `index.html`.
+
+## Segurança
+
+A página só carrega arquivos do próprio site. A Content-Security-Policy libera, fora isso, apenas o envio ao FormSubmit; não há scripts, fontes ou rastreadores de terceiros.
