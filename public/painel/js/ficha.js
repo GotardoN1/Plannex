@@ -245,8 +245,8 @@ function painelNotas(c) {
 function painelProcesso(c) {
   return [
     el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoEntrega(c), blocoSolicitacao(c)),
-      el('div', 'ficha-coluna', blocoArquivos(c, ['cliente'], { titulo: 'Documentos do cliente', icone: 'documento', semEnvio: true }))),
+      el('div', 'ficha-coluna', blocoSolicitacao(c)),
+      el('div', 'ficha-coluna', blocoEntrega(c), blocoArquivos(c, ['cliente'], { titulo: 'Documentos do cliente', icone: 'documento', semEnvio: true }))),
     comentarios(c, 'processo_iniciado', 'Anotações do processo', 'Ex.: conferi os holerites, falta o índice de março…'),
   ];
 }

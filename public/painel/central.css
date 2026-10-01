@@ -431,7 +431,8 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 
 /* ---------- Ficha ---------- */
 .ficha {
-  position: fixed; inset: 0 0 0 auto; width: min(980px, 100%); height: 100dvh; max-width: none; max-height: none;
+  /* Ocupa a maior parte da tela e deixa uma faixa da lista à esquerda, para não perder o contexto. */
+  position: fixed; inset: 0 0 0 auto; width: min(1360px, 86vw); height: 100dvh; max-width: none; max-height: none;
   margin: 0; padding: 0; border: 0; border-left: 1px solid var(--line-forte);
   background: var(--bg); color: var(--ink); box-shadow: var(--sombra);
 }
@@ -448,7 +449,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .ficha-titulo { flex: 1; min-width: 0; }
 .ficha-titulo h2 { font-size: 20px; overflow-wrap: anywhere; }
 .ficha-titulo p { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; color: var(--muted); font-size: 13px; }
-.ficha-corpo { flex: 1; overflow-y: auto; padding: 18px 22px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
+.ficha-corpo { flex: 1; overflow-y: auto; padding: 20px 28px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
 .ficha-etapas { position: relative; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .ficha-etapas-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
 .ficha-etapas-topo h3 { font-size: 15px; }
@@ -566,6 +567,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .agenda { grid-template-columns: 1fr; }
   .equipe-grade { grid-template-columns: 1fr; }
   .ficha-grade { grid-template-columns: 1fr; }
+  .ficha { width: 100%; }
 }
 
 /* ---------- Celular ---------- */
