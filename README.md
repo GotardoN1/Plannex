@@ -27,14 +27,14 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | Tela | O que faz |
 | --- | --- |
 | **Visão geral** | Saudação com o resumo do dia, números (novos na semana, em andamento, recebido e entregues no mês), contatos por semana, divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
-| **Caixa de entrada** | Todos os contatos agrupados por data, com prévia do pedido, filtros (aguardando, não lidos, serviço, texto), atalho para o WhatsApp e exportação para Excel |
-| **Concluídos** | Tudo o que chegou em Entregue, fora do quadro para ele não lotar; filtros por responsável e serviço. Para o funcionário, só os dele, para consulta |
-| **Andamento** | Quadro só com o que está em trabalho: Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente. Na última coluna, "Concluir" leva para Concluídos. Cartões na cor do serviço (laranja: cálculos, azul: automação), com valor, nota, prazo, responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
+| **Caixa de entrada** | Os contatos em aberto agrupados por data, com prévia do pedido, filtros (aguardando, não lidos, serviço, texto) e exportação para Excel. Cada linha tem colunas fixas: "Mover para…" (administrador, qualquer etapa, para frente ou para trás), etapa, WhatsApp, responsável e o **botão azul de avançar**, que muda conforme a etapa (Aceitar pedido → Notas e ordens → Iniciar processo → Enviar para revisão → Entregar) |
+| **Concluídos** | Tudo o que chegou em Entregue, fora do quadro para ele não lotar; colunas fixas de conclusão, responsável e valor; filtros por responsável e serviço. O administrador pode **reabrir** (volta ao Andamento). Para o funcionário, só os dele, para consulta |
+| **Andamento** | Quadro só com o que está em trabalho: Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente. Na última coluna, "Concluir" leva para Concluídos. Cartões compactos na cor do serviço (laranja: cálculos, azul: automação): nome e valor na primeira linha, depois serviço, nota e prazo, e no rodapé responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
 | **Equipe** | Quem acessa, novos acessos, senha provisória e troca da própria senha |
 
-A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação.
+A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação. O administrador também tem **"Voltar para…"**, uma etapa por vez, e numa demanda entregue **"Reabrir"**.
 
 | Aba | Conteúdo |
 | --- | --- |
@@ -59,7 +59,7 @@ Toda mudança de etapa pede confirmação (de qual etapa para qual), seja pela s
 | Valor, nota fiscal, pagamento | Vê e edita | Não vê (nem na linha do tempo) |
 | Notas fiscais e ordens de serviço | Vê e anexa | Não vê (mostram quanto a casa cobra) |
 | Documentos do cliente e arquivos da entrega | Vê e anexa | Vê e anexa |
-| Etapas | Todas | Leva de onde estiver para Processo iniciado, Revisado pelo cliente e Entregue; não entra em Pedido nem Notas e ordens |
+| Etapas | Todas, para frente e para trás ("Mover para…", "Voltar para…", "Reabrir") | Avança pelo botão azul: Iniciar processo → Enviar para revisão → Entregar; não entra em Pedido nem Notas e ordens |
 | Anotações | Sim | Sim, até concluir |
 | Arquivar, excluir, cadastrar, equipe | Sim | Não |
 
