@@ -1,13 +1,12 @@
-// Equipe (só administrador): quem acessa a Central, tipo de acesso, novos acessos e senha provisória.
+// Equipe (só administrador): quem acessa a Central, nome completo, tipo de acesso, novos acessos,
+// senha provisória e como está a carga de trabalho de cada um.
 import { estado, acoes, ativos } from './estado.js';
 import { api } from './api.js';
-import { el, botao, icone, avatar, dataCurta, PAPEIS } from './util.js';
+import { el, botao, icone, avatar, dataCurta, PAPEIS, hoje, diaDe, nomeExibicao } from './util.js';
 
 export function desenharEquipe(raiz) {
   const cabecalho = el('header', 'tela-topo',
-    el('div', '',
-      el('h1', '', 'Equipe'),
-      el('p', '', 'Quem acessa a Central e o que cada um vê. Cada pessoa entra com o próprio usuário e senha, e o histórico mostra quem fez o quê.')));
+    el('div', '', el('h1', '', 'Equipe')));
 
   const admins = estado.usuarios.filter(u => u.papel === 'admin');
   const funcionarios = estado.usuarios.filter(u => u.papel !== 'admin');
@@ -18,19 +17,24 @@ export function desenharEquipe(raiz) {
   raiz.replaceChildren(cabecalho,
     el('div', 'equipe-grade',
       el('div', 'equipe-lado', grupo('Administradores', admins), grupo('Funcionários', funcionarios)),
-      el('div', 'equipe-lado', formularioNovo(), explicacao())));
+      el('div', 'equipe-lado', cargaDaEquipe(), formularioNovo())));
 }
 
 function pessoa(u) {
   const voce = u.id === estado.usuario.id;
   const comEla = ativos().filter(c => c.responsavel_id === u.id && c.etapa !== 'entregue').length;
+  const formNome = formularioNome(u);
+  const editarNome = botao('', 'botao--icone botao--fantasma botao--pequeno', () => {
+    formNome.hidden = !formNome.hidden;
+    if (!formNome.hidden) formNome.querySelector('input').focus();
+  }, { icone: 'editar', titulo: `Alterar o nome completo de ${u.nome}` });
   const li = el('li', 'pessoa',
     avatar(u.nome, 'avatar--medio'),
     el('div', 'pessoa-texto',
-      el('strong', '', u.nome, voce ? el('span', 'voce', 'você') : null),
-      el('span', '', `@${u.usuario} · desde ${dataCurta(u.criado_em)} · ${comEla} ${comEla === 1 ? 'demanda ativa' : 'demandas ativas'}`)));
+      el('strong', '', u.nome, editarNome, voce ? el('span', 'voce', 'você') : null),
+      el('span', '', [`@${u.usuario}`, u.apelido ? `"${u.apelido}"` : null, `desde ${dataCurta(u.criado_em)}`, `${comEla} ${comEla === 1 ? 'demanda ativa' : 'demandas ativas'}`].filter(Boolean).join(' · '))));
   if (voce) {
-    li.append(el('span', `papel papel--${u.papel}`, icone(u.papel === 'admin' ? 'escudo' : 'usuario'), PAPEIS[u.papel].nome));
+    li.append(el('span', `papel papel--${u.papel}`, icone(u.papel === 'admin' ? 'escudo' : 'usuario'), PAPEIS[u.papel].nome), formNome);
     return li;
   }
 
@@ -68,7 +72,7 @@ function pessoa(u) {
     evento.preventDefault();
     try {
       await api(`/api/usuarios/${u.id}/senha`, { method: 'POST', corpo: { senha: campo.value } });
-      acoes.avisar(`Senha de ${u.nome} redefinida. Passe por um canal seguro; dá para trocar depois em "Minha senha".`);
+      acoes.avisar(`Senha de ${u.nome} redefinida. Passe por um canal seguro; dá para trocar depois em Preferências.`);
       formSenha.hidden = true;
       campo.value = '';
     } catch (e) {
@@ -99,8 +103,71 @@ function pessoa(u) {
       papel,
       botao('Senha', 'botao--fantasma botao--pequeno', () => { formSenha.hidden = !formSenha.hidden; if (!formSenha.hidden) campo.focus(); }, { icone: 'chave', titulo: 'Definir uma senha provisória' }),
       remover),
+    formNome,
     formSenha);
   return li;
+}
+
+function formularioNome(u) {
+  const form = el('form', 'pessoa-senha');
+  form.hidden = true;
+  const campo = el('input');
+  campo.maxLength = 80;
+  campo.value = u.nome;
+  campo.autocomplete = 'off';
+  campo.setAttribute('aria-label', `Nome completo de ${u.nome}`);
+  form.append(campo, botao('Salvar nome', 'botao--primario botao--pequeno', null));
+  form.querySelector('button').type = 'submit';
+  form.addEventListener('submit', async evento => {
+    evento.preventDefault();
+    const nome = campo.value.trim();
+    if (nome === u.nome) { form.hidden = true; return; }
+    try {
+      await api(`/api/usuarios/${u.id}`, { method: 'PATCH', corpo: { nome } });
+      acoes.avisar(`Nome alterado para ${nome}.`);
+      acoes.recarregar();
+    } catch (e) {
+      acoes.avisar(e.message, 'erro');
+    }
+  });
+  return form;
+}
+
+// Carga de trabalho: o que cada um tem em andamento, o que está atrasado e o que entregou no mês.
+function cargaDaEquipe() {
+  const dia = hoje();
+  const mes = dia.slice(0, 7);
+  const contatos = ativos();
+  const linhas = estado.usuarios.map(u => {
+    const dele = contatos.filter(c => c.responsavel_id === u.id);
+    const abertas = dele.filter(c => c.etapa && c.etapa !== 'entregue');
+    return {
+      u,
+      abertas: abertas.length,
+      atrasadas: abertas.filter(c => c.prazo && c.prazo < dia).length,
+      entregues: dele.filter(c => c.etapa === 'entregue' && c.atualizado_em && diaDe(c.atualizado_em).startsWith(mes)).length,
+    };
+  }).sort((a, b) => b.abertas - a.abertas || a.u.nome.localeCompare(b.u.nome));
+  const semResponsavel = contatos.filter(c => c.etapa && c.etapa !== 'entregue' && !c.responsavel_id).length;
+  const maximo = Math.max(1, ...linhas.map(l => l.abertas));
+
+  const tabela = el('table', 'carga',
+    el('thead', '', el('tr', '', el('th', '', 'Pessoa'), el('th', '', 'Em andamento'), el('th', '', 'Atrasadas'), el('th', '', 'Entregues no mês'))),
+    el('tbody', '', linhas.map(l => {
+      const barra = el('span', 'carga-barra');
+      barra.style.width = `${Math.round((l.abertas / maximo) * 100)}%`;
+      return el('tr', '',
+        el('td', '', el('span', 'carga-pessoa', avatar(l.u.nome), nomeExibicao(l.u))),
+        el('td', '', el('span', 'carga-andamento', el('strong', '', String(l.abertas)), el('span', 'carga-trilho', barra))),
+        el('td', l.atrasadas ? 'carga-atrasadas' : '', l.atrasadas ? el('span', '', icone('alerta'), String(l.atrasadas)) : '0'),
+        el('td', '', String(l.entregues)));
+    })));
+  return el('section', 'bloco carga-equipe',
+    el('div', 'bloco-topo', el('h2', '', 'Carga da equipe')),
+    tabela,
+    semResponsavel
+      ? botao(`${semResponsavel} ${semResponsavel === 1 ? 'demanda' : 'demandas'} em andamento sem responsável`, 'botao--fantasma botao--pequeno carga-sem', () => acoes.navegar('andamento'), { icone: 'alerta' })
+      : null);
 }
 
 function formularioNovo() {
@@ -145,13 +212,4 @@ function formularioNovo() {
     }
   });
   return form;
-}
-
-function explicacao() {
-  return el('section', 'bloco explicacao-papeis',
-    el('div', 'bloco-topo', el('h2', '', 'O que cada acesso vê')),
-    el('div', 'papel-linha', el('span', 'papel papel--admin', icone('escudo'), 'Administrador'),
-      el('p', '', 'Visão geral, caixa de entrada completa, andamento, agenda com pagamentos, arquivo e equipe. Vê valores e pagamentos, cuida das etapas Pedido e Notas e ordens e anexa notas fiscais e ordens de serviço.')),
-    el('div', 'papel-linha', el('span', 'papel papel--funcionario', icone('usuario'), 'Funcionário'),
-      el('p', '', 'Só as demandas em que é o responsável, a agenda e os concluídos dele. Trabalha de Processo iniciado até concluir, e anota. Não vê valores, pagamentos, notas fiscais, ordens de serviço, outros contatos nem a equipe.')));
 }

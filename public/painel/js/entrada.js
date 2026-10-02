@@ -1,5 +1,6 @@
 // Caixa de entrada (ou Minhas demandas), Arquivo e Concluídos.
 import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
+import { etiquetasDaDemanda } from './etiquetas.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
   relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
@@ -33,18 +34,8 @@ export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = 
   const redesenhar = () => desenharEntrada(raiz, { arquivo, concluidos });
 
   const titulo = tipo === 'arquivo' ? 'Arquivo' : tipo === 'concluidos' ? 'Concluídos' : admin ? 'Caixa de entrada' : 'Minhas demandas';
-  const descricao = {
-    arquivo: 'Contatos que não seguiram adiante. Nada se perde: dá para restaurar quando quiser.',
-    concluidos: admin
-      ? 'Tudo o que chegou em Entregue. Para reabrir uma demanda, abra a ficha e volte a etapa.'
-      : 'Demandas que você concluiu. Ficam aqui como registro, só para consulta. Para reabrir alguma, fale com um administrador.',
-    entrada: admin
-      ? 'Todo contato que chega pelo site entra aqui. Abra para ver a ficha ou use "Mover para…" para levar à etapa certa.'
-      : 'As demandas em que você é o responsável. Abra para ver a ficha, anexar a ordem de serviço e avançar as etapas. Ao concluir, a demanda vai para Concluídos.',
-  }[tipo];
-
   const cabecalho = el('header', 'tela-topo',
-    el('div', '', el('h1', '', titulo), el('p', '', descricao)),
+    el('div', '', el('h1', '', titulo)),
     admin ? botao('Exportar planilha', 'botao--fantasma', () => exportar(filtrar(), arquivo), { icone: 'baixar', titulo: 'Baixar os contatos desta lista em CSV (abre no Excel)' }) : null);
 
   const ferramentas = el('div', 'ferramentas');
@@ -103,17 +94,19 @@ function linha(c, tipo) {
   const previa = c.descricao || c.atividade_manual || c.observacoes || '';
   const abrir = () => acoes.abrirFicha(c.id);
 
-  const principal = el('button', 'contato-principal',
+  const principal = el('div', 'contato-principal',
     el('span', 'contato-marcador', c.lido_em || concluida ? '' : el('span', 'ponto-novo', el('span', 'sr', 'Não lido'))),
     avatar(c.nome),
     el('span', 'contato-texto',
-      el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico),
-        c.origem !== 'site' ? el('span', 'origem', ORIGENS[c.origem] || c.origem) : null,
-        c.plano ? el('span', 'origem', c.plano) : null),
+      el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico), etiquetasDaDemanda(c)),
       el('span', 'contato-previa', previa || (c.email || c.telefone || 'Sem descrição'))));
-  principal.type = 'button';
+  principal.tabIndex = 0;
+  principal.setAttribute('role', 'button');
   principal.title = concluida ? `Ver a ficha de ${c.nome} · concluída em ${dataHora(c.atualizado_em)}` : `Abrir a ficha de ${c.nome} · chegou em ${dataHora(c.criado_em)}`;
   principal.addEventListener('click', abrir);
+  principal.addEventListener('keydown', evento => {
+    if (evento.target === principal && (evento.key === 'Enter' || evento.key === ' ')) { evento.preventDefault(); abrir(); }
+  });
 
   // Células
   const situacao = el('div', 'celula celula--situacao',

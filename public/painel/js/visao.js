@@ -1,8 +1,8 @@
-// Visão geral: números do momento, contatos por semana, funil, pendências e atividade recente.
+// Visão geral: números do momento, contatos por mês, funil, pendências e atividade recente.
 import { estado, acoes, ativos } from './estado.js';
 import {
   el, svg, icone, botao, ETAPAS, NOME_ETAPA, CAIXA, SERVICOS, diaDe, hoje, diasEntre, somarDias,
-  reais, reaisCurto, relativo, situacaoPrazo, primeiroNome, extenso, nomeMesCurto, diaBr, hora,
+  reais, reaisCurto, relativo, situacaoPrazo, primeiroNome, extenso, nomeMesCurto, diaBr, hora, nomeExibicao,
 } from './util.js';
 
 // Cores de gráfico validadas para o fundo escuro (validate_palette: todas as checagens passam).
@@ -23,9 +23,12 @@ export function desenharVisao(raiz) {
   const naCaixa = lista.filter(c => !c.etapa).length;
   const emAndamento = lista.filter(c => c.etapa && c.etapa !== 'entregue');
   const aReceber = emAndamento.filter(c => !c.pago_em).reduce((s, c) => s + (c.valor_centavos || 0), 0);
-  const pagosMes = todos.filter(c => c.pago_em?.startsWith(mes));
+  const diaEntrega = c => (c.etapa === 'entregue' && c.atualizado_em ? diaDe(c.atualizado_em) : null);
+  const mesPagamentos = mesDeReferencia(todos.map(c => c.pago_em), mes);
+  const mesEntregas = mesDeReferencia(todos.map(diaEntrega), mes);
+  const pagosMes = todos.filter(c => c.pago_em?.startsWith(mesPagamentos));
   const faturado = pagosMes.reduce((s, c) => s + (c.valor_centavos || 0), 0);
-  const entreguesMes = todos.filter(c => c.etapa === 'entregue' && c.atualizado_em && diaDe(c.atualizado_em).startsWith(mes));
+  const entreguesMes = todos.filter(c => diaEntrega(c)?.startsWith(mesEntregas));
   const tempoMedio = entreguesMes.length
     ? Math.round(entreguesMes.reduce((s, c) => s + diasEntre(diaDe(c.criado_em), diaDe(c.atualizado_em)), 0) / entreguesMes.length)
     : null;
@@ -35,15 +38,11 @@ export function desenharVisao(raiz) {
   // ---------- Saudação ----------
   const horaAgora = Number(hora(new Date().toISOString()).slice(0, 2));
   const saudacao = horaAgora < 12 ? 'Bom dia' : horaAgora < 18 ? 'Boa tarde' : 'Boa noite';
-  const resumo = [];
-  if (naoLidos) resumo.push(`${naoLidos} ${naoLidos === 1 ? 'contato novo' : 'contatos novos'} para ler`);
-  if (naCaixa) resumo.push(`${naCaixa} na caixa de entrada`);
-  if (prazosSemana) resumo.push(`${prazosSemana} ${prazosSemana === 1 ? 'prazo' : 'prazos'} nos próximos 7 dias`);
+  const chamar = estado.usuario?.apelido || primeiroNome(nomeExibicao(estado.usuario));
   const topo = el('header', 'visao-topo',
     el('div', '',
       el('p', 'visao-data', maiuscula(extenso())),
-      el('h1', 'visao-titulo', `${saudacao}, ${primeiroNome(estado.usuario?.nome)}.`),
-      el('p', 'visao-resumo', resumo.length ? `${juntar(resumo)}.` : 'Tudo em dia por aqui.')));
+      el('h1', 'visao-titulo', `${saudacao}, ${chamar}.`)));
 
   // ---------- Números ----------
   const diferenca = novos7 - novosAntes;
@@ -54,20 +53,20 @@ export function desenharVisao(raiz) {
     tile('Em andamento', emAndamento.length, 'agora',
       aReceber ? `${reais(aReceber)} ainda a receber` : 'nada pendente de pagamento',
       () => acoes.navegar('andamento')),
-    tile('Recebido', reaisCurto(faturado), nomeMesCurto(ano, numMes - 1),
-      pagosMes.length ? `${pagosMes.length} ${pagosMes.length === 1 ? 'pagamento' : 'pagamentos'} no mês` : 'nenhum pagamento no mês',
+    tile('Recebido', reaisCurto(faturado), nomeDoMes(mesPagamentos),
+      pagosMes.length ? `${pagosMes.length} ${pagosMes.length === 1 ? 'pagamento' : 'pagamentos'}${mesPagamentos === mes ? ' no mês' : ' (último mês com pagamento)'}` : 'nenhum pagamento ainda',
       () => acoes.navegar('agenda')),
-    tile('Entregues', entreguesMes.length, nomeMesCurto(ano, numMes - 1),
-      tempoMedio === null ? 'nenhuma entrega no mês' : `em média ${tempoMedio} ${tempoMedio === 1 ? 'dia' : 'dias'} do contato à entrega`,
+    tile('Entregues', entreguesMes.length, nomeDoMes(mesEntregas),
+      tempoMedio === null ? 'nenhuma entrega ainda' : `em média ${tempoMedio} ${tempoMedio === 1 ? 'dia' : 'dias'} do contato à entrega${mesEntregas === mes ? '' : ' (último mês com entrega)'}`,
       () => acoes.navegar('concluidos')),
   ]);
 
   // ---------- Gráficos ----------
-  const graficoSemanas = cartao('Contatos por semana', 'Últimas 12 semanas, por serviço', graficoPorSemana(todos, dia));
-  const graficoServicos = cartao('Por serviço', 'Contatos dos últimos 90 dias', divisaoServicos(todos.filter(c => idade(c) < 90)));
-  const funil = cartao('Onde estão os contatos', 'Contatos ativos em cada etapa', funilEtapas(lista));
-  const atencao = cartao('Precisa de atenção', pendencias.length ? `${pendencias.length} ${pendencias.length === 1 ? 'item' : 'itens'}` : 'Nada pendente', listaPendencias(pendencias));
-  const atividade = cartao('Atividade recente', 'O que a equipe fez por último', feedAtividade());
+  const graficoSemanas = cartao('Contatos por mês', graficoPorMes(todos, mes));
+  const graficoServicos = cartao('Por serviço', divisaoServicos(todos.filter(c => idade(c) < 90)));
+  const funil = cartao('Onde estão os contatos', funilEtapas(lista));
+  const atencao = cartao('Precisa de atenção', listaPendencias(pendencias));
+  const atividade = cartao('Atividade recente', feedAtividade());
 
   raiz.replaceChildren(topo, numeros,
     el('div', 'grade-visao', graficoSemanas, graficoServicos, funil, atencao, atividade));
@@ -80,27 +79,53 @@ function tile(rotulo, valor, periodo, detalhe, aoClicar) {
   return t;
 }
 
-function cartao(titulo, subtitulo, conteudo) {
-  return el('section', 'cartao-visao', el('header', '', el('h2', '', titulo), el('p', '', subtitulo)), conteudo);
+function cartao(titulo, conteudo) {
+  return el('section', 'cartao-visao', el('header', '', el('h2', '', titulo)), conteudo);
 }
 
-// ---------- Contatos por semana (barras empilhadas) ----------
-
-function inicioSemana(dia) {
-  const diaSemana = new Date(`${dia}T00:00:00Z`).getUTCDay();
-  return somarDias(dia, -((diaSemana + 6) % 7));
+// O mês atual, se já tem algum registro; senão, o último mês (até hoje) que teve. Assim, no começo,
+// quando nem todo mês tem venda, o número não fica zerado.
+function mesDeReferencia(dias, mesAtual) {
+  const meses = dias.filter(Boolean).map(d => d.slice(0, 7)).filter(m => m <= mesAtual).sort();
+  if (!meses.length || meses.includes(mesAtual)) return mesAtual;
+  return meses.at(-1);
 }
 
-function graficoPorSemana(contatos, dia) {
-  const atual = inicioSemana(dia);
-  const semanas = Array.from({ length: 12 }, (_, i) => ({ inicio: somarDias(atual, (i - 11) * 7), calculos: 0, automacao: 0 }));
-  const porInicio = new Map(semanas.map(s => [s.inicio, s]));
+function nomeDoMes(mes) {
+  const [a, m] = mes.split('-').map(Number);
+  return nomeMesCurto(a, m - 1);
+}
+
+// ---------- Contatos por mês (barras empilhadas) ----------
+// Últimos 12 meses, mas só os que tiveram contato ou venda: no começo, nem todo mês tem.
+
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function rotuloMes(mes, comAno) {
+  const [a, m] = mes.split('-');
+  return comAno ? `${MESES_CURTOS[Number(m) - 1]}/${a.slice(2)}` : MESES_CURTOS[Number(m) - 1];
+}
+
+function graficoPorMes(contatos, mesAtual) {
+  const [a, m] = mesAtual.split('-').map(Number);
+  const ultimos = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(Date.UTC(a, m - 1 - (11 - i), 1));
+    return d.toISOString().slice(0, 7);
+  });
+  const porMes = new Map(ultimos.map(mes => [mes, { mes, calculos: 0, automacao: 0, vendas: 0 }]));
   for (const c of contatos) {
-    const semana = porInicio.get(inicioSemana(diaDe(c.criado_em)));
-    if (semana) semana[c.servico] = (semana[c.servico] || 0) + 1;
+    const doContato = porMes.get(diaDe(c.criado_em).slice(0, 7));
+    if (doContato) doContato[c.servico] = (doContato[c.servico] || 0) + 1;
+    const daVenda = c.pago_em ? porMes.get(c.pago_em.slice(0, 7)) : null;
+    if (daVenda) daVenda.vendas += 1;
   }
+  const meses = [...porMes.values()].filter(x => x.calculos + x.automacao + x.vendas > 0);
+  const comAno = new Set(meses.map(x => x.mes.slice(0, 4))).size > 1;
 
   const caixa = el('div', 'grafico');
+  if (!meses.length) {
+    caixa.append(el('p', 'vazio-mini', 'Ainda não há contatos nem vendas registrados.'));
+    return caixa;
+  }
   const legenda = el('div', 'legenda', ORDEM_SERIES.map(s => el('span', 'legenda-item', amostra(s), SERVICOS[s].nome)));
   const area = el('div', 'grafico-area');
   const dica = el('div', 'dica');
@@ -108,72 +133,73 @@ function graficoPorSemana(contatos, dia) {
   area.append(dica);
 
   const tabela = el('table', 'tabela-dados',
-    el('thead', '', el('tr', '', el('th', '', 'Semana de'), el('th', '', 'Cálculos'), el('th', '', 'Automação'), el('th', '', 'Total'))),
-    el('tbody', '', semanas.map(s => el('tr', '', el('td', '', diaBr(s.inicio)), el('td', '', s.calculos), el('td', '', s.automacao), el('td', '', s.calculos + s.automacao)))));
+    el('thead', '', el('tr', '', el('th', '', 'Mês'), el('th', '', 'Cálculos'), el('th', '', 'Automação'), el('th', '', 'Total'), el('th', '', 'Vendas'))),
+    el('tbody', '', meses.map(x => el('tr', '', el('td', '', rotuloMes(x.mes, true)), el('td', '', x.calculos), el('td', '', x.automacao), el('td', '', x.calculos + x.automacao), el('td', '', x.vendas)))));
   const detalhes = el('details', 'ver-dados', el('summary', '', 'Ver como tabela'), tabela);
 
   caixa.append(legenda, area, detalhes);
   // Desenha logo depois de entrar na página, para saber a largura disponível.
-  setTimeout(() => { if (area.isConnected) desenharBarras(area, dica, semanas); }, 0);
-  observarLargura(area, () => desenharBarras(area, dica, semanas));
+  setTimeout(() => { if (area.isConnected) desenharBarras(area, dica, meses, comAno); }, 0);
+  observarLargura(area, () => desenharBarras(area, dica, meses, comAno));
   return caixa;
 }
 
-function desenharBarras(area, dica, semanas) {
+function desenharBarras(area, dica, meses, comAno) {
   area.querySelector('svg')?.remove();
   const largura = Math.max(280, area.clientWidth);
   const altura = 210;
   const margem = { topo: 22, direita: 8, base: 26, esquerda: 28 };
   const larguraUtil = largura - margem.esquerda - margem.direita;
   const alturaUtil = altura - margem.topo - margem.base;
-  const maximo = Math.max(4, ...semanas.map(s => s.calculos + s.automacao));
+  const maximo = Math.max(4, ...meses.map(x => x.calculos + x.automacao));
   const passo = maximo <= 5 ? 1 : maximo <= 10 ? 2 : Math.ceil(maximo / 5);
   const topoEscala = Math.ceil(maximo / passo) * passo;
   const y = v => margem.topo + alturaUtil - (v / topoEscala) * alturaUtil;
-  const coluna = larguraUtil / semanas.length;
-  const barra = Math.min(28, coluna * 0.62);
+  const coluna = larguraUtil / meses.length;
+  const barra = Math.min(44, coluna * 0.56);
 
-  const grafico = svg('svg', { viewBox: `0 0 ${largura} ${altura}`, width: largura, height: altura, role: 'img', 'aria-label': 'Contatos por semana nas últimas 12 semanas' });
+  const grafico = svg('svg', { viewBox: `0 0 ${largura} ${altura}`, width: largura, height: altura, role: 'img', 'aria-label': 'Contatos por mês' });
   for (let v = 0; v <= topoEscala; v += passo) {
     grafico.append(
       svg('line', { x1: margem.esquerda, x2: largura - margem.direita, y1: y(v), y2: y(v), class: v === 0 ? 'eixo-base' : 'grade' }),
       svg('text', { x: margem.esquerda - 8, y: y(v) + 4, class: 'eixo-texto', 'text-anchor': 'end' }, String(v)));
   }
 
-  const rotularCada = largura < 520 ? 3 : 2;
-  semanas.forEach((s, i) => {
+  const rotularCada = coluna < 34 ? 2 : 1;
+  meses.forEach((x0, i) => {
     const x = margem.esquerda + coluna * i + (coluna - barra) / 2;
-    const total = s.calculos + s.automacao;
+    const total = x0.calculos + x0.automacao;
     let base = 0;
-    const series = ORDEM_SERIES.filter(serie => s[serie] > 0);
+    const series = ORDEM_SERIES.filter(serie => x0[serie] > 0);
     series.forEach((serie, j) => {
-      const yTopo = y(base + s[serie]);
+      const yTopo = y(base + x0[serie]);
       const yBase = y(base);
       // 2px de folga entre os segmentos empilhados; só o topo da pilha é arredondado.
       const folga = j > 0 ? 2 : 0;
       const ultimo = j === series.length - 1;
       grafico.append(svg('path', { d: retangulo(x, yTopo, barra, Math.max(1, yBase - yTopo - folga), ultimo ? 4 : 0), fill: COR[serie] }));
-      base += s[serie];
+      base += x0[serie];
     });
-    // Rótulo só na semana atual.
-    if (i === semanas.length - 1 && total) {
+    // Rótulo só no último mês.
+    if (i === meses.length - 1 && total) {
       grafico.append(svg('text', { x: x + barra / 2, y: y(total) - 7, class: 'valor-texto', 'text-anchor': 'middle' }, String(total)));
     }
-    if ((semanas.length - 1 - i) % rotularCada === 0) {
-      grafico.append(svg('text', { x: x + barra / 2, y: altura - 7, class: 'eixo-texto', 'text-anchor': 'middle' }, diaBr(s.inicio).slice(0, 5)));
+    if ((meses.length - 1 - i) % rotularCada === 0) {
+      grafico.append(svg('text', { x: x + barra / 2, y: altura - 7, class: 'eixo-texto', 'text-anchor': 'middle' }, rotuloMes(x0.mes, comAno)));
     }
     // Área de toque maior que a barra, para a dica.
     const alvo = svg('rect', { x: margem.esquerda + coluna * i, y: margem.topo, width: coluna, height: alturaUtil, class: 'alvo' });
     const mostrar = () => {
       dica.replaceChildren(
-        el('strong', '', `Semana de ${diaBr(s.inicio).slice(0, 5)}`),
-        el('span', '', amostra('calculos'), `Cálculos: ${s.calculos}`),
-        el('span', '', amostra('automacao'), `Automação: ${s.automacao}`),
-        el('span', 'dica-total', `Total: ${total}`));
+        el('strong', '', rotuloMes(x0.mes, true)),
+        el('span', '', amostra('calculos'), `Cálculos: ${x0.calculos}`),
+        el('span', '', amostra('automacao'), `Automação: ${x0.automacao}`),
+        el('span', 'dica-total', `Total: ${total}`),
+        el('span', '', `Vendas no mês: ${x0.vendas}`));
       dica.hidden = false;
       const posicao = Math.min(Math.max(x + barra / 2 - 70, 0), largura - 150);
       dica.style.left = `${posicao}px`;
-      dica.style.top = `${Math.max(0, y(total) - 92)}px`;
+      dica.style.top = `${Math.max(0, y(total) - 110)}px`;
       alvo.classList.add('is-ativo');
     };
     const esconder = () => { dica.hidden = true; alvo.classList.remove('is-ativo'); };

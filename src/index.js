@@ -14,6 +14,8 @@ const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entr
 const SERVICOS = ['calculos', 'automacao'];
 const ORIGENS = ['site', 'whatsapp', 'indicacao', 'telefone', 'email', 'outro'];
 const PAPEIS = ['admin', 'funcionario'];
+// Cores que as etiquetas pessoais podem ter (as mesmas oferecidas na tela).
+const CORES_ETIQUETA = ['laranja', 'azul', 'verde', 'roxo', 'rosa', 'amarelo', 'cinza'];
 const CATEGORIAS_ARQUIVO = {
   cliente: 'documentos do cliente', nota: 'a nota fiscal', ordem: 'a ordem de serviço', outro: 'o arquivo', entrega: 'o arquivo da entrega',
 };
@@ -102,10 +104,11 @@ async function api(request, env, url) {
   if (pathname === '/api/sessao' && metodo === 'GET') return json({ usuario, demo: emDemo(env) });
   if (pathname === '/api/central' && metodo === 'GET') return central(env, usuario);
   if (pathname === '/api/senha' && metodo === 'POST') return trocarSenha(request, env, usuario);
+  if (pathname === '/api/eu' && metodo === 'PATCH') return salvarPreferencias(request, env, usuario);
   if (pathname === '/api/contatos' && metodo === 'POST') return admin ? cadastrarContato(request, env, usuario) : negado();
   if (pathname === '/api/usuarios' && metodo === 'POST') return admin ? criarUsuario(request, env, usuario) : negado();
 
-  let rota = pathname.match(/^\/api\/contatos\/(\d+)(\/linha-do-tempo|\/notas|\/arquivos)?$/);
+  let rota = pathname.match(/^\/api\/contatos\/(\d+)(\/linha-do-tempo|\/notas|\/arquivos|\/etiquetas)?$/);
   if (rota) {
     const id = Number(rota[1]);
     // Funcionário só chega aos contatos em que é responsável.
@@ -117,11 +120,15 @@ async function api(request, env, url) {
     if (rota[2] === '/notas' && metodo === 'POST') return !admin && contato.etapa === 'entregue' ? concluida() : anotar(request, env, usuario, id);
     if (rota[2] === '/arquivos' && metodo === 'GET') return listarArquivos(env, usuario, id);
     if (rota[2] === '/arquivos' && metodo === 'POST') return enviarArquivo(request, env, usuario, contato);
+    if (rota[2] === '/etiquetas' && metodo === 'POST') return criarEtiqueta(request, env, usuario, id);
   }
 
   rota = pathname.match(/^\/api\/arquivos\/(\d+)$/);
   if (rota && metodo === 'GET') return baixarArquivo(env, usuario, Number(rota[1]));
   if (rota && metodo === 'DELETE') return excluirArquivo(env, usuario, Number(rota[1]));
+
+  rota = pathname.match(/^\/api\/etiquetas\/(\d+)$/);
+  if (rota && metodo === 'DELETE') return excluirEtiqueta(env, usuario, Number(rota[1]));
 
   rota = pathname.match(/^\/api\/notas\/(\d+)$/);
   if (rota && metodo === 'DELETE') return excluirNota(env, usuario, Number(rota[1]));
@@ -131,7 +138,7 @@ async function api(request, env, url) {
     if (!admin) return negado();
     const id = Number(rota[1]);
     if (!rota[2] && metodo === 'DELETE') return removerUsuario(env, usuario, id);
-    if (!rota[2] && metodo === 'PATCH') return mudarPapel(request, env, usuario, id);
+    if (!rota[2] && metodo === 'PATCH') return alterarUsuario(request, env, usuario, id);
     if (rota[2] && metodo === 'POST') return redefinirSenha(request, env, usuario, id);
   }
 
@@ -297,7 +304,7 @@ async function usuarioDaSessao(request, env) {
   const token = lerCookie(request, COOKIE_SESSAO);
   if (!token) return null;
   return env.DB.prepare(
-    `SELECT u.id, u.usuario, u.nome, u.papel FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
+    `SELECT u.id, u.usuario, u.nome, u.papel, u.apelido, u.tema FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
      WHERE s.token_hash = ? AND s.expira_em > ${AGORA_SQL}`
   ).bind(await sha256(token)).first();
 }
@@ -341,18 +348,68 @@ async function criarUsuario(request, env, autor) {
   return json({ ok: true }, 201);
 }
 
-async function mudarPapel(request, env, autor, id) {
-  if (id === autor.id) return json({ erro: 'Você não pode mudar o seu próprio acesso.' }, 400);
+async function alterarUsuario(request, env, autor, id) {
   const dados = await lerJson(request);
-  if (!PAPEIS.includes(dados?.papel)) return json({ erro: 'Acesso inválido.' }, 400);
+  if (!dados) return json({ erro: 'Dados inválidos.' }, 400);
   const alvo = await env.DB.prepare('SELECT id FROM usuarios WHERE id = ?').bind(id).first();
   if (!alvo) return json({ erro: 'Usuário não encontrado.' }, 404);
-  await env.DB.prepare('UPDATE usuarios SET papel = ? WHERE id = ?').bind(dados.papel, id).run();
+  const escritas = [];
+  if ('papel' in dados) {
+    if (id === autor.id) return json({ erro: 'Você não pode mudar o seu próprio acesso.' }, 400);
+    if (!PAPEIS.includes(dados.papel)) return json({ erro: 'Acesso inválido.' }, 400);
+    escritas.push(env.DB.prepare('UPDATE usuarios SET papel = ? WHERE id = ?').bind(dados.papel, id));
+  }
+  // O nome completo só o administrador muda; a própria pessoa escolhe só o apelido.
+  if ('nome' in dados) {
+    const nome = limparTexto(dados.nome, 80);
+    if (nome.length < 2) return json({ erro: 'Informe o nome completo.' }, 400);
+    escritas.push(env.DB.prepare('UPDATE usuarios SET nome = ? WHERE id = ?').bind(nome, id));
+  }
+  if (!escritas.length) return json({ ok: true });
+  await env.DB.batch(escritas);
+  return json({ ok: true });
+}
+
+// Preferências da própria conta: apelido e tema.
+async function salvarPreferencias(request, env, usuario) {
+  const dados = await lerJson(request);
+  if (!dados) return json({ erro: 'Dados inválidos.' }, 400);
+  const escritas = [];
+  if ('apelido' in dados) {
+    const apelido = limparTexto(dados.apelido, 30) || null;
+    escritas.push(env.DB.prepare('UPDATE usuarios SET apelido = ? WHERE id = ?').bind(apelido, usuario.id));
+  }
+  if ('tema' in dados) {
+    if (!['escuro', 'claro'].includes(dados.tema)) return json({ erro: 'Tema inválido.' }, 400);
+    escritas.push(env.DB.prepare('UPDATE usuarios SET tema = ? WHERE id = ?').bind(dados.tema, usuario.id));
+  }
+  if (escritas.length) await env.DB.batch(escritas);
+  return json({ ok: true });
+}
+
+// ---------- Etiquetas pessoais ----------
+// Cada pessoa cria as suas etiquetas nas demandas que vê; as dos outros não aparecem para ela.
+
+async function criarEtiqueta(request, env, usuario, contatoId) {
+  const dados = await lerJson(request);
+  const texto = limparTexto(dados?.texto, 24);
+  const cor = CORES_ETIQUETA.includes(dados?.cor) ? dados.cor : 'cinza';
+  if (!texto) return json({ erro: 'Escreva a etiqueta.' }, 400);
+  const { total } = await env.DB.prepare('SELECT COUNT(*) AS total FROM etiquetas WHERE contato_id = ? AND usuario_id = ?').bind(contatoId, usuario.id).first();
+  if (total >= 6) return json({ erro: 'No máximo 6 etiquetas por demanda.' }, 400);
+  const repetida = await env.DB.prepare('SELECT id FROM etiquetas WHERE contato_id = ? AND usuario_id = ? AND texto = ? COLLATE NOCASE').bind(contatoId, usuario.id, texto).first();
+  if (repetida) return json({ ok: true });
+  await env.DB.prepare('INSERT INTO etiquetas (contato_id, usuario_id, texto, cor) VALUES (?, ?, ?, ?)').bind(contatoId, usuario.id, texto, cor).run();
+  return json({ ok: true }, 201);
+}
+
+async function excluirEtiqueta(env, usuario, id) {
+  await env.DB.prepare('DELETE FROM etiquetas WHERE id = ? AND usuario_id = ?').bind(id, usuario.id).run();
   return json({ ok: true });
 }
 
 async function redefinirSenha(request, env, autor, id) {
-  if (id === autor.id) return json({ erro: 'Para a sua própria senha, use "Minha senha".' }, 400);
+  if (id === autor.id) return json({ erro: 'Para a sua própria senha, use Preferências.' }, 400);
   const dados = await lerJson(request);
   const senha = String(dados?.senha || '');
   if (senha.length < 10) return json({ erro: 'A senha precisa ter pelo menos 10 caracteres.' }, 400);
@@ -376,6 +433,7 @@ async function removerUsuario(env, autor, id) {
     env.DB.prepare('UPDATE movimentacoes SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
     env.DB.prepare('UPDATE notas SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
     env.DB.prepare('UPDATE arquivos SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM etiquetas WHERE usuario_id = ?').bind(id),
     env.DB.prepare('DELETE FROM usuarios WHERE id = ?').bind(id),
   ]);
   return json({ ok: true });
@@ -391,7 +449,7 @@ async function central(env, usuario) {
   const filtroRecentes = admin ? '' : 'WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL';
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
-  const [contatos, usuarios, recentes] = await env.DB.batch([
+  const [contatos, usuarios, recentes, etiquetas] = await env.DB.batch([
     ligar(env.DB.prepare(
       `SELECT id, servico, nome, telefone, email, plano, descricao, atividade_manual, manter_inalterado,
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
@@ -400,7 +458,7 @@ async function central(env, usuario) {
               (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${admin ? '' : "AND a.categoria IN ('cliente', 'entrega')"}) AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
     )),
-    env.DB.prepare(`SELECT id, nome, papel${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
+    env.DB.prepare(`SELECT id, nome, apelido, papel${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
     ligar(env.DB.prepare(
       `SELECT * FROM (
          SELECT 'etapa' AS tipo, m.contato_id, c.nome AS contato, u.nome AS usuario, m.de, m.para, NULL AS texto, m.quando
@@ -411,6 +469,7 @@ async function central(env, usuario) {
          ${admin ? '' : `${filtroRecentes} AND n.restrito = 0`}
        ) ORDER BY quando DESC LIMIT 30`
     )),
+    env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
   ]);
 
   const lista = admin ? contatos.results : contatos.results.map(c => {
@@ -418,7 +477,7 @@ async function central(env, usuario) {
     for (const campo of CAMPOS_FINANCEIROS) limpo[campo] = null;
     return limpo;
   });
-  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etapas: ETAPAS, demo: emDemo(env) });
+  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, etapas: ETAPAS, demo: emDemo(env) });
 }
 
 async function cadastrarContato(request, env, usuario) {
@@ -557,6 +616,7 @@ async function excluirContato(env, id) {
   const { results } = await env.DB.prepare('SELECT chave FROM arquivos WHERE contato_id = ?').bind(id).all();
   await env.DB.batch([
     env.DB.prepare('DELETE FROM arquivos WHERE contato_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM etiquetas WHERE contato_id = ?').bind(id),
     env.DB.prepare('DELETE FROM notas WHERE contato_id = ?').bind(id),
     env.DB.prepare('DELETE FROM movimentacoes WHERE contato_id = ?').bind(id),
     env.DB.prepare('DELETE FROM contatos WHERE id = ?').bind(id),

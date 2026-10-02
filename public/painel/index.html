@@ -56,16 +56,16 @@
         <button type="button" class="nav-item" data-tela="agenda" data-icone="agenda"><span class="nav-rotulo">Agenda</span></button>
         <button type="button" class="nav-item" data-tela="arquivo" data-icone="arquivo"><span class="nav-rotulo">Arquivo</span></button>
       </div>
+      <div class="nav-grupo nav-grupo--fim">
+        <button type="button" class="nav-item" data-tela="preferencias" data-icone="preferencias"><span class="nav-rotulo">Preferências</span></button>
+      </div>
     </nav>
     <div class="lateral-rodape">
       <div class="eu">
         <span id="usuario-avatar"></span>
         <span class="eu-texto"><strong id="usuario-nome"></strong><small id="usuario-login"></small></span>
       </div>
-      <div class="lateral-botoes">
-        <button type="button" class="botao botao--fantasma botao--pequeno" id="minha-senha" data-icone="chave">Minha senha</button>
-        <button type="button" class="botao botao--fantasma botao--pequeno" id="sair" data-icone="sair">Sair</button>
-      </div>
+      <button type="button" class="botao botao--fantasma botao--pequeno" id="sair" data-icone="sair" title="Sair da Central">Sair</button>
     </div>
   </aside>
 
@@ -79,6 +79,7 @@
         </label>
         <ul class="busca-resultados" id="busca-resultados" role="listbox" hidden></ul>
       </div>
+      <button type="button" class="botao botao--icone botao--fantasma botao-tema" id="alternar-tema"></button>
       <span class="atualizado" id="atualizado"></span>
       <button type="button" class="botao botao--icone botao--fantasma" id="atualizar" data-icone="atualizar" title="Atualizar agora" aria-label="Atualizar agora"></button>
       <button type="button" class="botao botao--primario" id="novo-contato" data-icone="mais" title="Cadastrar contato (atalho: N)"><span class="some-no-celular">Novo contato</span></button>
@@ -89,25 +90,6 @@
 
 <dialog class="ficha" id="ficha" aria-label="Ficha do contato"></dialog>
 <dialog class="janela" id="novo" aria-label="Novo contato"></dialog>
-<dialog class="janela janela--pequena" id="janela-senha" aria-label="Minha senha">
-  <form id="form-minha-senha" class="form-senha" novalidate>
-    <h2>Minha senha</h2>
-    <label class="campo">Senha atual
-      <input type="password" name="atual" autocomplete="current-password" required>
-    </label>
-    <label class="campo">Nova senha (mín. 10 caracteres)
-      <input type="password" name="nova" autocomplete="new-password" minlength="10" required>
-    </label>
-    <label class="campo">Repita a nova senha
-      <input type="password" name="repetir" autocomplete="new-password" minlength="10" required>
-    </label>
-    <p class="aviso" id="senha-aviso" role="alert"></p>
-    <div class="form-acoes">
-      <button type="button" class="botao botao--fantasma" id="senha-cancelar">Cancelar</button>
-      <button type="submit" class="botao botao--primario">Salvar nova senha</button>
-    </div>
-  </form>
-</dialog>
 <!-- Confirmação antes de mover de etapa -->
 <dialog class="janela janela--pequena" id="janela-confirmar" aria-labelledby="confirmar-titulo">
   <div class="form-senha">

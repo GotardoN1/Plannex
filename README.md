@@ -22,29 +22,32 @@ Os exemplos de cálculo e de planilha usam valores fictícios.
 
 ## Central Plannex (painel interno)
 
-Cada envio do formulário continua indo por e-mail, com os anexos, e também cai na Central com a ficha completa. A Central tem seis telas:
+Cada envio do formulário continua indo por e-mail, com os anexos, e também cai na Central com a ficha completa. A Central tem estas telas:
 
 | Tela | O que faz |
 | --- | --- |
-| **Visão geral** | Saudação com o resumo do dia, números (novos na semana, em andamento, recebido e entregues no mês), contatos por semana, divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
-| **Caixa de entrada** | Os contatos em aberto agrupados por data, com prévia do pedido, filtros (aguardando, não lidos, serviço, texto) e exportação para Excel. Cada linha tem colunas fixas: "Mover para…" (administrador, qualquer etapa, para frente ou para trás), etapa, WhatsApp, responsável e o **botão azul de avançar**, que muda conforme a etapa (Aceitar pedido → Notas e ordens → Iniciar processo → Enviar para revisão → Entregar) |
+| **Visão geral** | Saudação (com o apelido), números (novos na semana, em andamento, recebido e entregues no mês; se o mês ainda não tem pagamento ou entrega, mostra o último mês que teve), contatos por mês (só os meses com contato ou venda), divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
+| **Caixa de entrada** | Os contatos em aberto agrupados por data, com prévia do pedido, a etiqueta do serviço e as **etiquetas pessoais** (botão "+", texto e cor; cada pessoa vê só as suas), filtros (aguardando, não lidos, serviço, texto) e exportação para Excel. Cada linha tem colunas fixas: "Mover para…" (administrador, qualquer etapa, para frente ou para trás), etapa, WhatsApp, responsável e o **botão azul de avançar**, que muda conforme a etapa (Aceitar pedido → Notas e ordens → Iniciar processo → Enviar para revisão → Entregar) |
 | **Concluídos** | Tudo o que chegou em Entregue, fora do quadro para ele não lotar; colunas fixas de conclusão, responsável e valor; filtros por responsável e serviço. O administrador pode **reabrir** (volta ao Andamento). Para o funcionário, só os dele, para consulta |
 | **Andamento** | Quadro só com o que está em trabalho: Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente. Na última coluna, "Concluir" leva para Concluídos. Cartões compactos na cor do serviço (laranja: cálculos, azul: automação): nome e valor na primeira linha, depois serviço, nota e prazo, e no rodapé responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
-| **Equipe** | Quem acessa, novos acessos, senha provisória e troca da própria senha |
+| **Equipe** | Quem acessa, nome completo (só o administrador altera), tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
+| **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
 
 A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação. O administrador também tem **"Voltar para…"**, uma etapa por vez, e numa demanda entregue **"Reabrir"**.
 
 | Aba | Conteúdo |
 | --- | --- |
-| Caixa de entrada (junta a chegada e o Pedido) | Contato, solicitação, entrega (responsável e prazo), **documentos que a pessoa enviou pelo site** e comentários |
-| Notas e ordens | Só administrador (em vermelho e trancada para o funcionário): valor, nota fiscal, pagamento, notas fiscais e ordens de serviço |
-| Processo iniciado | Prazo, solicitação, documentos do cliente e anotações do processo |
+| Caixa de entrada (junta a chegada e o Pedido) | Contato, entrega (responsável e prazo), **Solicitação** e comentários |
+| Notas e ordens | Só administrador (em vermelho e trancada para o funcionário): valor, nota fiscal, pagamento (com o botão **Hoje**) e um envio único para notas fiscais e ordens de serviço, sem escolher tipo |
+| Processo iniciado | **Solicitação**, com envio de mais documentos do cliente, e anotações do processo |
 | Revisado pelo cliente | O que o cliente pediu para ajustar |
 | Entregue | Excel e relatório finais, comentário da entrega e o registro de quando e quem entregou |
 
 Para concluir, o funcionário sobe os arquivos finais na aba Entregue e clica em "Concluir e registrar entrega"; o dia e a hora ficam registrados. No fim da ficha fica o histórico completo (movimentações, anexos e alterações).
+
+A **Solicitação** repete o formulário do site, na mesma ordem: serviço, plano de interesse, necessidade, atividade manual, o que deve permanecer inalterado, anexo do cliente (a resposta e os arquivos) e observações adicionais. Campos vazios não aparecem. Os arquivos aparecem com uma miniatura do tipo (PDF, DOC, XLS, IMG).
 
 Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
 

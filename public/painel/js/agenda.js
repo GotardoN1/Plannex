@@ -22,11 +22,7 @@ export function desenharAgenda(raiz) {
   };
 
   const cabecalho = el('header', 'tela-topo',
-    el('div', '',
-      el('h1', '', 'Agenda'),
-      el('p', '', eAdmin()
-        ? 'Prazos de entrega e pagamentos recebidos. Defina o prazo e a data do pagamento na ficha de cada contato.'
-        : 'Os prazos de entrega das suas demandas.')));
+    el('div', '', el('h1', '', 'Agenda')));
 
   const navegacao = el('div', 'agenda-nav',
     botao('', 'botao--icone botao--fantasma', () => mudarMes(-1), { icone: 'seta_esq', titulo: 'Mês anterior' }),

@@ -11,9 +11,7 @@ const filtro = { servico: '', responsavel: '', texto: '' };
 export function desenharQuadro(raiz) {
   const redesenhar = () => desenharQuadro(raiz);
   const cabecalho = el('header', 'tela-topo',
-    el('div', '',
-      el('h1', '', 'Andamento'),
-      el('p', '', 'O que está em trabalho. Arraste os cartões entre as etapas ou use as setas; ao concluir, a demanda vai para Concluídos.')));
+    el('div', '', el('h1', '', 'Andamento')));
 
   const quadro = el('div', 'quadro');
   const pintar = () => quadro.replaceChildren(...colunas());

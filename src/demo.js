@@ -47,6 +47,13 @@ const ANOTACOES = [
 
 const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
 
+// Etiquetas pessoais de exemplo (contato, perfil, texto, cor).
+const ETIQUETAS_EXEMPLO = [
+  [1, 1, 'Urgente', 'rosa'], [6, 1, 'Cliente antigo', 'verde'], [12, 2, 'Veio do WhatsApp', 'verde'],
+  [16, 3, 'Pacote Evolução', 'roxo'], [18, 3, 'Aguardando holerite', 'amarelo'], [17, 4, 'Prioridade', 'laranja'],
+  [9, 5, 'Primeiro caso', 'azul'],
+].map(([contato_id, usuario_id, texto, cor]) => ({ contato_id, usuario_id, texto, cor }));
+
 // Comentários de exemplo para as abas da ficha.
 const NO_PROCESSO = [
   'Conferi os holerites e as datas. Falta só o índice de correção do último mês.',
@@ -161,6 +168,7 @@ export async function resetarDemo(env) {
   // Poucas consultas grandes: o plano grátis limita quantas consultas cada acesso faz.
   const ids = PERFIS_DEMO.map(p => p.id).join(', ');
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM etiquetas'),
     env.DB.prepare('DELETE FROM arquivos'),
     env.DB.prepare('DELETE FROM notas'),
     env.DB.prepare('DELETE FROM movimentacoes'),
@@ -169,10 +177,12 @@ export async function resetarDemo(env) {
     env.DB.prepare("DELETE FROM tentativas WHERE chave NOT LIKE 'demo-%'"),
     env.DB.prepare(`DELETE FROM usuarios WHERE id NOT IN (${ids})`),
     env.DB.prepare(inserir('usuarios', PERFIS_DEMO.map(p => ({ id: p.id, usuario: p.usuario, nome: p.nome, papel: p.papel, senha_hash: 'demo-sem-senha' })))
-      + ' ON CONFLICT (id) DO UPDATE SET usuario = excluded.usuario, nome = excluded.nome, papel = excluded.papel, senha_hash = excluded.senha_hash'),
+      + ' ON CONFLICT (id) DO UPDATE SET usuario = excluded.usuario, nome = excluded.nome, papel = excluded.papel, senha_hash = excluded.senha_hash, apelido = NULL, tema = \'escuro\''),
     env.DB.prepare(inserir('contatos', contatos)),
     env.DB.prepare(inserir('movimentacoes', movimentacoes)),
     env.DB.prepare(inserir('notas', notas)),
+    // Etiquetas pessoais de exemplo: cada perfil vê só as suas.
+    env.DB.prepare(inserir('etiquetas', ETIQUETAS_EXEMPLO)),
     env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: a.categoria, nome: a.nome, tipo: a.nome.endsWith('.csv') ? 'text/csv' : 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),
   ]);
 }

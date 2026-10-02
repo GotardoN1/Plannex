@@ -1,20 +1,19 @@
 // Ficha do contato em abas, uma por etapa do andamento:
-//   Caixa de entrada (junta a chegada e o Pedido): contato e entrega (quem é e até quando entregar).
-//   Notas e ordens (só administrador): valores, pagamento, nota fiscal e ordem de serviço.
-//   Processo iniciado: solicitação, documentos do cliente e anotações do processo.
+//   Caixa de entrada (junta a chegada e o Pedido): contato, entrega e a solicitação feita no site.
+//   Notas e ordens (só administrador): valores, pagamento, notas fiscais e ordens de serviço.
+//   Processo iniciado: a solicitação (com os documentos do cliente) e anotações do processo.
 //   Revisado pelo cliente: o que o cliente pediu para ajustar.
 //   Entregue: arquivos finais (Excel, relatório), comentário e o registro do dia da entrega.
 // Clicar numa aba só mostra o conteúdo; mudar de etapa é pelo botão de ação, com confirmação.
 import { estado, acoes, contatoPorId, usuarioPorId, eAdmin } from './estado.js';
 import { api } from './api.js';
+import { etiquetasDaDemanda } from './etiquetas.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, ETAPAS,
   dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr, tamanhoArquivo,
+  hoje, tipoArquivo,
 } from './util.js';
 
-const CATEGORIAS = {
-  cliente: 'Documento do cliente', ordem: 'Ordem de serviço', nota: 'Nota fiscal', outro: 'Outro', entrega: 'Arquivo da entrega',
-};
 // O funcionário vê e envia só documentos do cliente e arquivos da entrega.
 const CATEGORIAS_FUNCIONARIO = ['cliente', 'entrega'];
 // Etapas em que o funcionário trabalha. Pedido e Notas e ordens são do administrador.
@@ -106,7 +105,8 @@ function desenhar() {
     avatar(c.nome, 'avatar--grande'),
     el('div', 'ficha-titulo',
       el('h2', '', c.nome),
-      el('p', '', etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`)))),
+      el('p', '', etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`))),
+      etiquetasDaDemanda(c)),
     fechar);
 
   const painel = el('div', 'ficha-painel');
@@ -239,25 +239,24 @@ function painelEntrada(c) {
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoContato(c)),
       el('div', 'ficha-coluna', blocoEntrega(c))),
+    blocoSolicitacao(c),
     comentarios(c, 'entrada', 'Comentários', 'Anotar algo sobre este contato…'),
   ];
 }
 
+// Notas fiscais, ordens de serviço e o que mais precisar: um envio só, sem escolher tipo.
 function painelNotas(c) {
   return [
-    el('p', 'dica-etapa', icone('cadeado'), 'Só administradores veem esta aba: valores, pagamento, notas fiscais e ordens de serviço.'),
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoNegocio(c)),
-      el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo' }))),
+      el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
     comentarios(c, 'nota_emitida', 'Comentários internos', 'Só administradores veem estes comentários…'),
   ];
 }
 
 function painelProcesso(c) {
   return [
-    el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoSolicitacao(c)),
-      el('div', 'ficha-coluna', blocoArquivos(c, ['cliente'], { titulo: 'Documentos do cliente', icone: 'documento', dica: 'Os que a pessoa enviou pelo site aparecem aqui sozinhos. Dá para anexar outros que chegarem por WhatsApp ou e-mail.' }))),
+    blocoSolicitacao(c, { comEnvio: true }),
     comentarios(c, 'processo_iniciado', 'Anotações do processo', 'Ex.: conferi os holerites, falta o índice de março…'),
   ];
 }
@@ -275,12 +274,9 @@ function painelEntregue(c) {
   if (entregue) {
     partes.push(el('p', 'chamada-entrega is-feita', icone('ok'),
       el('span', '', el('strong', '', 'Entregue'), registro ? ` em ${dataHora(registro.quando)} por ${registro.usuario || 'usuário removido'}.` : ` em ${dataHora(c.atualizado_em)}.`)));
-  } else if (podeMoverPara(c, 'entregue')) {
-    partes.push(el('p', 'chamada-entrega', icone('enviar'),
-      el('span', '', el('strong', '', 'Para concluir: '), 'envie o Excel e o relatório finais, deixe um comentário se quiser e clique em "Concluir e registrar entrega". O dia e a hora ficam registrados.')));
   }
   partes.push(
-    blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', aoEnviar: entregue ? null : () => perguntarSeConclui(c) }),
+    blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c) }),
     comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'));
   if (!entregue && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
@@ -411,22 +407,28 @@ function formularioDados(c) {
   return form;
 }
 
-function blocoSolicitacao(c) {
+const ENVIO_DOCUMENTOS = { 'Anexar agora': 'Sim', 'Enviar posteriormente': 'Não, vai enviar depois' };
+
+function blocoSolicitacao(c, { comEnvio = false } = {}) {
   const campos = [
-    ['Plano de interesse', c.plano],
-    ['Documentos', c.envio_documentos],
-    ['Botão do site', c.chamada],
-    ['Necessidade', c.descricao, true],
-    ['Atividade a automatizar', c.atividade_manual, true],
-    ['O que deve continuar igual', c.manter_inalterado, true],
-    ['Observações', c.observacoes, true],
-  ].filter(([, valor]) => valor);
-  return el('section', 'bloco', el('div', 'bloco-topo', el('h3', '', 'Solicitação')),
-    campos.length
-      ? el('dl', 'dados dados--texto', campos.map(([rotulo, valor, largo]) => item(rotulo, valor, largo)))
-      : el('p', 'vazio-mini', c.origem === 'site'
-        ? 'Este contato chegou antes da Central guardar a ficha completa. Os detalhes estão no e-mail.'
-        : 'Nenhum detalhe registrado. Use Editar para completar.'));
+    item('Serviço', SERVICOS[c.servico]?.completo || SERVICOS[c.servico]?.nome),
+    item('Plano de interesse', c.plano),
+    item('Necessidade', c.descricao, true),
+    item('Atividade manual a automatizar', c.atividade_manual, true),
+    item('O que deve permanecer inalterado', c.manter_inalterado, true),
+  ];
+  // Anexo do cliente: a resposta do site e, embaixo, os arquivos (os que chegaram depois também).
+  const lista = el('ul', 'documentos documentos--miniaturas', el('li', 'carregando', 'Carregando…'));
+  lista.dataset.lista = 'arquivos';
+  lista.dataset.categorias = 'cliente';
+  if (!comEnvio) lista.dataset.ocultarVazio = c.envio_documentos ? 'lista' : 'tudo';
+  const resposta = ENVIO_DOCUMENTOS[c.envio_documentos] || c.envio_documentos;
+  const anexo = el('div', 'dado dado--largo', el('dt', '', 'Anexo do cliente'), el('dd', '', resposta ? el('span', 'resposta', resposta) : null, lista));
+  campos.push(anexo, item('Observações adicionais', c.observacoes, true));
+
+  const partes = [el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('documento'), 'Solicitação')), el('dl', 'dados dados--texto', campos)];
+  if (comEnvio && !somenteLeitura(c)) partes.push(...zonaDeEnvio(c, 'cliente'));
+  return el('section', 'bloco bloco--solicitacao', partes);
 }
 
 // "largo": textos longos ocupam a linha toda; os curtos ficam lado a lado.
@@ -509,7 +511,7 @@ function blocoNegocio(c) {
     el('div', 'negocio',
       el('label', 'campo campo--reais', 'Valor', el('span', 'prefixo', el('i', '', 'R$'), valor)),
       el('label', 'campo', 'Nota fiscal', nota),
-      el('label', 'campo campo--largo', 'Pagamento recebido em', campoData(c.pago_em, data => salvar({ pago_em: data })))),
+      el('div', 'campo campo--largo', el('span', 'campo-rotulo', 'Pagamento recebido em'), campoData(c.pago_em, data => salvar({ pago_em: data }), { comHoje: true }))),
     c.valor_centavos !== null && c.valor_centavos !== undefined
       ? el('p', `negocio-resumo${c.pago_em ? ' is-pago' : ''}`, icone(c.pago_em ? 'ok' : 'dinheiro'),
         c.pago_em ? `${reais(c.valor_centavos)} recebidos em ${diaBr(c.pago_em)}` : `${reais(c.valor_centavos)} a receber`)
@@ -517,7 +519,8 @@ function blocoNegocio(c) {
 }
 
 // Data só é salva completa (o campo do navegador manda 0002, 0020... enquanto se digita o ano).
-function campoData(valorAtual, aoMudar) {
+// "comHoje": um botãozinho ao lado que preenche com a data de hoje.
+function campoData(valorAtual, aoMudar, { comHoje = false } = {}) {
   const entrada = el('input');
   entrada.type = 'date';
   entrada.min = '2000-01-01';
@@ -534,7 +537,13 @@ function campoData(valorAtual, aoMudar) {
   let espera;
   entrada.addEventListener('change', () => { clearTimeout(espera); espera = setTimeout(gravar, 900); });
   entrada.addEventListener('blur', () => { clearTimeout(espera); gravar(); });
-  return entrada;
+  if (!comHoje) return entrada;
+  const agora = botao('Hoje', 'botao--fantasma botao--pequeno', () => {
+    clearTimeout(espera);
+    entrada.value = hoje();
+    gravar();
+  }, { titulo: 'Preencher com a data de hoje' });
+  return el('span', 'data-com-hoje', entrada, agora);
 }
 
 function dataCompleta(valor) {
@@ -553,92 +562,106 @@ function opcao(valor, texto, selecionada = false) {
 
 function blocoArquivos(c, categorias, opcoes = {}) {
   const visiveis = categorias.filter(cat => eAdmin() || CATEGORIAS_FUNCIONARIO.includes(cat));
-  const lista = el('ul', 'documentos', el('li', 'carregando', 'Carregando…'));
+  const lista = el('ul', 'documentos documentos--miniaturas', el('li', 'carregando', 'Carregando…'));
   lista.dataset.lista = 'arquivos';
   lista.dataset.categorias = visiveis.join(',');
-  const partes = [
-    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone(opcoes.icone || 'anexo'), opcoes.titulo)),
-    opcoes.dica ? el('p', 'bloco-dica', opcoes.dica) : null,
-    lista,
-  ];
-  if (!opcoes.semEnvio && !somenteLeitura(c) && visiveis.length) partes.push(...zonaDeEnvio(c, visiveis, opcoes.aoEnviar));
+  const partes = [el('div', 'bloco-topo', el('h3', 'titulo-icone', icone(opcoes.icone || 'anexo'), opcoes.titulo)), lista];
+  const envio = opcoes.envio || visiveis[0];
+  if (!somenteLeitura(c) && visiveis.includes(envio)) partes.push(...zonaDeEnvio(c, envio, opcoes.aoEnviar));
   return el('section', 'bloco bloco--documentos', partes);
 }
 
-function zonaDeEnvio(c, categorias, aoEnviar) {
+function zonaDeEnvio(c, categoria, aoEnviar) {
   const id = `envio-${++sequencia}`;
-  const categoria = el('select');
-  categoria.setAttribute('aria-label', 'Tipo do arquivo');
-  for (const cat of categorias) categoria.append(opcao(cat, CATEGORIAS[cat]));
-
   const entrada = el('input');
   entrada.type = 'file';
   entrada.accept = '.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.xlsm,.csv,.doc,.docx,.xml,.txt,.zip';
+  entrada.multiple = true;
   entrada.className = 'sr';
   entrada.id = id;
 
   const status = el('p', 'aviso');
   const zona = el('label', 'zona-envio', icone('enviar'),
     el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
-    el('small', '', 'PDF, imagem, Excel ou Word · até 10 MB'));
+    el('small', '', 'PDF, Word, Excel ou imagem · até 10 MB'));
   zona.htmlFor = id;
 
-  const enviar = async arquivo => {
-    if (!arquivo) return;
-    if (arquivo.size > 10 * 1024 * 1024) { status.textContent = 'O arquivo passa de 10 MB.'; return; }
-    status.classList.remove('is-ok');
-    status.textContent = `Enviando ${arquivo.name}…`;
-    zona.classList.add('is-enviando');
+  const enviarUm = async arquivo => {
+    if (arquivo.size > 10 * 1024 * 1024) throw new Error(`${arquivo.name} passa de 10 MB.`);
     const corpo = new FormData();
-    corpo.append('categoria', categoria.value);
+    corpo.append('categoria', categoria);
     corpo.append('arquivo', arquivo);
+    const resposta = await fetch(`/api/contatos/${c.id}/arquivos`, { method: 'POST', body: corpo, credentials: 'same-origin' });
+    const retorno = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) throw new Error(retorno.erro || 'Não foi possível enviar.');
+  };
+  const enviar = async arquivos => {
+    arquivos = [...(arquivos || [])];
+    if (!arquivos.length) return;
+    status.classList.remove('is-ok');
+    zona.classList.add('is-enviando');
+    let enviados = 0;
     try {
-      const resposta = await fetch(`/api/contatos/${c.id}/arquivos`, { method: 'POST', body: corpo, credentials: 'same-origin' });
-      const retorno = await resposta.json().catch(() => ({}));
-      if (!resposta.ok) throw new Error(retorno.erro || 'Não foi possível enviar.');
-      status.textContent = `${arquivo.name} anexado.`;
+      for (const arquivo of arquivos) {
+        status.textContent = `Enviando ${arquivo.name}…`;
+        await enviarUm(arquivo);
+        enviados++;
+      }
+      status.textContent = enviados === 1 ? `${arquivos[0].name} anexado.` : `${enviados} arquivos anexados.`;
       status.classList.add('is-ok');
-      entrada.value = '';
-      await depoisDeMudar();
-      if (aoEnviar) aoEnviar();
     } catch (e) {
       status.textContent = e.message;
     } finally {
+      entrada.value = '';
       zona.classList.remove('is-enviando');
+      if (enviados) {
+        await depoisDeMudar();
+        if (aoEnviar) aoEnviar();
+      }
     }
   };
-  entrada.addEventListener('change', () => enviar(entrada.files[0]));
+  entrada.addEventListener('change', () => enviar(entrada.files));
   zona.addEventListener('dragover', evento => { evento.preventDefault(); zona.classList.add('is-alvo'); });
   zona.addEventListener('dragleave', () => zona.classList.remove('is-alvo'));
   zona.addEventListener('drop', evento => {
     evento.preventDefault();
     zona.classList.remove('is-alvo');
-    enviar(evento.dataTransfer.files[0]);
+    enviar(evento.dataTransfer.files);
   });
-  const tipo = el('label', 'campo', 'Tipo', categoria);
-  if (categorias.length === 1) tipo.hidden = true;
-  return [el('div', `envio${categorias.length === 1 ? ' envio--simples' : ''}`, tipo, entrada, zona), status];
+  return [el('div', 'envio envio--simples', entrada, zona), status];
+}
+
+// Miniatura do arquivo: uma folhinha com a cor e a sigla do tipo (PDF, DOC, XLS…).
+function miniatura(nome) {
+  const tipo = tipoArquivo(nome);
+  const m = el('span', `miniatura miniatura--${tipo.classe}`, el('span', 'miniatura-sigla', tipo.rotulo));
+  m.setAttribute('aria-hidden', 'true');
+  return m;
 }
 
 function preencherArquivos() {
   for (const lista of janela().querySelectorAll('[data-lista="arquivos"]')) {
     const categorias = lista.dataset.categorias.split(',');
     const arquivos = dados.arquivos.filter(a => categorias.includes(a.categoria));
+    // Na solicitação, sem arquivos, some a lista (ou o item todo, se o cliente nem respondeu).
+    const ocultar = lista.dataset.ocultarVazio;
+    lista.hidden = !arquivos.length && Boolean(ocultar);
+    const dado = lista.closest('.dado');
+    if (dado) dado.hidden = !arquivos.length && ocultar === 'tudo';
     if (!arquivos.length) {
       lista.replaceChildren(el('li', 'vazio-mini', 'Nenhum arquivo ainda.'));
       continue;
     }
     const c = contatoPorId(atualId);
     lista.replaceChildren(...arquivos.map(a => {
-      const baixar = el('a', 'documento-nome', icone('documento'), el('span', '', a.nome));
+      const baixar = el('a', 'documento-nome', miniatura(a.nome), el('span', '', a.nome));
       baixar.href = `/api/arquivos/${a.id}`;
       baixar.download = a.nome;
       baixar.title = `Baixar ${a.nome}`;
       const autor = a.usuario || (a.usuario_id ? 'usuário removido' : 'enviado pelo cliente no site');
       const li = el('li', `documento documento--${a.categoria}`,
         baixar,
-        el('span', 'documento-info', el('span', `categoria categoria--${a.categoria}`, CATEGORIAS[a.categoria]),
-          `${tamanhoArquivo(a.tamanho)} · ${autor} · ${dataHora(a.criado_em)}`));
+        el('span', 'documento-info', `${tamanhoArquivo(a.tamanho)} · ${autor} · ${dataHora(a.criado_em)}`));
       const podeRemover = eAdmin() || (a.usuario_id === estado.usuario.id && !somenteLeitura(c));
       if (podeRemover) {
         li.append(botaoDoisCliques('', '', 'botao--icone botao--fantasma botao--pequeno', 'lixo', async () => {

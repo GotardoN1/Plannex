@@ -35,3 +35,6 @@ export function aplicarFiltros(lista) {
     (!responsavel || (responsavel === 'eu' ? c.responsavel_id === estado.usuario?.id : responsavel === 'ninguem' ? !c.responsavel_id : true))
   );
 }
+
+// Etiquetas pessoais da própria pessoa, por demanda.
+export const etiquetasDe = contatoId => (estado.etiquetas || []).filter(e => e.contato_id === contatoId);
