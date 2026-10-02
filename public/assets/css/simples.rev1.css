@@ -1,0 +1,170 @@
+/* Plannex · visual simples, o mesmo da Central (/painel/).
+   Carregado depois do CSS do site: mesmas cores, fonte, tamanhos, cartões, botões e campos da Central.
+   Sem degradês, brilhos, desfoques nem sombras; cartões lisos com borda fina. */
+
+:root {
+  --bg: #0b1422;
+  --surface: #111e30;
+  --surface-2: #162741;
+  --surface-3: #1c3150;
+  --ink: #eef3f8;
+  --muted: #b1bed0;
+  --subtle: #8495ad;
+  --line: #2a3b53;
+  --line-forte: #3a4f6c;
+  --accent: #f29a63;
+  --accent-forte: #f6b083;
+  --sobre-accent: #101925;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --card-shadow: none;
+}
+
+/* ---------- Base ---------- */
+html, body { background: var(--bg); }
+body { font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.bg-glow, .bg-glow::before, .bg-glow::after { display: none !important; }
+section#contato::before, section#contato::after { display: none !important; }
+
+/* Tudo o que tinha degradê, sombra ou desfoque fica liso. */
+:is(.hero-price-preview, .report-document-stage, .calculation-scope-item, .calculation-scope-summary,
+    .calc-price-card, .calc-offer-price-zone, .delivery-feature, .home-process-compact, .home-process-compact li,
+    .secondary-vertical, .secondary-mini-ui, .automation-preview-card, .automation-overview, .transform-panel,
+    .plan, .contact-request-form, .contact-attachment-choice, .contact-help-card, .site-footer,
+    .simulation, .calculation-workbook, .memory-scroll, .delivery-checks li, .automation-page article) {
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+:is(.hero-price-preview, .home-process-compact, .secondary-vertical, .automation-page article)::before,
+:is(.hero-price-preview, .home-process-compact, .secondary-vertical, .automation-page article)::after {
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.home-process-compact::before, .secondary-vertical::after, .hero-price-preview::before { display: none !important; }
+
+/* ---------- Tipografia (como a Central) ---------- */
+.page-title, .automation-title { font-size: clamp(30px, 3.4vw, 38px) !important; font-weight: 700 !important; letter-spacing: -.02em !important; line-height: 1.12 !important; }
+.page-title em, .automation-title em { color: var(--accent); font-style: normal; }
+.section-heading h2, .content-block h2, .automation-page h2, .result-trace-title, .automation-plans-title {
+  font-size: clamp(22px, 2.3vw, 26px) !important; font-weight: 700 !important; letter-spacing: -.01em !important; line-height: 1.2 !important;
+}
+:is(.calc-price-card, .plan, .grupo-calculos, .contact-request-form, .contact-help-card) h3 { font-size: 17px !important; font-weight: 700 !important; letter-spacing: 0 !important; }
+.lead { color: var(--muted) !important; font-size: 15px !important; line-height: 1.6 !important; }
+.eyebrow, .report-label { color: var(--accent) !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .08em !important; }
+small, .calculation-scope-item small { font-size: 13px; color: var(--muted); }
+
+/* ---------- Cartões ---------- */
+:is(.calculation-scope-item, .calculation-scope-summary, .calc-price-card, .plan, .contact-request-form,
+    .contact-help-card, .automation-overview, .transform-panel, .simulation, .calculation-workbook, .home-process-compact,
+    .secondary-vertical, .delivery-feature, .report-document-stage, .grupo-calculos, .fase, .calc-garantia) {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius) !important;
+}
+/* Caixas dentro de cartões: fundo da página, como as linhas da Central. */
+:is(.calc-offer-price-zone, .hero-price-preview, .calculation-scope-notes span, .delivery-checks li, .home-process-compact li,
+    .automation-preview-card, .secondary-mini-ui, .contact-attachment-choice, .memory-scroll) {
+  background-color: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.calc-price-card:hover, .plan:hover { border-color: var(--line-forte) !important; transform: none !important; }
+.plan-best, .calc-price-card:not(.calc-custom-card):not(.calc-pacote-card) { border-color: #f29a6366 !important; }
+.calc-price strong { font-size: clamp(36px, 3.6vw, 44px) !important; letter-spacing: -.03em !important; }
+.calculation-scope-tags span, .secondary-compact-tags span {
+  background: var(--surface-2) !important; border: 1px solid var(--line) !important; border-radius: 999px !important; color: var(--muted) !important;
+}
+
+/* ---------- Botões (iguais aos da Central) ---------- */
+.button, a.button, button.button {
+  min-height: 40px !important; padding: 0 16px !important; border-radius: var(--radius-sm) !important;
+  font-size: 14px !important; font-weight: 700 !important; letter-spacing: 0 !important;
+  background: var(--accent) !important; border: 1px solid var(--accent) !important; color: var(--sobre-accent) !important;
+  box-shadow: none !important; background-image: none !important;
+}
+.button:hover { background: var(--accent-forte) !important; border-color: var(--accent-forte) !important; transform: none !important; }
+.button.outline {
+  background: var(--surface-2) !important; border-color: var(--line-forte) !important; color: var(--ink) !important; font-weight: 600 !important;
+}
+.button.outline:hover { background: var(--surface-3) !important; border-color: #557195 !important; }
+.text-link { color: var(--accent); font-weight: 600; }
+
+/* ---------- Campos do formulário (iguais aos da Central) ---------- */
+:is(.contact-field input, .contact-field textarea, .contact-field select) {
+  min-height: 40px; border: 1px solid var(--line-forte) !important; border-radius: var(--radius-sm) !important;
+  background-color: var(--bg) !important; color: var(--ink) !important; font-size: 14px !important; box-shadow: none !important;
+}
+:is(.contact-field input, .contact-field textarea, .contact-field select):focus {
+  border-color: #f29a63b3 !important; box-shadow: 0 0 0 3px #f29a6326 !important; outline: none !important;
+}
+.contact-field label { color: var(--muted); font-size: 13px; font-weight: 500; }
+.contact-service-radio, .contact-attachment-radio, .contact-plan-radio { box-shadow: none !important; }
+
+/* ---------- Cabeçalho e rodapé ---------- */
+.site-header, header.site-header { background: var(--bg) !important; backdrop-filter: none !important; box-shadow: none !important; border-bottom: 1px solid var(--line) !important; }
+.site-footer { background: var(--bg) !important; border-top: 1px solid var(--line) !important; }
+
+/* ---------- Novos blocos: fases, cálculos atendidos, pacote e retificação ---------- */
+.calc-fases, .calc-atendidos { margin-top: clamp(36px, 5vw, 56px); }
+.fases-calculo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 18px 0 0; padding: 0; list-style: none; }
+.fase { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; }
+.fase-numero {
+  display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--sobre-accent); font-size: 13px; font-weight: 800;
+}
+.fase strong { display: block; font-size: 15px; }
+.fase small { display: block; margin-top: 2px; line-height: 1.5; }
+
+.grupos-calculos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.grupo-calculos { display: flex; flex-direction: column; padding: 18px; }
+.grupo-calculos h3 { margin: 0 0 10px; }
+.grupo-calculos ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.grupo-calculos li { position: relative; padding-left: 18px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.grupo-calculos li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.grupo-nota { margin: auto 0 0; padding-top: 14px; color: var(--subtle); font-size: 13px; }
+
+.single-offer.calc-offer-pair { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 14px !important; align-items: stretch !important; }
+.calc-offer-pair .calc-price-card { display: flex !important; flex-direction: column !important; }
+.calc-offer-pair .calc-price-card > .button { margin-top: auto !important; align-self: stretch; justify-content: center; }
+.calc-pacote-card .calc-price-promo span { background: var(--surface-2) !important; color: var(--ink) !important; border-color: var(--line-forte) !important; }
+
+.calc-garantia { display: flex; align-items: flex-start; gap: 12px; margin-top: 14px; padding: 14px 16px; }
+.calc-garantia-icone {
+  display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: #12302a; color: #8de0b4; font-size: 13px; font-weight: 800;
+}
+.calc-garantia strong { display: block; font-size: 15px; }
+.calc-garantia span:not(.calc-garantia-icone) { display: block; color: var(--muted); font-size: 14px; }
+
+@media (max-width: 980px) {
+  .single-offer.calc-offer-pair, .grupos-calculos { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (max-width: 760px) {
+  .fases-calculo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .button, .calc-price-card, .plan { transition: background-color .15s ease, border-color .15s ease; }
+}
+
+/* Três cartões lado a lado: os pontos viram uma lista simples, um por linha (sem caixinhas de altura fixa). */
+#calculos .calc-offer-pair .calc-offer-points { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; margin: 14px 0 18px !important; }
+#calculos .calc-offer-pair .calc-offer-points li {
+  height: auto !important; min-height: 0 !important; padding: 0 0 0 18px !important; position: relative;
+  background: none !important; border: 0 !important; border-radius: 0 !important; display: block !important;
+}
+#calculos .calc-offer-pair .calc-offer-points li::before { content: ""; position: absolute; left: 2px; top: .5em; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+#calculos .calc-offer-pair .calc-offer-points strong { display: block !important; min-height: 0 !important; font-size: 14px !important; line-height: 1.35 !important; }
+#calculos .calc-offer-pair .calc-offer-points span { display: block !important; color: var(--muted) !important; font-size: 13px !important; line-height: 1.45 !important; }
+#calculos .calc-offer-pair .calc-price-card { height: auto !important; min-height: 0 !important; max-height: none !important; }
+#calculos .calc-offer-pair .calc-price-card > * { flex-shrink: 0 !important; }
+#calculos .calc-offer-pair .calc-offer-points { height: auto !important; min-height: 0 !important; }
+
+/* Todos os títulos de seção no mesmo tamanho (como os cartões da Central). */
+.page h2:not(.page-title):not(#dialog-title) { font-size: clamp(22px, 2.3vw, 26px) !important; font-weight: 700 !important; letter-spacing: -.01em !important; line-height: 1.2 !important; }
+.page h3 { letter-spacing: 0 !important; }
+
+/* WhatsApp como na Central: verde escuro com contorno. */
+.button.contact-whatsapp-button, #whatsapp.button { background: #0f3324 !important; border-color: #1d6b45 !important; color: #b9f5d2 !important; }
+.button.contact-whatsapp-button:hover, #whatsapp.button:hover { background: #134330 !important; border-color: #25d366 !important; }

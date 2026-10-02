@@ -2,7 +2,7 @@
 
 Site da **Plannex**, com duas frentes de serviço:
 
-- **Cálculos judiciais e financeiros**, feitos por economistas: atualização monetária, juros, apuração e liquidação, conferência e contestação. A entrega é a memória de cálculo em Excel e o parecer técnico assinado.
+- **Cálculos judiciais e financeiros**, feitos por economistas, em qualquer fase do processo (cálculo inicial, de sentença e final): atualização monetária, juros, apuração e liquidação, conferência e impugnação. A entrega é a memória de cálculo e o parecer técnico.
 - **Automação de planilhas** no Excel e no Office: planilhas sob medida, relatórios, macros, botões e VBA, gráficos e painéis.
 
 **[Abrir site →](https://misty-king-c67fe.luh20123.workers.dev/)** · **[Demonstração da Central →](https://plannex-demo.luh20123.workers.dev/painel/)** (dados fictícios, sem senha)
@@ -11,14 +11,14 @@ Site da **Plannex**, com duas frentes de serviço:
 
 | Seção | O que mostra |
 | --- | --- |
-| Início | Serviços de cálculo, formas de contratação (cálculo simples e personalizado) e o passo a passo do atendimento |
+| Início | Serviços de cálculo, fases do processo, a lista de cálculos que atendemos, formas de contratação (cálculo simples, pacote de 10 cálculos e personalizado), retificação garantida e o passo a passo do atendimento |
 | Laboratório Plannex | Demonstração animada de uma memória de cálculo indo dos documentos ao parecer, com dados fictícios |
 | Exemplo de memória | Tabela ilustrativa com competência, fator, valor corrigido, juros e total |
 | Serviço de Automação | Planos de automação, a demonstração "da bagunça ao controle" e a lista do que pode ser automatizado |
 | Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta |
 | Central (`/painel/`) | Só com login: contatos, pedidos, prazos e pagamentos da equipe |
 
-Os exemplos de cálculo e de planilha usam valores fictícios.
+Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev1.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões.
 
 ## Central Plannex (painel interno)
 
@@ -48,6 +48,8 @@ A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por 
 Para concluir, o funcionário sobe os arquivos finais na aba Entregue e clica em "Concluir e registrar entrega"; o dia e a hora ficam registrados. No fim da ficha fica o histórico completo (movimentações, anexos e alterações).
 
 A **Solicitação** repete o formulário do site, na mesma ordem: serviço, plano de interesse, necessidade, atividade manual, o que deve permanecer inalterado, anexo do cliente (a resposta e os arquivos) e observações adicionais. Campos vazios não aparecem. Os arquivos aparecem com uma miniatura do tipo (PDF, DOC, XLS, IMG).
+
+O administrador tem o botão **Gerar OS** no topo da ficha: baixa a Ordem de Serviço oficial da Plannex (PDF editável em `public/painel/modelos/`) já preenchida com protocolo, cliente, demanda, documentos recebidos, entregáveis, valor, prazo e etapa. O resto se completa no próprio PDF e o cliente assina. O preenchimento roda no navegador com a [pdf-lib](https://pdf-lib.js.org/) (MIT, em `public/painel/vendor/`).
 
 Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
 

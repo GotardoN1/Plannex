@@ -378,6 +378,7 @@ const contactAttachmentFieldset = $('#contact-attachment-fieldset');
 const contactPlanOptions = {
   calculos: [
     { value: 'Cálculo simples', title: 'Cálculo simples', price: 'R$149,90', detail: 'Na primeira compra, 2 cálculos simples pelo preço de 1.' },
+    { value: 'Pacote 10 cálculos', title: 'Pacote 10 cálculos', price: 'R$1.199,00', detail: '10 cálculos simples por R$119,90 cada, para usar em até 12 meses.' },
     { value: 'Cálculo personalizado', title: 'Cálculo personalizado', price: 'Sob Orçamento', detail: 'Processos extensos, múltiplos autores ou análise detalhada.' }
   ],
   automacao: [
