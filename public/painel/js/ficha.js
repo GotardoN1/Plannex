@@ -8,6 +8,7 @@
 import { estado, acoes, contatoPorId, usuarioPorId, eAdmin } from './estado.js';
 import { api } from './api.js';
 import { etiquetasDaDemanda } from './etiquetas.js';
+import { gerarOS } from './os.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, ETAPAS,
   dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr, tamanhoArquivo,
@@ -313,6 +314,21 @@ function acoesRapidas(c) {
   if (whatsapp) barra.append(link('WhatsApp', whatsapp, 'botao botao--whatsapp', { icone: 'whatsapp', novaAba: true, titulo: 'Abrir conversa com mensagem pronta' }));
   if (email) barra.append(link('Responder por e-mail', email, 'botao', { icone: 'email' }));
   if (!eAdmin()) return barra;
+  // Ordem de serviço da casa, já preenchida com o que o cliente informou.
+  const os = botao('Gerar OS', '', null, { icone: 'documento', titulo: 'Baixa a ordem de serviço em PDF já preenchida; o resto se completa no PDF e o cliente assina' });
+  os.addEventListener('click', async () => {
+    os.disabled = true;
+    try {
+      if (!dados.carregado) await carregar();
+      const nome = await gerarOS(c, dados.arquivos.filter(a => a.categoria === 'cliente'));
+      acoes.avisar(`${nome} baixada.`);
+    } catch (e) {
+      acoes.avisar(e.message || 'Não foi possível gerar a ordem de serviço.', 'erro');
+    } finally {
+      os.disabled = false;
+    }
+  });
+  barra.append(os);
   if (c.arquivado_em) {
     barra.append(botao('Restaurar', 'botao--fantasma', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
   } else {
