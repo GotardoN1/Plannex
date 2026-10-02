@@ -51,6 +51,9 @@ const AGORA_SQL = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
 // Demonstração: só no Worker "plannex-demo", que tem DEMO=true. Sem a variável, nada disso existe.
 const emDemo = env => env.DEMO === 'true';
 const DEMO_ARQUIVO_MAXIMO = 1024 * 1024;
+// Moldes em branco (só administrador): a ordem de serviço e o relatório. Aceitam PDF ou Word.
+const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do relatório' };
+const EXTENSOES_MOLDE = /\.(pdf|docx?)$/i;
 const DEMO_LIMITE_ENVIOS = [40, 24 * 60];
 
 export default {
@@ -126,6 +129,14 @@ async function api(request, env, url) {
   rota = pathname.match(/^\/api\/arquivos\/(\d+)$/);
   if (rota && metodo === 'GET') return baixarArquivo(env, usuario, Number(rota[1]));
   if (rota && metodo === 'DELETE') return excluirArquivo(env, usuario, Number(rota[1]));
+
+  rota = pathname.match(/^\/api\/moldes\/(ordem|relatorio)$/);
+  if (rota) {
+    if (!admin) return negado();
+    if (metodo === 'GET') return baixarMolde(env, rota[1]);
+    if (metodo === 'POST') return enviarMolde(request, env, usuario, rota[1]);
+    if (metodo === 'DELETE') return excluirMolde(env, rota[1]);
+  }
 
   rota = pathname.match(/^\/api\/etiquetas\/(\d+)$/);
   if (rota && metodo === 'DELETE') return excluirEtiqueta(env, usuario, Number(rota[1]));
@@ -449,7 +460,7 @@ async function central(env, usuario) {
   const filtroRecentes = admin ? '' : 'WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL';
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
-  const [contatos, usuarios, recentes, etiquetas] = await env.DB.batch([
+  const [contatos, usuarios, recentes, etiquetas, moldes] = await env.DB.batch([
     ligar(env.DB.prepare(
       `SELECT id, servico, nome, telefone, email, plano, descricao, atividade_manual, manter_inalterado,
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
@@ -470,6 +481,9 @@ async function central(env, usuario) {
        ) ORDER BY quando DESC LIMIT 30`
     )),
     env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
+    env.DB.prepare(admin
+      ? 'SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id'
+      : 'SELECT tipo FROM moldes WHERE 0'),
   ]);
 
   const lista = admin ? contatos.results : contatos.results.map(c => {
@@ -477,7 +491,7 @@ async function central(env, usuario) {
     for (const campo of CAMPOS_FINANCEIROS) limpo[campo] = null;
     return limpo;
   });
-  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, etapas: ETAPAS, demo: emDemo(env) });
+  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, moldes: admin ? moldes.results : [], etapas: ETAPAS, demo: emDemo(env) });
 }
 
 async function cadastrarContato(request, env, usuario) {
@@ -762,6 +776,65 @@ async function baixarArquivo(env, usuario, id) {
       'X-Content-Type-Options': 'nosniff',
     },
   });
+}
+
+// ---------- Moldes em branco ----------
+
+async function baixarMolde(env, tipo) {
+  const molde = await env.DB.prepare('SELECT nome, tamanho, chave FROM moldes WHERE tipo = ?').bind(tipo).first();
+  if (!molde) return json({ erro: 'Ainda não há molde enviado.' }, 404);
+  const conteudo = await env.ARQUIVOS.get(molde.chave, { type: 'stream' });
+  if (!conteudo) return json({ erro: 'O conteúdo do molde não foi encontrado.' }, 404);
+  return new Response(conteudo, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${molde.nome.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(molde.nome)}`,
+      'Content-Length': String(molde.tamanho),
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
+// Enviar um molde substitui o anterior do mesmo tipo.
+async function enviarMolde(request, env, usuario, tipo) {
+  if (Number(request.headers.get('Content-Length') || 0) > ARQUIVO_MAXIMO + 64 * 1024) {
+    return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
+  }
+  const formulario = await request.formData().catch(() => null);
+  const arquivo = formulario?.get('arquivo');
+  if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
+  if (!EXTENSOES_MOLDE.test(arquivo.name || '')) return json({ erro: 'O molde precisa ser PDF ou Word (.pdf, .doc ou .docx).' }, 400);
+  if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
+  if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
+  if (emDemo(env)) {
+    if (arquivo.size > DEMO_ARQUIVO_MAXIMO) return json({ erro: 'Na demonstração, o limite é 1 MB por arquivo.' }, 413);
+    if (await excedeuLimite(env, 'demo-envio', DEMO_LIMITE_ENVIOS)) return json({ erro: 'A demonstração atingiu o limite de envios de hoje.' }, 429);
+    await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-envio').run();
+  }
+  const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'molde';
+  const chave = `moldes/${tipo}/${crypto.randomUUID()}`;
+  const anterior = await env.DB.prepare('SELECT chave FROM moldes WHERE tipo = ?').bind(tipo).first();
+  await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
+  try {
+    await env.DB.prepare(`INSERT INTO moldes (tipo, nome, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (tipo) DO UPDATE SET nome = excluded.nome, tamanho = excluded.tamanho, chave = excluded.chave,
+        usuario_id = excluded.usuario_id, atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`)
+      .bind(tipo, nome, arquivo.size, chave, usuario.id).run();
+  } catch (erro) {
+    await env.ARQUIVOS.delete(chave);
+    throw erro;
+  }
+  if (anterior) await env.ARQUIVOS.delete(anterior.chave);
+  return json({ ok: true }, 201);
+}
+
+async function excluirMolde(env, tipo) {
+  const molde = await env.DB.prepare('SELECT chave FROM moldes WHERE tipo = ?').bind(tipo).first();
+  if (!molde) return json({ ok: true });
+  await env.DB.prepare('DELETE FROM moldes WHERE tipo = ?').bind(tipo).run();
+  await env.ARQUIVOS.delete(molde.chave);
+  return json({ ok: true });
 }
 
 async function excluirArquivo(env, usuario, id) {

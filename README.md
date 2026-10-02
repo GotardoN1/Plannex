@@ -33,14 +33,14 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
 | **Equipe** | Quem acessa, nome completo (só o administrador altera), tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
-| **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
+| **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta), visual simples ou o do site (neste navegador) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
 
 A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação. O administrador também tem **"Voltar para…"**, uma etapa por vez, e numa demanda entregue **"Reabrir"**.
 
 | Aba | Conteúdo |
 | --- | --- |
 | Caixa de entrada (junta a chegada e o Pedido) | Contato, entrega (responsável e prazo), **Solicitação** e comentários |
-| Notas e ordens | Só administrador (em vermelho e trancada para o funcionário): valor, nota fiscal, pagamento (com o botão **Hoje**) e um envio único para notas fiscais e ordens de serviço, sem escolher tipo |
+| Notas e ordens | Só administrador (em vermelho e trancada para o funcionário): valor, nota fiscal, pagamento (com o botão **Hoje**), **moldes em branco** para baixar (ordem de serviço e relatório; "Trocar" envia outro, em PDF ou Word) e um envio único para notas fiscais e ordens de serviço, sem escolher tipo |
 | Processo iniciado | **Solicitação**, com envio de mais documentos do cliente, e anotações do processo |
 | Revisado pelo cliente | O que o cliente pediu para ajustar |
 | Entregue | Excel e relatório finais, comentário da entrega e o registro de quando e quem entregou |

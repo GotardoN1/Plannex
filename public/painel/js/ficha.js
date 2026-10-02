@@ -248,7 +248,7 @@ function painelEntrada(c) {
 function painelNotas(c) {
   return [
     el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoNegocio(c)),
+      el('div', 'ficha-coluna', blocoNegocio(c), blocoMoldes()),
       el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
     comentarios(c, 'nota_emitida', 'Comentários internos', 'Só administradores veem estes comentários…'),
   ];
@@ -629,6 +629,60 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
     enviar(evento.dataTransfer.files);
   });
   return [el('div', 'envio envio--simples', entrada, zona), status];
+}
+
+// ---------- Moldes em branco ----------
+// A ordem de serviço e o relatório da casa, para baixar e preencher. Enviar outro substitui o atual.
+
+const MOLDES = [
+  { tipo: 'ordem', nome: 'Ordem de serviço' },
+  { tipo: 'relatorio', nome: 'Relatório' },
+];
+
+function blocoMoldes() {
+  return el('section', 'bloco bloco--moldes',
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('baixar'), 'Moldes em branco')),
+    el('ul', 'moldes', MOLDES.map(linhaMolde)));
+}
+
+function linhaMolde({ tipo, nome }) {
+  const molde = (estado.moldes || []).find(m => m.tipo === tipo);
+  const entrada = el('input');
+  entrada.type = 'file';
+  entrada.accept = '.pdf,.doc,.docx';
+  entrada.className = 'sr';
+  entrada.addEventListener('change', async () => {
+    const arquivo = entrada.files[0];
+    if (!arquivo) return;
+    const corpo = new FormData();
+    corpo.append('arquivo', arquivo);
+    try {
+      const resposta = await fetch(`/api/moldes/${tipo}`, { method: 'POST', body: corpo, credentials: 'same-origin' });
+      const retorno = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(retorno.erro || 'Não foi possível enviar.');
+      acoes.avisar(`Molde de ${nome.toLowerCase()} atualizado.`);
+      await acoes.recarregar({ silencioso: true });
+    } catch (e) {
+      acoes.avisar(e.message, 'erro');
+    } finally {
+      entrada.value = '';
+    }
+  });
+  const trocar = botao(molde ? 'Trocar' : 'Enviar molde', 'botao--fantasma botao--pequeno', () => entrada.click(), {
+    icone: 'enviar', titulo: molde ? `Enviar outro molde de ${nome.toLowerCase()} (substitui o atual)` : `Enviar o molde de ${nome.toLowerCase()} (PDF ou Word)`,
+  });
+
+  if (!molde) {
+    return el('li', 'molde is-vazio', miniatura(tipo === 'ordem' ? 'molde.pdf' : 'molde.docx'),
+      el('span', 'molde-texto', el('strong', '', nome), el('small', '', 'Nenhum molde enviado')), el('span', 'molde-acoes', trocar), entrada);
+  }
+  const baixar = el('a', 'botao botao--primario botao--pequeno', icone('baixar'), el('span', '', 'Baixar'));
+  baixar.href = `/api/moldes/${tipo}`;
+  baixar.download = molde.nome;
+  baixar.title = `Baixar ${molde.nome}`;
+  return el('li', 'molde', miniatura(molde.nome),
+    el('span', 'molde-texto', el('strong', '', nome), el('small', '', `${molde.nome} · ${tamanhoArquivo(molde.tamanho)}`)),
+    el('span', 'molde-acoes', baixar, trocar), entrada);
 }
 
 // Miniatura do arquivo: uma folhinha com a cor e a sigla do tipo (PDF, DOC, XLS…).

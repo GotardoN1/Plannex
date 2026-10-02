@@ -7,7 +7,7 @@ import { desenharEntrada } from './entrada.js';
 import { desenharQuadro } from './quadro.js';
 import { desenharAgenda } from './agenda.js';
 import { desenharEquipe } from './equipe.js';
-import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema } from './preferencias.js';
+import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema, aplicarVisual, visualGuardado } from './preferencias.js';
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
 import { perfisDemo, desenharEscolha, desenharFaixa } from './demo.js';
@@ -101,7 +101,7 @@ async function recarregar({ silencioso = false } = {}) {
     const dados = await api('/api/central');
     const admin = dados.usuario.papel === 'admin';
     const novos = idsConhecidos ? dados.contatos.filter(c => !idsConhecidos.has(c.id) && (!admin || c.origem === 'site')) : [];
-    Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, etiquetas: dados.etiquetas || [], demo: Boolean(dados.demo), atualizadoEm: new Date().toISOString() });
+    Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, etiquetas: dados.etiquetas || [], moldes: dados.moldes || [], demo: Boolean(dados.demo), atualizadoEm: new Date().toISOString() });
     aplicarTema(dados.usuario.tema);
     idsConhecidos = new Set(dados.contatos.map(c => c.id));
     mostrarUsuario();
@@ -375,6 +375,7 @@ document.addEventListener('keydown', evento => {
 // ---------- Eventos gerais ----------
 
 aplicarTema(temaGuardado());
+aplicarVisual(visualGuardado());
 for (const b of $$('[data-icone]')) b.prepend(icone(b.dataset.icone));
 for (const b of $$('[data-tela]')) b.addEventListener('click', () => navegar(b.dataset.tela));
 $('#novo-contato').addEventListener('click', () => abrirNovo());

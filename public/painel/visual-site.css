@@ -1,0 +1,75 @@
+/* Visual "do site" (opcional, em Preferências > Aparência): brilhos no fundo, cartões em degradê,
+   títulos encorpados e rótulos laranja maiúsculos. Sem este arquivo, a Central fica no visual simples. */
+
+/* Fundo azul-marinho com os três brilhos suaves do site (laranja, azul e verde). */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(560px 560px at -4% -6%, #f29a6324, transparent 70%),
+    radial-gradient(520px 520px at 92% 104%, #4f7cff21, transparent 70%),
+    radial-gradient(460px 460px at 78% 34%, #2fae8218, transparent 70%);
+}
+.login { background: transparent; }
+
+/* Lateral e barra translúcidas, deixando o fundo aparecer, com a linha do cabeçalho do site. */
+.lateral { background: #0b1422b8; border-right-color: #304158; backdrop-filter: blur(6px); }
+.barra { background: #0b1422d9; border-bottom-color: #304158; }
+.nav-item { font-size: 14px; }
+.nav-item[aria-current="page"] { background: #f29a6314; color: var(--ink); box-shadow: inset 3px 0 0 var(--destaque); }
+.nav-item[aria-current="page"] .icone { color: var(--destaque); }
+.nav-grupo:not([hidden]) ~ .nav-grupo { border-top-color: #304158; }
+
+/* Botões como os do site: cantos de 11px, letra encorpada; secundário em contorno. */
+.botao { border-radius: 11px; font-weight: 650; }
+.botao--pequeno { border-radius: 9px; }
+.botao--primario { letter-spacing: .01em; }
+.botao--primario:hover { background: var(--destaque-forte); border-color: var(--destaque-forte); }
+
+/* Cartões com o degradê, a borda e a sombra dos cartões do site. */
+.bloco, .cartao-visao, .tile, .lista-contatos, .calendario-caixa, .proximos, .ficha-etapas,
+.ficha-painel, .historico-completo, .login-cartao, .demo-cartao, .segmentado, .lista-suspensa {
+  background: linear-gradient(#101e30fb, #0a1523fb);
+  border-color: #4e668485;
+  box-shadow: 0 18px 44px #02091224, inset 0 1px 0 #ffffff06;
+}
+.bloco, .cartao-visao, .tile, .lista-contatos, .calendario-caixa, .proximos, .ficha-etapas, .historico-completo { border-radius: 14px; }
+.tile:hover { background: linear-gradient(#13243a, #0c1828); border-color: #f29a6366; }
+.coluna { background: linear-gradient(#0f1c2dcc, #0a1523cc); border-color: #4e668466; }
+.ficha { background: #0b1422; }
+.ficha-painel { padding: 18px; }
+
+/* Campos como os do formulário do site. */
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background: #0a1625; border-color: #405773; border-radius: 10px; font-size: 13.5px;
+}
+.campo { color: #cdd9e6; font-size: 11.5px; font-weight: 650; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--destaque); }
+
+/* Tipografia do site: títulos encorpados com letras mais juntas e texto de apoio no cinza-azulado do site. */
+.tela-topo h1 { font-size: 30px; font-weight: 680; letter-spacing: -.03em; line-height: 1.1; }
+.tela-topo p, .visao-resumo { color: #aebdd0; font-size: 15px; }
+.visao-titulo { font-size: 36px; font-weight: 680; letter-spacing: -.035em; line-height: 1.08; }
+.ficha-titulo h2 { font-size: 22px; font-weight: 680; letter-spacing: -.02em; }
+.bloco-topo h2, .bloco-topo h3, .cartao-visao > header h2, .painel-topo h3 { font-weight: 700; letter-spacing: -.01em; }
+.tile-valor { font-weight: 680; letter-spacing: -.03em; }
+.login-cartao h1, .demo-topo h1 { font-weight: 680; letter-spacing: -.03em; }
+
+/* Rótulos em laranja, maiúsculos e espaçados, como os "eyebrows" do site. */
+.visao-data, .grupo-titulo, .demo-grupo h2, .calendario-semana, .coluna-nome, .marca span {
+  color: var(--destaque); font-size: 10.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+}
+.grupo-titulo small { color: var(--subtle); letter-spacing: 0; }
+.coluna-nome { font-size: 11px; }
+.coluna-passo { color: var(--ink); background: #f29a6326; }
+
+/* Trilha de etapas e abas em laranja. */
+.trilha li:has(.trilha-passo--feito)::before, .trilha li:has(.trilha-passo--atual)::before { background: var(--destaque); }
+.trilha-passo.is-aberta .trilha-nome { text-decoration-color: var(--destaque); }
+
+/* Itens selecionados e listas no tom do site. */
+.segmento[aria-pressed="true"] { background: #f29a631f; color: var(--ink); }
+.lista-suspensa.is-ativa { border-color: #f29a63b3; }
+.lista-suspensa select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f29a63' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
+.dia--hoje .dia-numero { color: var(--destaque); }
+.aviso-flutuante--novo > .icone, .zona-envio .icone, .chamada-entrega .icone { color: var(--destaque); }
+

@@ -35,6 +35,18 @@ export async function trocarTema(tema = temaAtual() === 'claro' ? 'escuro' : 'cl
   }
 }
 
+// Visual: "simples" (padrão) ou "site" (brilhos, degradês e rótulos do site). Fica só neste navegador.
+export function aplicarVisual(visual) {
+  const site = visual === 'site';
+  const folha = document.querySelector('#visual-site');
+  if (folha) folha.media = site ? 'all' : 'not all';
+  try { localStorage.setItem('plannex-visual', site ? 'site' : 'simples'); } catch { /* sem armazenamento: tudo bem */ }
+}
+
+export function visualGuardado() {
+  try { return localStorage.getItem('plannex-visual') || 'simples'; } catch { return 'simples'; }
+}
+
 export function temaGuardado() {
   try { return localStorage.getItem('plannex-tema'); } catch { return null; }
 }
@@ -93,9 +105,22 @@ function blocoAparencia(u) {
   chave.setAttribute('role', 'switch');
   chave.checked = temaAtual() === 'escuro';
   chave.addEventListener('change', () => trocarTema(chave.checked ? 'escuro' : 'claro'));
+  // Visual simples ou o do site, para comparar.
+  const atual = visualGuardado();
+  const opcoes = el('div', 'segmentado', [['simples', 'Simples'], ['site', 'Do site']].map(([valor, rotulo]) => {
+    const b = el('button', 'segmento', rotulo);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(valor === atual));
+    b.addEventListener('click', () => {
+      aplicarVisual(valor);
+      for (const outro of opcoes.children) outro.setAttribute('aria-pressed', String(outro === b));
+    });
+    return b;
+  }));
   return el('section', 'bloco',
     el('div', 'bloco-topo', el('h2', '', 'Aparência')),
-    el('label', 'pref-chave', el('span', '', icone('lua'), 'Modo noturno'), chave, el('span', 'chave-trilho', el('span', 'chave-bolinha'))));
+    el('label', 'pref-chave', el('span', '', icone('lua'), 'Modo noturno'), chave, el('span', 'chave-trilho', el('span', 'chave-bolinha'))),
+    el('div', 'pref-linha', el('span', '', icone('visao'), 'Visual'), opcoes));
 }
 
 function blocoSenha() {

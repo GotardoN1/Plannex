@@ -155,8 +155,20 @@ export async function resetarDemo(env) {
 
   // O KV grátis tem poucas gravações por dia, compartilhadas com a Central real. Por isso os arquivos
   // de exemplo têm chave fixa e só são gravados quando faltam; o reinício apaga só os enviados por visitantes.
-  const { results: antigos } = await env.DB.prepare("SELECT chave FROM arquivos WHERE chave NOT LIKE 'demo/amostra/%'").all();
+  const { results: antigos } = await env.DB.prepare(
+    "SELECT chave FROM arquivos WHERE chave NOT LIKE 'demo/amostra/%' UNION ALL SELECT chave FROM moldes WHERE chave NOT LIKE 'demo/amostra/%'"
+  ).all();
   await Promise.all(antigos.map(a => env.ARQUIVOS.delete(a.chave)));
+
+  // Moldes em branco de exemplo (ordem de serviço em PDF e relatório que abre no Word).
+  const moldes = await Promise.all([
+    { tipo: 'ordem', nome: 'Molde-ordem-de-servico.pdf', conteudo: pdfDeExemplo('Ordem de servico (molde em branco)', '______________________________') },
+    { tipo: 'relatorio', nome: 'Molde-relatorio.doc', conteudo: relatorioDeExemplo() },
+  ].map(async m => {
+    const chave = `demo/amostra/moldes/${m.nome}`;
+    if (!(await env.ARQUIVOS.get(chave, { type: 'arrayBuffer' }))) await env.ARQUIVOS.put(chave, m.conteudo);
+    return { tipo: m.tipo, nome: m.nome, tamanho: m.conteudo.byteLength, chave, usuario_id: 1 };
+  }));
 
   const arquivosComChave = await Promise.all(arquivos.map(async a => {
     const chave = `demo/amostra/${a.contato_id}/${a.categoria}/${a.nome}`;
@@ -183,6 +195,8 @@ export async function resetarDemo(env) {
     env.DB.prepare(inserir('notas', notas)),
     // Etiquetas pessoais de exemplo: cada perfil vê só as suas.
     env.DB.prepare(inserir('etiquetas', ETIQUETAS_EXEMPLO)),
+    env.DB.prepare('DELETE FROM moldes'),
+    env.DB.prepare(inserir('moldes', moldes)),
     env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: a.categoria, nome: a.nome, tipo: a.nome.endsWith('.csv') ? 'text/csv' : 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),
   ]);
 }
@@ -208,6 +222,23 @@ function conteudoDeExemplo(a) {
   }
   const titulos = { ordem: `Ordem de servico ${a.nome.replace('.pdf', '')}`, entrega: 'Relatorio final', cliente: 'Documentos enviados pelo cliente' };
   return pdfDeExemplo(titulos[a.categoria] || a.nome, a.contato);
+}
+
+// Relatório de exemplo em RTF: salvo como .doc, abre direto no Word.
+function relatorioDeExemplo() {
+  const rtf = [
+    '{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22',
+    '{\\b\\fs32 Relat\\\'f3rio}\\par\\par',
+    'Cliente: ______________________________\\par',
+    'Servi\\\'e7o: ______________________________\\par',
+    'Data de entrega: ____/____/________\\par\\par',
+    '{\\b Objetivo}\\par ______________________________________________\\par\\par',
+    '{\\b Metodologia}\\par ______________________________________________\\par\\par',
+    '{\\b Resultado}\\par ______________________________________________\\par\\par',
+    'Plannex - molde de demonstra\\\'e7\\\'e3o.\\par',
+    '}',
+  ].join('\n');
+  return new TextEncoder().encode(rtf);
 }
 
 // PDF de uma página, só com texto, para os arquivos de exemplo poderem ser abertos.
