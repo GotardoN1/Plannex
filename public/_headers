@@ -15,6 +15,9 @@
 /assets/css/style.rev115.css
   Cache-Control: public, max-age=31536000, immutable
 
+/assets/css/login-rodape.rev1.css
+  Cache-Control: public, max-age=31536000, immutable
+
 /assets/css/noscript.css
   Cache-Control: public, max-age=86400
 
