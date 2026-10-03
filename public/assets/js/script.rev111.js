@@ -598,7 +598,25 @@ if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
 if (contactFileField) contactFileField.hidden = true;
 if (contactFiles) contactFiles.disabled = true;
 
+// Tipos aceitos nos anexos: documentos, planilhas e fotos. Programas, páginas e compactados ficam de fora.
+const CONTACT_ALLOWED_FILES = /\.(pdf|xlsx|xlsm|xls|csv|docx?|jpe?g|png|webp|heic)$/i;
+const contactBlockedFiles = files => files.filter(file => !CONTACT_ALLOWED_FILES.test(file.name || ''));
+
+// Evita o mesmo pedido em sequência (clique duplo, robô): espera entre envios e o mesmo conteúdo
+// não sai de novo em pouco tempo. O servidor também ignora pedidos repetidos.
+const CONTACT_WAIT_MS = 30 * 1000;
+const CONTACT_SAME_MS = 10 * 60 * 1000;
+const contactLastSent = () => { try { return JSON.parse(localStorage.getItem('plannex-ultimo-envio') || 'null'); } catch { return null; } };
+const contactRemember = signature => { try { localStorage.setItem('plannex-ultimo-envio', JSON.stringify({ when: Date.now(), signature })); } catch { /* sem armazenamento */ } };
+const contactSignature = () => [($('#contact-email')?.value || '').trim().toLowerCase(), ($('#contact-phone')?.value || '').replace(/\D/g, ''), ($('#contact-description')?.value || '').trim()].join('|');
+
 contactFiles?.addEventListener('change', () => {
+  const blocked = contactBlockedFiles([...contactFiles.files]);
+  if (blocked.length) {
+    contactFiles.value = '';
+    if (contactFileSummary) contactFileSummary.textContent = `Não aceitamos ${blocked.map(file => file.name).slice(0, 2).join(', ')}. Envie PDF, Excel, Word ou foto (JPG, PNG).`;
+    return;
+  }
   const files = [...contactFiles.files];
   if (!contactFileSummary) return;
   if (!files.length) {
@@ -637,7 +655,35 @@ $('#contact-form')?.addEventListener('submit', async event => {
     return;
   }
 
-  const files = contactFiles ? [...contactFiles.files] : [];
+  const files = contactFiles && !contactFiles.disabled ? [...contactFiles.files] : [];
+  if (contactBlockedFiles(files).length) {
+    if (status) {
+      status.textContent = 'Há anexos de um tipo que não aceitamos. Envie PDF, Excel, Word ou foto (JPG, PNG).';
+      status.classList.add('is-error');
+    }
+    contactFiles?.focus();
+    return;
+  }
+
+  // Espera entre envios e o mesmo pedido não sai duas vezes.
+  const last = contactLastSent();
+  const signature = contactSignature();
+  if (last && Date.now() - last.when < CONTACT_SAME_MS && last.signature === signature) {
+    if (status) {
+      status.textContent = 'Essa solicitação já foi enviada e chegou para nós. Retornaremos em breve.';
+      status.classList.add('is-success');
+    }
+    return;
+  }
+  if (last && Date.now() - last.when < CONTACT_WAIT_MS) {
+    const seconds = Math.ceil((CONTACT_WAIT_MS - (Date.now() - last.when)) / 1000);
+    if (status) {
+      status.textContent = `Aguarde ${seconds} segundos para enviar outra solicitação.`;
+      status.classList.add('is-error');
+    }
+    return;
+  }
+
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   if (totalBytes > 10 * 1024 * 1024) {
     if (status) {
@@ -673,22 +719,37 @@ $('#contact-form')?.addEventListener('submit', async event => {
   if (status) status.textContent = 'Enviando informações e arquivos…';
 
   try {
-    const response = await fetch(FORM_SUBMIT_ENDPOINT, {
+    // O e-mail (FormSubmit) e o registro na Central saem juntos. O pedido conta como enviado se a Central
+    // confirmar ou se o e-mail confirmar; só dá erro se os dois falharem.
+    const emailSending = fetch(FORM_SUBMIT_ENDPOINT, {
       method: 'POST',
       headers: { 'Accept': 'application/json' },
       body: formData
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === 'false' || data.success === false) throw new Error('Falha no envio');
+    }).then(async response => {
+      const data = await response.json().catch(() => ({}));
+      return response.ok && data.success !== 'false' && data.success !== false;
+    }).catch(() => false);
+    const centralSending = window.PlannexCentral ? window.PlannexCentral.registrar(form, files) : Promise.resolve({ ok: false });
+    const [emailOk, central] = await Promise.all([emailSending, centralSending]);
+    if (!emailOk && !central.ok) throw new Error('Falha no envio');
 
+    contactRemember(signature);
     if (status) {
-      status.textContent = 'Solicitação enviada. Analisaremos e retornaremos em breve.';
+      status.textContent = central.repetido
+        ? 'Recebemos sua solicitação (ela já tinha chegado). Retornaremos em breve.'
+        : 'Solicitação enviada. Analisaremos e retornaremos em breve.';
       status.classList.add('is-success');
     }
     if (submit) {
       submit.classList.remove('is-loading');
       submit.classList.add('is-sent');
       submit.innerHTML = 'Solicitação enviada ✓';
+      // Reabre o botão depois da espera, para uma nova solicitação (diferente) se precisar.
+      setTimeout(() => {
+        submit.disabled = false;
+        submit.classList.remove('is-sent');
+        submit.innerHTML = 'Enviar solicitação <span aria-hidden="true">→</span>';
+      }, CONTACT_WAIT_MS);
     }
   } catch (error) {
     if (status) {

@@ -348,7 +348,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .contato-colunas { display: grid; align-items: center; column-gap: 14px; flex: none; }
 .contato-colunas--entrada { grid-template-columns: 150px 150px 34px 28px 172px; }
 .contato-colunas--arquivo { grid-template-columns: 150px 34px 28px 158px; }
-.contato-colunas--entrada-func { grid-template-columns: 150px 34px 172px; }
+.contato-colunas--entrada-func { grid-template-columns: 150px 172px; }
 .botao--avancar { width: 100%; }
 .celula--mover .mover-para { width: 100%; }
 .contato-colunas--concluidos { grid-template-columns: 150px 28px 112px 104px; }
@@ -627,7 +627,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .contato-colunas--entrada .celula--mover { grid-column: 1 / -1; order: 9; margin-top: 6px; }
   .contato-colunas--arquivo { grid-template-columns: 1fr 34px 28px auto; }
   .botao--avancar { width: auto; }
-  .contato-colunas--entrada-func { grid-template-columns: 1fr 34px auto; }
+  .contato-colunas--entrada-func { grid-template-columns: 1fr auto; }
   .contato-colunas--concluidos { grid-template-columns: 1fr 28px auto auto; }
   .contato-colunas--concluidos-func { grid-template-columns: 1fr; }
   .celula--situacao { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
@@ -1161,3 +1161,19 @@ a.nav-item { text-decoration: none; }
 [data-tema="claro"] :is(.bloco, .cartao-visao, .tile, .lista-contatos, .calendario-caixa, .proximos, .ficha-etapas,
   .ficha-painel, .historico-completo, .login-cartao, .demo-cartao, .segmentado, .lista-suspensa) { border-color: #c3cdda; }
 [data-tema="claro"] :is(.contato, .pessoa, .material, .molde, .documento, .coluna) { border-color: #cbd4df; }
+
+/* Espaço entre os blocos de qualquer tela (as margens se juntam com as que já existem, sem somar). */
+:where(.tela) > :where(* + *) { margin-top: 16px; }
+
+/* Caixa de entrada e Recusados: situação | WhatsApp | Recusar e Aceitar. */
+.contato-colunas--caixa { grid-template-columns: 150px 34px 214px; }
+.contato-colunas--caixa .celula--acao { display: flex; gap: 6px; justify-content: flex-end; }
+.botao--recusar:hover { border-color: #6b3a44; background: var(--critico-fundo); color: var(--critico); }
+.etapa-pill--recusado { background: var(--critico-fundo); color: var(--critico); }
+@media (max-width: 860px) {
+  .contato-colunas--caixa { grid-template-columns: minmax(0, 1fr) 34px auto; }
+}
+
+/* Confirmação ao passar para Pedido: escolher o responsável. */
+.confirmar-extra { margin-top: 4px; }
+.confirmar-extra .campo { color: var(--ink); font-size: 14px; font-weight: 600; }

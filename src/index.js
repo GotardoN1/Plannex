@@ -4,13 +4,14 @@
 // Acessos: "admin" vê e faz tudo. "funcionario" vê só os contatos em que é responsável,
 // sem valores, nota fiscal, pagamento, notas nem ordens (mostram quanto a casa cobra).
 // Ele vê e envia os documentos do cliente e os arquivos da entrega.
-// Ele só anota e move as etapas de trabalho: Processo iniciado, Revisado pelo cliente e Entregue.
+// Ele só anota e move as etapas de trabalho: Pedido, Revisão e Entregue (recebe a demanda quando ela entra em Pedido com ele de responsável).
 
 import { gerarHashSenha, conferirSenha, HASH_FALSO, base64 } from './senha.js';
 import { PERFIS_DEMO, resetarDemo } from './demo.js';
 
 // Chaves mantidas do banco; os nomes mudaram na versão resumida das etapas.
-const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
+// Andamento em 4 etapas: Notas e ordens (administrador) -> Pedido (com responsável) -> Revisão -> Entregue.
+const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue'];
 const SERVICOS = ['calculos', 'automacao'];
 const ORIGENS = ['site', 'whatsapp', 'indicacao', 'telefone', 'email', 'outro'];
 const PAPEIS = ['admin', 'funcionario'];
@@ -24,11 +25,10 @@ const CATEGORIAS_FUNCIONARIO = ['cliente', 'entrega'];
 // Abas da ficha: cada uma tem os seus comentários. "entrada" junta Caixa de entrada e Pedido.
 const ABAS = ['entrada', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
 // Documentos enviados pelo site: tipos aceitos, tamanho total e o teto do armazenamento grátis (1 GB no KV).
-const TIPOS_CLIENTE = /\.(pdf|jpe?g|png|webp|xlsx?|xlsm|csv|docx?|txt)$/i;
 const CLIENTE_TOTAL_MAXIMO = 10 * 1024 * 1024;
 const ARMAZENAMENTO_MAXIMO = 800 * 1024 * 1024;
-// Etapas em que o funcionário trabalha. Pedido e Notas e ordens são do administrador.
-const ETAPAS_FUNCIONARIO = ['processo_iniciado', 'revisado', 'entregue'];
+// Etapas em que o funcionário trabalha (Notas e ordens é do administrador; ele recebe a demanda em Pedido).
+const ETAPAS_FUNCIONARIO = ['pedido', 'revisado', 'entregue'];
 const ARQUIVO_MAXIMO = 10 * 1024 * 1024;
 
 // Tamanho máximo de cada campo do contato (os mesmos limites do formulário do site).
@@ -56,6 +56,9 @@ const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do r
 const EXTENSOES_MOLDE = /\.(pdf|docx?)$/i;
 // Materiais: armazenamento pequeno da equipe (moldes, planilhas de demonstração, PDFs).
 const MATERIAIS_TOTAL_MAXIMO = 100 * 1024 * 1024;
+const EXTENSOES_DO_SITE = /\.(pdf|xlsx|xlsm|xls|csv|docx?|jpe?g|png|webp|heic)$/i;
+const EXTENSOES_PROIBIDAS = /\.(exe|com|bat|cmd|msi|scr|pif|cpl|dll|jar|js|mjs|vbs|vbe|wsf|ps1|psm1|sh|hta|html?|svg|xht(ml)?|lnk|iso|img|apk|app|reg)$/i;
+const arquivoProibido = nome => EXTENSOES_PROIBIDAS.test(String(nome || '').trim());
 const DEMO_LIMITE_ENVIOS = [40, 24 * 60];
 
 export default {
@@ -175,10 +178,20 @@ async function contatoVisivel(env, usuario, id) {
   const contato = await env.DB.prepare('SELECT * FROM contatos WHERE id = ?').bind(id).first();
   if (!contato) return null;
   if (eAdmin(usuario)) return contato;
-  return contato.responsavel_id === usuario.id && !contato.arquivado_em ? contato : null;
+  return contato.responsavel_id === usuario.id && !contato.arquivado_em && !contato.recusado_em && ETAPAS_FUNCIONARIO.includes(contato.etapa) ? contato : null;
 }
 
 // ---------- Formulário do site ----------
+
+// O mesmo pedido enviado de novo em pouco tempo (clique duplo, robô) não vira outro contato.
+async function pedidoRepetido(env, campos) {
+  if (!campos.email && !campos.telefone) return false;
+  const repetido = await env.DB.prepare(
+    `SELECT id FROM contatos WHERE (email = ?1 OR telefone = ?2) AND COALESCE(descricao, '') = ?3
+       AND criado_em > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 minutes') LIMIT 1`
+  ).bind(campos.email || '-', campos.telefone || '-', campos.descricao || '').first();
+  return Boolean(repetido);
+}
 
 async function registrarContato(request, env) {
   // Com documentos, o site manda multipart; sem, manda JSON.
@@ -212,13 +225,13 @@ async function registrarContato(request, env) {
     "SELECT id FROM contatos WHERE servico = ? AND nome = ? AND criado_em > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes')"
   ).bind(servico, campos.nome).first();
   await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind(chave).run();
-  if (repetido) return json({ ok: true }, 201);
+  if (repetido || await pedidoRepetido(env, campos)) return json({ ok: true, repetido: true }, 200);
 
   const novo = await inserirContato(env, { ...campos, servico, origem: 'site' }, true).first();
 
   // Documentos que a pessoa anexou: mesmas regras do formulário (até 10 arquivos, 10 MB no total),
   // só tipos de documento e só enquanto houver espaço no armazenamento grátis.
-  arquivos = arquivos.filter(a => a.size > 0 && TIPOS_CLIENTE.test(a.name || '')).slice(0, 10);
+  arquivos = arquivos.filter(a => a.size > 0 && EXTENSOES_DO_SITE.test(a.name || '')).slice(0, 10);
   const total = arquivos.reduce((soma, a) => soma + a.size, 0);
   if (arquivos.length && total <= CLIENTE_TOTAL_MAXIMO) {
     const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM arquivos').first();
@@ -487,7 +500,7 @@ async function removerUsuario(env, autor, id) {
 // (e nunca as anotações restritas). Parâmetros: [id do funcionário], limite, deslocamento.
 function consultaAtividade(env, usuario, limite, deslocamento) {
   const admin = eAdmin(usuario);
-  const filtro = admin ? '' : 'WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL';
+  const filtro = admin ? '' : `WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL AND c.recusado_em IS NULL AND c.etapa IN ('pedido', 'revisado', 'entregue')`;
   const [pLimite, pDeslocamento] = admin ? ['?1', '?2'] : ['?2', '?3'];
   const consulta = env.DB.prepare(
     `SELECT * FROM (
@@ -513,14 +526,14 @@ async function atividade(env, usuario, parametros) {
 // Tudo que a Central precisa numa chamada só. O funcionário recebe só o que é dele.
 async function central(env, usuario) {
   const admin = eAdmin(usuario);
-  const filtroContatos = admin ? '' : 'WHERE responsavel_id = ?1 AND arquivado_em IS NULL';
+  const filtroContatos = admin ? '' : `WHERE responsavel_id = ?1 AND arquivado_em IS NULL AND recusado_em IS NULL AND etapa IN ('pedido', 'revisado', 'entregue')`;
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
   const [contatos, usuarios, recentes, etiquetas, moldes, materiais] = await env.DB.batch([
     ligar(env.DB.prepare(
       `SELECT id, servico, nome, telefone, email, plano, descricao, atividade_manual, manter_inalterado,
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
-              lido_em, arquivado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
+              lido_em, arquivado_em, recusado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
               (SELECT COUNT(*) FROM notas n WHERE n.contato_id = contatos.id AND n.tipo = 'nota') AS total_notas,
               (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${admin ? '' : "AND a.categoria IN ('cliente', 'entrega')"}) AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
@@ -537,6 +550,9 @@ async function central(env, usuario) {
   const lista = admin ? contatos.results : contatos.results.map(c => {
     const limpo = { ...c };
     for (const campo of CAMPOS_FINANCEIROS) limpo[campo] = null;
+    // O contato do cliente fica com o administrador.
+    limpo.telefone = null;
+    limpo.email = null;
     return limpo;
   });
   return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, moldes: moldes.results, materiais: materiais.results, etapas: ETAPAS, demo: emDemo(env) });
@@ -550,8 +566,8 @@ async function cadastrarContato(request, env, usuario) {
   if (!SERVICOS.includes(servico)) return json({ erro: 'Escolha Cálculos ou Automação.' }, 400);
   if (!campos.nome || campos.nome.length < 2) return json({ erro: 'Informe o nome do contato.' }, 400);
 
-  // Cadastro manual já entra lido e, se pedido, direto em Pedido.
-  const etapa = dados?.direto_para_pedido ? 'pedido' : null;
+  // Cadastro manual já entra lido e, se já aceito, direto em Notas e ordens (etapa 1 do andamento).
+  const etapa = dados?.direto_para_pedido ? 'nota_emitida' : null;
   const resultado = await env.DB.prepare(
     `INSERT INTO contatos (servico, nome, telefone, email, descricao, observacoes, origem, criado_por, lido_em, etapa, atualizado_em)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${AGORA_SQL}, ?, ${etapa ? AGORA_SQL : 'NULL'}) RETURNING id`
@@ -571,13 +587,13 @@ async function alterarContato(request, env, usuario, contato) {
 
   // Funcionário só move a etapa e marca como lido.
   if (!admin && Object.keys(dados).some(chave => !['etapa', 'lido'].includes(chave))) return negado();
-  // Funcionário: de qualquer etapa, leva a demanda para Processo iniciado, Revisado pelo cliente e Entregue.
+  // Funcionário: de qualquer etapa, leva a demanda entre Pedido, Revisão e Entregue.
   // Voltar para Pedido/Notas e ordens ou reabrir uma concluída, só desfazendo o próprio movimento em até 10 minutos.
   if (!admin && 'etapa' in dados && (dados.etapa ?? null) !== contato.etapa) {
     const desfazendo = await podeDesfazer(env, usuario, contato, dados.etapa ?? null);
     if (contato.etapa === 'entregue' && !desfazendo) return concluida();
     if (!ETAPAS_FUNCIONARIO.includes(dados.etapa) && !desfazendo) {
-      return json({ erro: 'Pedido e Notas e ordens são etapas do administrador.' }, 403);
+      return json({ erro: 'Notas e ordens e a caixa de entrada são do administrador.' }, 403);
     }
   }
 
@@ -587,10 +603,32 @@ async function alterarContato(request, env, usuario, contato) {
   const definir = (coluna, valor) => { sets.push(`${coluna} = ?`); valores.push(valor); };
   const registrar = (texto, restrito = false) => registros.push(nota(env, id, usuario.id, texto, 'sistema', restrito));
 
+  // Recusar guarda o pedido na aba Recusados (só o que ainda está na caixa de entrada). Aceitar tira de lá.
+  if ('recusado' in dados) {
+    const recusar = Boolean(dados.recusado);
+    const etapaFinal = 'etapa' in dados ? (dados.etapa ?? null) : contato.etapa;
+    if (recusar && etapaFinal) return json({ erro: 'Só dá para recusar um pedido que ainda está na caixa de entrada.' }, 400);
+    if (recusar !== Boolean(contato.recusado_em)) {
+      if (recusar) sets.push(`recusado_em = ${AGORA_SQL}`);
+      else definir('recusado_em', null);
+      registrar(recusar ? 'recusou o pedido (guardado em Recusados)' : 'tirou o pedido dos recusados');
+    }
+  }
+
   // Etapa: null devolve para a caixa de entrada.
   if ('etapa' in dados) {
     const etapa = dados.etapa ?? null;
     if (etapa !== null && !ETAPAS.includes(etapa)) return json({ erro: 'Etapa inválida.' }, 400);
+    // Pedido sempre tem alguém da equipe responsável.
+    const responsavelFinal = 'responsavel_id' in dados ? dados.responsavel_id : contato.responsavel_id;
+    if (etapa === 'pedido' && etapa !== contato.etapa && !responsavelFinal) {
+      return json({ erro: 'Escolha quem da equipe vai cuidar do pedido.' }, 400);
+    }
+    // Aceitar um recusado tira ele de Recusados.
+    if (etapa && contato.recusado_em && !('recusado' in dados)) {
+      definir('recusado_em', null);
+      registrar('aceitou o pedido que estava em Recusados');
+    }
     if (etapa !== contato.etapa) {
       definir('etapa', etapa);
       sets.push(`atualizado_em = ${AGORA_SQL}`);
@@ -777,6 +815,7 @@ async function enviarArquivo(request, env, usuario, contato) {
   const arquivo = formulario?.get('arquivo');
   const categoria = String(formulario?.get('categoria') || 'outro');
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
+  if (arquivoProibido(arquivo.name)) return json({ erro: 'Esse tipo de arquivo não é aceito (programas e páginas podem levar vírus).' }, 400);
   if (!(categoria in CATEGORIAS_ARQUIVO)) return json({ erro: 'Tipo de arquivo inválido.' }, 400);
   if (!podeVerCategoria(usuario, categoria)) return negado();
   // Funcionário não mexe mais numa demanda concluída.
@@ -926,6 +965,7 @@ async function enviarMaterial(request, env, usuario, id) {
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
+  if (arquivoProibido(arquivo.name)) return json({ erro: 'Esse tipo de arquivo não é aceito (programas e páginas podem levar vírus).' }, 400);
   const anterior = id ? await env.DB.prepare('SELECT chave, tamanho FROM materiais WHERE id = ?').bind(id).first() : null;
   if (id && !anterior) return json({ erro: 'Material não encontrado.' }, 404);
   const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM materiais').first();

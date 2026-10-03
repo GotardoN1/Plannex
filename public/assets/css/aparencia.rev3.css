@@ -240,3 +240,12 @@
 [data-tema="claro"] .contact-file-upload :is(strong, span) { color: #142032 !important; }
 [data-tema="claro"] .mobile-section-toggle { background: #ffffff !important; background-image: none !important; border-color: #c3cdda !important; color: #142032 !important; }
 [data-tema="claro"] .mobile-section-toggle :is(span, i) { color: #142032 !important; }
+
+/* Contato: o botão do WhatsApp ocupa a largura do cartão (no celular ficava colado à esquerda). */
+.contact-help-card #whatsapp.button, .contact-help-card .contact-whatsapp-button { display: flex !important; width: 100% !important; justify-content: center !important; box-sizing: border-box; }
+
+/* Celular: a pílula de aparência não cobre o fim do rodapé, e a seção de Automação abre como as outras. */
+@media (max-width: 760px) {
+  .site-footer { padding-bottom: 64px !important; }
+  #automacao-chamada.is-mobile-open { display: block !important; margin-top: 12px; }
+}

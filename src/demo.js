@@ -45,7 +45,12 @@ const ANOTACOES = [
   'Liguei e confirmei os dados bancários para a nota.',
 ];
 
-const ETAPAS = ['pedido', 'nota_emitida', 'processo_iniciado', 'revisado', 'entregue'];
+// Andamento: 1. Notas e ordens -> 2. Pedido -> 3. Revisão -> 4. Entregue.
+const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue'];
+// O roteiro abaixo foi escrito com as etapas antigas; aqui elas viram as novas.
+const ETAPA_NOVA = { pedido: 'nota_emitida', nota_emitida: 'nota_emitida', processo_iniciado: 'pedido', revisado: 'revisado', entregue: 'entregue' };
+// Um pedido da caixa de entrada já recusado, para a aba Recusados ter exemplo.
+const RECUSADO = 4;
 
 // Etiquetas pessoais de exemplo (contato, perfil, texto, cor).
 const ETIQUETAS_EXEMPLO = [
@@ -101,7 +106,12 @@ export async function resetarDemo(env) {
   const notas = [];
   const arquivos = [];
 
-  ROTEIRO.forEach(([etapa, diasChegada, diasNaEtapa, responsavel, prazoDias], i) => {
+  ROTEIRO.forEach(([etapaAntiga, diasChegada, diasNaEtapa, responsavelRoteiro, prazoDias], i) => {
+    const etapa = etapaAntiga ? ETAPA_NOVA[etapaAntiga] : null;
+    // Em Notas e ordens ainda não há responsável: ele é escolhido ao passar para Pedido.
+    const responsavel = etapa === 'nota_emitida' ? null : responsavelRoteiro;
+    // Quem estava em "Notas e ordens" no roteiro antigo já tem nota emitida (e quase todos, pagamento).
+    const comNota = etapaAntiga === 'nota_emitida';
     const id = i + 1;
     const servico = i % 5 === 1 || i % 5 === 3 ? 'automacao' : 'calculos';
     const [plano, descricao] = PEDIDOS[servico][i % 5];
@@ -112,7 +122,7 @@ export async function resetarDemo(env) {
     const valor = etapa ? (servico === 'calculos' ? [14990, 14990, 34990, 79000][i % 4] : [29990, 59980, 39990, 120000][i % 4]) : null;
     // Pagamento registrado a partir de "Notas e ordens", menos em duas notas emitidas (para aparecer em "Precisa de atenção").
     const pagoHoje = [15, 22].includes(i);
-    const pago = pagoHoje ? dia(agora) : indice >= 2 || (indice === 1 && ![10, 13].includes(i)) ? dia(Math.max(criado, atualizado - DIA)) : null;
+    const pago = pagoHoje ? dia(agora) : indice >= 1 || (comNota && ![10, 13].includes(i)) ? dia(Math.max(criado, atualizado - DIA)) : null;
     const arquivado = i >= ROTEIRO.length - ARQUIVADOS;
     const email = `${nome.toLowerCase().normalize('NFD').replace(/[^a-z ]/g, '').trim().split(/\s+/).slice(0, 2).join('.')}@exemplo.com`;
     contatos.push({
@@ -122,7 +132,8 @@ export async function resetarDemo(env) {
       atualizado_em: atualizado ? iso(atualizado) : null,
       lido_em: diasChegada === 0 && i < 2 ? null : iso(criado + 1800000),
       arquivado_em: arquivado ? iso(agora - Math.floor(diasChegada / 2) * DIA) : null,
-      valor_centavos: valor, nota_fiscal: indice >= 1 ? String(2400 + id) : null, pago_em: pago,
+      recusado_em: i === RECUSADO ? iso(criado + DIA / 2) : null,
+      valor_centavos: valor, nota_fiscal: indice >= 1 || comNota ? String(2400 + id) : null, pago_em: pago,
       prazo: etapa === 'entregue' ? dia(atualizado) : prazoDias === null ? null : dia(agora + prazoDias * DIA),
       responsavel_id: responsavel, criado_por: i % 7 === 3 ? 2 : null,
     });
@@ -139,15 +150,15 @@ export async function resetarDemo(env) {
       if (responsavel) anotar(1 + (i % 2), 'sistema', 0, `definiu ${PERFIS_DEMO[responsavel - 1].nome} como responsável`, criado + DIA / 2, null);
       anotar(2, 'sistema', 1, `definiu o valor em ${reais(valor)}`, criado + DIA / 2 + 60000, null);
       if (i % 3 === 0) anotar(responsavel || 1, 'nota', 0, ANOTACOES[i % ANOTACOES.length], criado + DIA / 3, 'entrada');
-      if (indice >= 1 && i % 5 === 1) anotar(2, 'nota', 1, 'Nota emitida e enviada ao cliente. Aguardando o pagamento.', criado + DIA, 'nota_emitida');
-      if (indice >= 2 && i % 2 === 0) anotar(responsavel || 1, 'nota', 0, NO_PROCESSO[i % NO_PROCESSO.length], atualizado - 5 * 3600000, 'processo_iniciado');
-      if (indice >= 3) anotar(1 + (i % 2), 'nota', 0, AJUSTES[i % AJUSTES.length], atualizado - 2 * 3600000, 'revisado');
-      if (indice === 4) anotar(responsavel || 1, 'nota', 0, NA_ENTREGA[i % NA_ENTREGA.length], atualizado - 60000, 'entregue');
+      if ((indice >= 1 || comNota) && i % 5 === 1) anotar(2, 'nota', 1, 'Nota emitida e enviada ao cliente. Aguardando o pagamento.', criado + DIA, 'nota_emitida');
+      if (indice >= 1 && i % 2 === 0) anotar(responsavel || 1, 'nota', 0, NO_PROCESSO[i % NO_PROCESSO.length], atualizado - 5 * 3600000, 'processo_iniciado');
+      if (indice >= 2) anotar(1 + (i % 2), 'nota', 0, AJUSTES[i % AJUSTES.length], atualizado - 2 * 3600000, 'revisado');
+      if (indice === 3) anotar(responsavel || 1, 'nota', 0, NA_ENTREGA[i % NA_ENTREGA.length], atualizado - 60000, 'entregue');
 
       // Arquivos de exemplo: OS (administrador), versão para revisão e arquivos finais.
-      if (indice >= 1 && i % 4 === 0) arquivos.push({ contato_id: id, categoria: 'ordem', nome: `OS-${String(id).padStart(4, '0')}.pdf`, usuario_id: 2, criado_em: iso(criado + DIA), contato: nome });
-      if (indice >= 3 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Relatorio-final.pdf', usuario_id: responsavel || 1, criado_em: iso(atualizado - 3 * 3600000), contato: nome });
-      if (indice === 4 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Memoria-de-calculo.csv', usuario_id: responsavel || 1, criado_em: iso(atualizado - 2 * 3600000), contato: nome });
+      if ((indice >= 1 || comNota) && i % 4 === 0) arquivos.push({ contato_id: id, categoria: 'ordem', nome: `OS-${String(id).padStart(4, '0')}.pdf`, usuario_id: 2, criado_em: iso(criado + DIA), contato: nome });
+      if (indice >= 2 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Relatorio-final.pdf', usuario_id: responsavel || 1, criado_em: iso(atualizado - 3 * 3600000), contato: nome });
+      if (indice === 3 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Memoria-de-calculo.csv', usuario_id: responsavel || 1, criado_em: iso(atualizado - 2 * 3600000), contato: nome });
     }
     // Documentos que a pessoa enviou pelo site.
     if (i % 3 === 0 && i < 30) arquivos.push({ contato_id: id, categoria: 'cliente', nome: servico === 'calculos' ? 'Sentenca-e-holerites.pdf' : 'Planilha-atual.csv', usuario_id: null, criado_em: iso(criado), contato: nome });
@@ -162,7 +173,6 @@ export async function resetarDemo(env) {
 
   // Moldes em branco de exemplo (ordem de serviço em PDF e relatório que abre no Word).
   const moldes = await Promise.all([
-    { tipo: 'ordem', nome: 'Molde-ordem-de-servico.pdf', conteudo: pdfDeExemplo('Ordem de servico (molde em branco)', '______________________________') },
     { tipo: 'relatorio', nome: 'Molde-relatorio.doc', conteudo: relatorioDeExemplo() },
   ].map(async m => {
     const chave = `demo/amostra/moldes/${m.nome}`;
@@ -174,6 +184,7 @@ export async function resetarDemo(env) {
   const materiais = await Promise.all([
     { nome: 'Indices-de-correcao-exemplo.csv', descricao: 'Tabela de índices usada nos cálculos de exemplo', tipo: 'text/csv', conteudo: new TextEncoder().encode('﻿Mes;IPCA-E;SELIC\r\nJan/2026;0,42;0,95\r\nFev/2026;0,38;0,88\r\nMar/2026;0,31;0,91'), usuario_id: 1, dias: 20 },
     { nome: 'Apresentacao-Plannex.pdf', descricao: 'Apresentação curta para enviar a escritórios', tipo: 'application/pdf', conteudo: pdfDeExemplo('Plannex - apresentacao', 'Escritorios parceiros'), usuario_id: 2, dias: 9 },
+    { nome: 'Molde-ordem-de-servico.pdf', descricao: 'Molde em branco da ordem de serviço', tipo: 'application/pdf', conteudo: pdfDeExemplo('Ordem de servico (molde em branco)', '______________________________'), usuario_id: 1, dias: 30 },
     { nome: 'Checklist-de-documentos.pdf', descricao: 'O que pedir ao cliente antes de começar um cálculo', tipo: 'application/pdf', conteudo: pdfDeExemplo('Checklist de documentos', 'Uso interno'), usuario_id: 1, dias: 3 },
   ].map(async m => {
     const chave = `demo/amostra/materiais/${m.nome}`;

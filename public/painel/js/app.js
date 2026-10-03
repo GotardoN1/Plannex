@@ -24,6 +24,7 @@ const TELAS = {
   agenda: { titulo: 'Agenda', desenhar: desenharAgenda },
   arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
   concluidos: { titulo: 'Concluídos', desenhar: raiz => desenharEntrada(raiz, { concluidos: true }) },
+  recusados: { titulo: 'Recusados', desenhar: raiz => desenharEntrada(raiz, { recusados: true }), admin: true },
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
   materiais: { titulo: 'Materiais', desenhar: desenharMateriais },
   preferencias: { titulo: 'Preferências', desenhar: desenharPreferencias },
@@ -79,12 +80,13 @@ function redesenharQuandoPuder() {
 }
 
 function atualizarContadores() {
-  const ativos = estado.contatos.filter(c => !c.arquivado_em);
+  const ativos = estado.contatos.filter(c => !c.arquivado_em && !c.recusado_em);
   const naoLidos = ativos.filter(c => !c.lido_em).length;
   const contagens = {
     entrada: naoLidos || '',
     andamento: ativos.filter(c => c.etapa && c.etapa !== 'entregue').length || '',
     concluidos: ativos.filter(c => c.etapa === 'entregue').length || '',
+    recusados: estado.contatos.filter(c => c.recusado_em && !c.arquivado_em).length || '',
   };
   for (const [tela, valor] of Object.entries(contagens)) {
     for (const b of $$(`[data-tela="${tela}"] .nav-contagem`)) {
@@ -129,6 +131,8 @@ async function alterar(id, campos, mensagem, desfazer) {
     const local = { ...campos };
     if ('lido' in local) { local.lido_em = local.lido ? (contato.lido_em || new Date().toISOString()) : null; delete local.lido; }
     if ('arquivado' in local) { local.arquivado_em = local.arquivado ? new Date().toISOString() : null; delete local.arquivado; }
+    if ('recusado' in local) { local.recusado_em = local.recusado ? new Date().toISOString() : null; delete local.recusado; }
+    if (local.etapa) local.recusado_em = null;
     if ('etapa' in local) local.atualizado_em = new Date().toISOString();
     if (local.dados) { Object.assign(local, local.dados); delete local.dados; }
     Object.assign(contato, local);
@@ -155,28 +159,78 @@ async function mover(id, etapa) {
   const nomePara = etapa ? NOME_ETAPA[etapa] : CAIXA;
   const ordem = chave => (chave ? ETAPAS.findIndex(([k]) => k === chave) : -1);
   const concluindo = etapa === 'entregue';
+  const aceitando = !anterior && etapa;
   const voltando = ordem(etapa) < ordem(anterior);
+  // Entrar em Pedido: o administrador escolhe quem da equipe vai cuidar (ele continua vendo tudo).
+  const escolha = etapa === 'pedido' && eAdmin() ? seletorResponsavel(contato) : null;
   const ok = await confirmar({
-    titulo: concluindo ? 'Concluir a demanda?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
+    titulo: concluindo ? 'Concluir a demanda?' : aceitando ? 'Aceitar o pedido?' : escolha ? 'Quem da equipe vai cuidar?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
     texto: concluindo
       ? `${contato.nome} sai do andamento e vai para Concluídos.`
-      : `${contato.nome} sai de ${nomeDe} e vai para ${nomePara}.`,
-    de: nomeDe,
+      : aceitando
+        ? `${contato.nome} sai da caixa de entrada e vai para o Andamento, em ${nomePara}.`
+        : escolha
+          ? `${contato.nome} vai para Pedido com a pessoa escolhida como responsável.`
+          : `${contato.nome} sai de ${nomeDe} e vai para ${nomePara}.`,
+    de: contato.recusado_em && !anterior ? 'Recusados' : nomeDe,
     para: nomePara,
-    botao: concluindo ? 'Concluir' : voltando ? 'Voltar' : 'Enviar',
+    botao: concluindo ? 'Concluir' : aceitando ? 'Aceitar' : voltando ? 'Voltar' : 'Enviar',
+    extra: escolha,
+    validar: () => !escolha || Boolean(escolha.querySelector('select').value),
   });
   if (!ok) return;
+  const campos = { etapa };
+  if (escolha) campos.responsavel_id = Number(escolha.querySelector('select').value);
+  const quem = escolha ? estado.usuarios.find(u => u.id === campos.responsavel_id) : null;
   const mensagem = concluindo
     ? `Demanda de ${primeiroNome(contato.nome)} concluída. Ela foi para Concluídos.`
-    : `${primeiroNome(contato.nome)} → ${nomePara}`;
-  return alterar(id, { etapa }, mensagem, { rotulo: 'Desfazer', aoClicar: () => alterar(id, { etapa: anterior }, 'Desfeito.') });
+    : aceitando
+      ? `Pedido de ${primeiroNome(contato.nome)} aceito. Está no Andamento, em ${nomePara}.`
+      : quem ? `${primeiroNome(contato.nome)} → Pedido, com ${primeiroNome(quem.nome)}` : `${primeiroNome(contato.nome)} → ${nomePara}`;
+  const desfazer = contato.recusado_em && !anterior ? { etapa: null, recusado: true } : { etapa: anterior };
+  return alterar(id, campos, mensagem, { rotulo: 'Desfazer', aoClicar: () => alterar(id, desfazer, 'Desfeito.') });
 }
 
-function confirmar({ titulo, texto, de, para, botao: rotuloBotao }) {
+// Lista da equipe para escolher o responsável do pedido.
+function seletorResponsavel(contato) {
+  const lista = el('select');
+  lista.required = true;
+  const vazio = el('option', '', 'Escolha alguém da equipe…');
+  vazio.value = '';
+  lista.append(vazio);
+  const ordenados = [...estado.usuarios].sort((a, b) => (a.papel === b.papel ? a.nome.localeCompare(b.nome) : a.papel === 'funcionario' ? -1 : 1));
+  for (const u of ordenados) {
+    const opcao = el('option', '', `${u.nome}${u.area ? ` · ${u.area}` : ''}${u.id === estado.usuario.id ? ' (você)' : ''}`);
+    opcao.value = String(u.id);
+    lista.append(opcao);
+  }
+  lista.value = contato.responsavel_id ? String(contato.responsavel_id) : '';
+  return el('label', 'campo', 'Responsável pelo pedido', lista);
+}
+
+// Recusar: o pedido sai da caixa de entrada e fica guardado em Recusados.
+async function recusar(id) {
+  const contato = contatoPorId(id);
+  if (!contato) return;
+  const ok = await confirmar({
+    titulo: 'Recusar o pedido?',
+    texto: `${contato.nome} sai da caixa de entrada e fica guardado em Recusados, com o contato, para retomar depois.`,
+    de: CAIXA,
+    para: 'Recusados',
+    botao: 'Recusar',
+  });
+  if (!ok) return;
+  return alterar(id, { recusado: true }, `Pedido de ${primeiroNome(contato.nome)} recusado e guardado em Recusados.`,
+    { rotulo: 'Desfazer', aoClicar: () => alterar(id, { recusado: false }, 'Desfeito.') });
+}
+
+function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, validar = () => true }) {
   const janela = $('#janela-confirmar');
   $('#confirmar-titulo').textContent = titulo;
   $('#confirmar-texto').textContent = texto;
   $('#confirmar-etapas').replaceChildren(el('span', 'etapa-pill', de), icone('seta_dir'), el('span', 'etapa-pill etapa-pill--destino', para));
+  $('#confirmar-extra').replaceChildren(...(extra ? [extra] : []));
+  $('#confirmar-extra').hidden = !extra;
   $('#confirmar-sim').textContent = rotuloBotao;
   janela.showModal();
   $('#confirmar-sim').focus();
@@ -191,7 +245,10 @@ function confirmar({ titulo, texto, de, para, botao: rotuloBotao }) {
       if (janela.open) janela.close();
       resolver(resposta);
     };
-    const sim = () => terminar(true);
+    const sim = () => {
+      if (!validar()) { extra?.querySelector('select')?.focus(); avisar('Escolha quem da equipe vai cuidar do pedido.', 'erro'); return; }
+      terminar(true);
+    };
     const nao = () => terminar(false);
     const tecla = evento => { if (evento.key === 'Escape') { evento.preventDefault(); terminar(false); } };
     const fora = evento => { if (evento.target === janela) terminar(false); };
@@ -204,7 +261,7 @@ function confirmar({ titulo, texto, de, para, botao: rotuloBotao }) {
   });
 }
 
-Object.assign(acoes, { abrirFicha, alterar, mover, recarregar, navegar, avisar, novoContato: abrirNovo });
+Object.assign(acoes, { abrirFicha, alterar, mover, recusar, recarregar, navegar, avisar, novoContato: abrirNovo });
 
 // ---------- Avisos ----------
 
@@ -330,7 +387,7 @@ function buscar() {
       avatar(c.nome, 'avatar--pequeno'),
       el('span', 'resultado-texto', el('strong', '', c.nome), el('small', '', [c.email, c.telefone].filter(Boolean).join(' · ') || relativo(c.criado_em))),
       etiquetaServico(c.servico),
-      el('span', 'etapa-pill', c.arquivado_em ? 'Arquivado' : c.etapa ? NOME_ETAPA[c.etapa] : 'Aguardando')));
+      el('span', 'etapa-pill', c.arquivado_em ? 'Arquivado' : c.recusado_em ? 'Recusado' : c.etapa ? NOME_ETAPA[c.etapa] : 'Novo pedido')));
     item.id = `resultado-${i}`;
     item.setAttribute('role', 'option');
     item.firstChild.type = 'button';

@@ -56,8 +56,8 @@ export function desenharEscolha(raiz, aoEntrar) {
     el('div', 'demo-cartao demo-roteiro',
       el('h2', '', 'Sugestão de roteiro'),
       el('ol', '',
-        el('li', '', el('b', '', 'Carla'), ' abre a Visão geral, vê o que precisa de atenção e move um contato da Caixa de entrada para Pedido.'),
-        el('li', '', 'No Andamento, ', el('b', '', 'Paulo'), ' filtra por responsável, abre um cartão em Notas e ordens e anexa a nota fiscal.'),
+        el('li', '', el('b', '', 'Carla'), ' abre a Visão geral, vê o que precisa de atenção e aceita (ou recusa) um pedido da Caixa de entrada.'),
+        el('li', '', 'No Andamento, ', el('b', '', 'Paulo'), ' abre um cartão em Notas e ordens, gera a OS e passa para Pedido escolhendo quem da equipe vai cuidar.'),
         el('li', '', el('b', '', 'Fernanda'), ' entra e vê só as demandas dela, sem valores nem notas e ordens; avança uma até "Concluir demanda" e confere a aba Concluídos.'),
         el('li', '', el('b', '', 'Juliana'), ' mostra uma demanda atrasada na Agenda; na Equipe, Carla muda o acesso de alguém.'))));
   const logo = raiz.querySelector('.login-logo');

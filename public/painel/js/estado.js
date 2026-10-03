@@ -13,6 +13,7 @@ export const acoes = {
   abrirFicha: () => {},
   alterar: async () => {},
   mover: async () => {},
+  recusar: async () => {},
   recarregar: async () => {},
   navegar: () => {},
   avisar: () => {},
@@ -25,8 +26,8 @@ export const eAdmin = () => estado.usuario?.papel === 'admin';
 export const contatoPorId = id => estado.contatos.find(c => c.id === id);
 export const usuarioPorId = id => estado.usuarios.find(u => u.id === id);
 
-// Contatos que não estão no arquivo.
-export const ativos = () => estado.contatos.filter(c => !c.arquivado_em);
+// Contatos que não estão no arquivo nem em Recusados.
+export const ativos = () => estado.contatos.filter(c => !c.arquivado_em && !c.recusado_em);
 
 export function aplicarFiltros(lista) {
   const { servico, responsavel } = estado.filtros;

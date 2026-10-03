@@ -1,8 +1,10 @@
-// Caixa de entrada (ou Minhas demandas), Arquivo e Concluídos.
+// Caixa de entrada (ou Minhas demandas), Recusados, Arquivo e Concluídos.
+// A caixa de entrada do administrador tem só os pedidos novos, com Aceitar (vai para o Andamento, em
+// Notas e ordens) e Recusar (vai para Recusados, guardando o lead).
 import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
 import { etiquetasDaDemanda } from './etiquetas.js';
 import {
-  el, botao, link, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
+  el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
   relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
 } from './util.js';
 
@@ -14,35 +16,38 @@ const TIPOS = {
   entrada: { data: 'criado_em', icone: 'entrada' },
   arquivo: { data: 'arquivado_em', icone: 'arquivo' },
   concluidos: { data: 'atualizado_em', icone: 'ok' },
+  recusados: { data: 'recusado_em', icone: 'recusar' },
 };
 
-export function desenharEntrada(raiz, { arquivo = false, concluidos = false } = {}) {
+export function desenharEntrada(raiz, { arquivo = false, concluidos = false, recusados = false } = {}) {
   const admin = eAdmin();
-  const tipo = arquivo ? 'arquivo' : concluidos ? 'concluidos' : 'entrada';
-  // O que chega em Entregue sai da caixa de entrada (e de "Minhas demandas") e vai para Concluídos.
+  const tipo = arquivo ? 'arquivo' : concluidos ? 'concluidos' : recusados ? 'recusados' : 'entrada';
+  // Administrador: a caixa de entrada é só o que ainda não foi aceito. Funcionário: as demandas dele em aberto.
+  // O que chega em Entregue vai para Concluídos.
   const base = tipo === 'arquivo' ? estado.contatos.filter(c => c.arquivado_em)
-    : tipo === 'concluidos' ? ativos().filter(c => c.etapa === 'entregue')
-      : ativos().filter(c => c.etapa !== 'entregue');
+    : tipo === 'recusados' ? estado.contatos.filter(c => c.recusado_em && !c.arquivado_em)
+      : tipo === 'concluidos' ? ativos().filter(c => c.etapa === 'entregue')
+        : admin ? ativos().filter(c => !c.etapa) : ativos().filter(c => c.etapa !== 'entregue');
   const filtrar = () => {
     const busca = normalizar(filtro.texto);
     return base.filter(c =>
-      (tipo !== 'entrada' || filtro.modo === 'todos' || (filtro.modo === 'aguardando' ? !c.etapa : !c.lido_em)) &&
+      (tipo !== 'entrada' || filtro.modo === 'todos' || !c.lido_em) &&
       (!filtro.servico || c.servico === filtro.servico) &&
       (tipo !== 'concluidos' || !filtro.responsavel || c.responsavel_id === Number(filtro.responsavel)) &&
       (!busca || textoBusca(c).includes(busca)));
   };
-  const redesenhar = () => desenharEntrada(raiz, { arquivo, concluidos });
+  const redesenhar = () => desenharEntrada(raiz, { arquivo, concluidos, recusados });
 
-  const titulo = tipo === 'arquivo' ? 'Arquivo' : tipo === 'concluidos' ? 'Concluídos' : admin ? 'Caixa de entrada' : 'Minhas demandas';
+  const titulo = { arquivo: 'Arquivo', concluidos: 'Concluídos', recusados: 'Recusados' }[tipo] || (admin ? 'Caixa de entrada' : 'Minhas demandas');
   const cabecalho = el('header', 'tela-topo',
     el('div', '', el('h1', '', titulo)),
     admin ? botao('Exportar planilha', 'botao--fantasma', () => exportar(filtrar(), arquivo), { icone: 'baixar', titulo: 'Baixar os contatos desta lista em CSV (abre no Excel)' }) : null);
 
   const ferramentas = el('div', 'ferramentas');
   if (tipo === 'entrada') {
+    if (filtro.modo === 'aguardando') filtro.modo = 'todos';
     ferramentas.append(segmentado([
       ['todos', 'Todos', base.length],
-      ['aguardando', 'Aguardando', base.filter(c => !c.etapa).length],
       ['nao-lidos', 'Não lidos', base.filter(c => !c.lido_em).length],
     ], filtro.modo, valor => { filtro.modo = valor; redesenhar(); }));
   }
@@ -84,7 +89,8 @@ function agrupar(lista, tipo) {
 // reservada (vazia ou com "—"), para as colunas não saírem do alinhamento de uma linha para outra.
 //   Concluídos (admin):   concluída | responsável | valor | reabrir
 //   Concluídos (func.):   concluída
-//   Caixa de entrada:     mover para | situação | WhatsApp | responsável | avançar   (func.: situação | WhatsApp | avançar)
+//   Caixa de entrada:     situação | WhatsApp | recusar e aceitar   (func.: situação | avançar)
+//   Recusados:            recusado em | WhatsApp | aceitar e devolver
 //   Arquivo:              situação | WhatsApp | responsável | ação
 function linha(c, tipo) {
   const admin = eAdmin();
@@ -110,11 +116,13 @@ function linha(c, tipo) {
 
   // Células
   const situacao = el('div', 'celula celula--situacao',
-    el('time', '', concluida ? `concluída ${relativo(c.atualizado_em)}` : relativo(tipo === 'arquivo' ? c.arquivado_em : c.criado_em)),
+    el('time', '', concluida ? `concluída ${relativo(c.atualizado_em)}` : relativo(c[TIPOS[tipo].data] || c.criado_em)),
     concluida
       ? el('span', 'etapa-pill etapa-pill--ok', icone('ok'), 'Concluída')
-      : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
-        c.etapa ? NOME_ETAPA[c.etapa] : 'Aguardando'));
+      : tipo === 'recusados'
+        ? el('span', 'etapa-pill etapa-pill--recusado', 'Recusado')
+        : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
+          c.etapa ? NOME_ETAPA[c.etapa] : 'Novo pedido'));
   situacao.addEventListener('click', abrir);
 
   const whatsapp = linkWhatsApp(c);
@@ -131,28 +139,35 @@ function linha(c, tipo) {
   const celulaAcao = el('div', 'celula celula--acao');
   if (tipo === 'arquivo') {
     celulaAcao.append(botao('Restaurar', 'botao--fantasma botao--pequeno', () => acoes.alterar(c.id, { arquivado: false }, 'Contato restaurado.'), { icone: 'restaurar' }));
+  } else if (tipo === 'recusados') {
+    celulaAcao.append(
+      botao('Devolver', 'botao--fantasma botao--pequeno', () => acoes.alterar(c.id, { recusado: false }, `${c.nome} voltou para a caixa de entrada.`),
+        { icone: 'restaurar', titulo: 'Tira dos recusados e devolve para a caixa de entrada' }),
+      botao('Aceitar', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'nota_emitida'), { icone: 'ok', titulo: 'Aceitar o pedido: vai para o Andamento, em Notas e ordens' }));
+  } else if (tipo === 'entrada' && admin) {
+    celulaAcao.append(
+      botao('Recusar', 'botao--fantasma botao--pequeno botao--recusar', () => acoes.recusar(c.id), { icone: 'recusar', titulo: 'Recusar: o pedido fica guardado em Recusados' }),
+      botao('Aceitar', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'nota_emitida'), { icone: 'ok', titulo: 'Aceitar: vai para o Andamento, em Notas e ordens' }));
   } else if (tipo === 'entrada') {
-    const avancar = botaoAvancar(c, admin);
+    const avancar = botaoAvancar(c);
     if (avancar) celulaAcao.append(avancar);
   }
-  // Administrador: "Mover para…" ao lado da etapa, para pular ou devolver a demanda.
-  const celulaMover = el('div', 'celula celula--mover', tipo === 'entrada' && admin ? moverPara(c, true) : null);
 
   let celulas;
   let modelo;
   if (concluida) {
     if (admin) {
       celulaAcao.append(botao('Reabrir', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, 'revisado'),
-        { icone: 'restaurar', titulo: 'Devolve ao Andamento, em Revisado pelo cliente' }));
+        { icone: 'restaurar', titulo: 'Devolve ao Andamento, em Revisão' }));
     }
     celulas = admin ? [situacao, celulaResponsavel, celulaValor, celulaAcao] : [situacao];
     modelo = admin ? 'concluidos' : 'concluidos-func';
   } else if (tipo === 'entrada' && !admin) {
-    celulas = [situacao, celulaWhatsapp, celulaAcao];
+    celulas = [situacao, celulaAcao];
     modelo = 'entrada-func';
-  } else if (tipo === 'entrada') {
-    celulas = [celulaMover, situacao, celulaWhatsapp, celulaResponsavel, celulaAcao];
-    modelo = 'entrada';
+  } else if (tipo === 'entrada' || tipo === 'recusados') {
+    celulas = [situacao, celulaWhatsapp, celulaAcao];
+    modelo = 'caixa';
   } else {
     celulas = [situacao, celulaWhatsapp, celulaResponsavel, celulaAcao];
     modelo = 'arquivo';
@@ -162,25 +177,15 @@ function linha(c, tipo) {
   return item;
 }
 
-// Botão azul que avança um passo, com o nome da próxima ação. "Entregar" abre a aba de entrega
+// Funcionário: botão que avança um passo, com o nome da próxima ação. "Entregar" abre a aba de entrega
 // da ficha, onde se sobem os arquivos finais e se conclui.
-const PROXIMO_ADMIN = {
-  null: ['pedido', 'Aceitar pedido'],
-  pedido: ['nota_emitida', 'Notas e ordens'],
-  nota_emitida: ['processo_iniciado', 'Iniciar processo'],
-  processo_iniciado: ['revisado', 'Enviar para revisão'],
-  revisado: ['entregue', 'Entregar'],
-};
 const PROXIMO_FUNCIONARIO = {
-  null: ['processo_iniciado', 'Iniciar processo'],
-  pedido: ['processo_iniciado', 'Iniciar processo'],
-  nota_emitida: ['processo_iniciado', 'Iniciar processo'],
-  processo_iniciado: ['revisado', 'Enviar para revisão'],
+  pedido: ['revisado', 'Enviar para revisão'],
   revisado: ['entregue', 'Entregar'],
 };
 
-function botaoAvancar(c, admin) {
-  const proximo = (admin ? PROXIMO_ADMIN : PROXIMO_FUNCIONARIO)[c.etapa ?? null];
+function botaoAvancar(c) {
+  const proximo = PROXIMO_FUNCIONARIO[c.etapa];
   if (!proximo) return null;
   const [destino, rotulo] = proximo;
   const entregar = destino === 'entregue';
@@ -190,40 +195,14 @@ function botaoAvancar(c, admin) {
   }, { icone: entregar ? 'ok' : 'seta_dir', titulo: entregar ? 'Abre a aba Entregue para enviar os arquivos finais e concluir' : `Avançar para ${NOME_ETAPA[destino]}` });
 }
 
-// Lista "Mover para…" (administrador): qualquer etapa, para frente ou para trás.
-function moverPara(c, admin) {
-  const destinos = ETAPAS.filter(([chave]) => chave !== c.etapa && (admin || ['processo_iniciado', 'revisado', 'entregue'].includes(chave)));
-  const lista = el('select', 'mover-para');
-  lista.setAttribute('aria-label', `Mover ${c.nome} para outra etapa`);
-  const titulo = el('option', '', 'Mover para…');
-  titulo.value = '';
-  titulo.disabled = true;
-  titulo.selected = true;
-  lista.append(titulo);
-  const acoesFuncionario = { processo_iniciado: 'Iniciar processo', revisado: 'Aguardar revisão do cliente', entregue: 'Entregar (enviar arquivos finais)' };
-  for (const [chave, nome] of destinos) {
-    // Para trás, o rótulo diz "Voltar"; para frente, o funcionário vê o nome da ação.
-    const voltando = ETAPAS.findIndex(([k]) => k === chave) < ETAPAS.findIndex(([k]) => k === c.etapa);
-    const opcao = el('option', '', voltando ? `Voltar para ${nome}` : admin ? nome : acoesFuncionario[chave]);
-    opcao.value = chave;
-    lista.append(opcao);
-  }
-  lista.addEventListener('change', () => {
-    const destino = lista.value;
-    lista.value = '';
-    if (!admin && destino === 'entregue') acoes.abrirFicha(c.id, 'entregue');
-    else acoes.mover(c.id, destino);
-  });
-  return lista;
-}
-
 function vazio(tipo, totalBase) {
   if (totalBase) return el('div', 'vazio', icone('busca', 'icone vazio-icone'), el('p', '', 'Nenhum contato com esses filtros.'));
   const textos = {
     arquivo: 'O arquivo está vazio.',
+    recusados: 'Nenhum pedido recusado. Os recusados ficam guardados aqui, com o contato, para retomar depois.',
     concluidos: 'Nenhuma demanda concluída ainda. Quando uma demanda chega em Entregue, ela aparece aqui.',
     entrada: eAdmin()
-      ? 'Nenhum contato ainda. Os pedidos do site aparecem aqui assim que alguém enviar o formulário.'
+      ? 'Nenhum pedido novo. Os pedidos do site aparecem aqui assim que alguém enviar o formulário; os aceitos ficam no Andamento.'
       : 'Nenhuma demanda em aberto com você. As novas aparecem aqui quando um administrador te colocar como responsável.',
   };
   return el('div', 'vazio', icone(TIPOS[tipo].icone, 'icone vazio-icone'), el('p', '', textos[tipo]));

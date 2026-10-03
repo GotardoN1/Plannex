@@ -320,10 +320,10 @@ function listaPendencias(itens) {
 
 // ---------- Atividade recente ----------
 
-// "Ver mais": começa com 12 e vai abrindo de 15 em 15; o que é mais antigo que as 30 primeiras
+// "Ver mais": começa com 6 e vai abrindo de 10 em 10; o que é mais antigo que as 30 primeiras
 // movimentações vem do servidor aos poucos (/api/atividade).
-const MAIS_ATIVIDADE = 15;
-const atividade = { mostrar: 12, antigas: [], fim: false, carregando: false };
+const MAIS_ATIVIDADE = 10;
+const atividade = { mostrar: 6, antigas: [], fim: false, carregando: false };
 
 function todasAsAtividades() {
   const doServidor = [...estado.recentes, ...atividade.antigas];
@@ -395,7 +395,7 @@ function feedAtividade() {
   if (haMais) {
     const mais = botao('Ver mais', 'botao--fantasma botao--pequeno atividade-mais', () => verMais(caixa), { icone: 'mais', titulo: 'Mostrar atividades mais antigas' });
     caixa.append(mais);
-  } else if (itens.length > 12) {
+  } else if (itens.length > 6) {
     caixa.append(el('p', 'atividade-fim', 'Essa é toda a atividade registrada.'));
   }
   return caixa;

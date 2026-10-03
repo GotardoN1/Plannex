@@ -51,7 +51,7 @@ export function abrirNovo() {
         entrada('E-mail', 'email', 'email', { maxLength: 180, placeholder: 'email@exemplo.com' })),
       el('label', 'campo', 'Como chegou', origem),
       entrada('O que a pessoa precisa', 'descricao', 'textarea', { rows: 4, maxLength: 1800 }),
-      el('label', 'caixa-marcar', direto, el('span', '', 'Já é um pedido: entra direto na etapa ', el('strong', '', 'Pedido'))),
+      el('label', 'caixa-marcar', direto, el('span', '', 'Já aceito: entra direto no andamento, em ', el('strong', '', 'Notas e ordens'))),
       aviso),
     el('footer', 'form-acoes',
       botao('Cancelar', 'botao--fantasma', () => janela().close()),

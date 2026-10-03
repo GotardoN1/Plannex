@@ -27,24 +27,25 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | Tela | O que faz |
 | --- | --- |
 | **Visão geral** | Saudação (com o apelido), números (novos na semana, em andamento, recebido e entregues no mês; se o mês ainda não tem pagamento ou entrega, mostra o último mês que teve), contatos por mês (só os meses com contato ou venda), divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
-| **Caixa de entrada** | Os contatos em aberto agrupados por data, com prévia do pedido, a etiqueta do serviço e as **etiquetas pessoais** (botão "+", texto e cor; cada pessoa vê só as suas), filtros (aguardando, não lidos, serviço, texto) e exportação para Excel. Cada linha tem colunas fixas: "Mover para…" (administrador, qualquer etapa, para frente ou para trás), etapa, WhatsApp, responsável e o **botão azul de avançar**, que muda conforme a etapa (Aceitar pedido → Notas e ordens → Iniciar processo → Enviar para revisão → Entregar) |
+| **Caixa de entrada** | Só os pedidos novos, agrupados por data, com prévia, etiquetas e os botões **Recusar** (vai para Recusados, guardando o lead) e **Aceitar** (vai para o Andamento, em Notas e ordens). Para o funcionário, "Minhas demandas": as dele em Pedido e Revisão |
 | **Concluídos** | Tudo o que chegou em Entregue, fora do quadro para ele não lotar; colunas fixas de conclusão, responsável e valor; filtros por responsável e serviço. O administrador pode **reabrir** (volta ao Andamento). Para o funcionário, só os dele, para consulta |
-| **Andamento** | Quadro só com o que está em trabalho: Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente. Na última coluna, "Concluir" leva para Concluídos. Cartões compactos na cor do serviço (laranja: cálculos, azul: automação): nome e valor na primeira linha, depois serviço, nota e prazo, e no rodapé responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
+| **Andamento** | Quadro com as etapas em trabalho: **1. Notas e ordens** (administrador: cobrança, nota, OS e assinatura) → **2. Pedido** (passa só escolhendo quem da equipe vai cuidar) → **3. Revisão**. Entregue vai para Concluídos. Cartões na cor do serviço, filtros, arrastar ou setas |
+| **Recusados** | Pedidos recusados, guardados com o contato para retomar: Devolver para a caixa ou Aceitar |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
 | **Materiais** | Arquivos de uso frequente da equipe (moldes, planilhas de demonstração, PDFs), com tamanho, data de envio/atualização, quem enviou e descrição. Todos baixam; o administrador envia, troca e exclui. Espaço de 100 MB |
 | **Equipe** | Quem acessa, nome completo, usuário de login e equipe/área (T.I., economista, advogado...) — só o administrador altera —, tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
-| **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta), visual simples ou o do site (neste navegador) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
+| **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta), visual Simples ou Sofisticado (neste navegador) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
 
 A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação. O administrador também tem **"Voltar para…"**, uma etapa por vez, e numa demanda entregue **"Reabrir"**.
 
 | Aba | Conteúdo |
 | --- | --- |
-| Caixa de entrada (junta a chegada e o Pedido) | Contato, entrega (responsável e prazo), **Solicitação** e comentários |
-| Notas e ordens | Só administrador (em vermelho e trancada para o funcionário): valor, nota fiscal, pagamento (com o botão **Hoje**), **molde em branco da ordem de serviço** para baixar ("Trocar" envia outro, em PDF ou Word) e um envio único para notas fiscais e ordens de serviço, sem escolher tipo |
-| Processo iniciado | **Solicitação**, com envio de mais documentos do cliente, e anotações do processo |
-| Revisado pelo cliente | O que o cliente pediu para ajustar |
-| Entregue | Excel e relatório finais, molde em branco do relatório, comentário da entrega e o registro de quando e quem entregou (o administrador pode corrigir o dia) |
+| Pedido recebido (antes de aceitar) | Contato, **Solicitação** e comentários, com Aceitar e Recusar no topo |
+| 1. Notas e ordens | Só administrador (trancada para o funcionário): contato, valor, nota fiscal, pagamento (com o botão **Hoje**) e um envio único para notas fiscais e ordens de serviço. O **Gerar OS** fica no topo da ficha |
+| 2. Pedido | Responsável e prazo, **Solicitação** (com envio de mais documentos do cliente) e anotações. O contato do cliente só aparece para o administrador |
+| 3. Revisão | O que o cliente pediu para ajustar |
+| 4. Entregue | Excel e relatório finais, molde em branco do relatório, comentário da entrega e o registro de quando e quem entregou (o administrador pode corrigir o dia) |
 
 Para concluir, o funcionário sobe os arquivos finais na aba Entregue e clica em "Concluir e registrar entrega"; o dia e a hora ficam registrados. No fim da ficha fica o histórico completo (movimentações, anexos e alterações).
 

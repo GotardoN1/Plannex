@@ -1,9 +1,9 @@
-// Ficha do contato em abas, uma por etapa do andamento:
-//   Caixa de entrada (junta a chegada e o Pedido): contato, entrega e a solicitação feita no site.
-//   Notas e ordens (só administrador): valores, pagamento, notas fiscais e ordens de serviço.
-//   Processo iniciado: a solicitação (com os documentos do cliente) e anotações do processo.
-//   Revisado pelo cliente: o que o cliente pediu para ajustar.
-//   Entregue: arquivos finais (Excel, relatório), comentário e o registro do dia da entrega.
+// Ficha do contato. Pedido novo (ou recusado): contato, solicitação e comentários, com Aceitar e Recusar.
+// Depois de aceito, uma aba por etapa do andamento:
+//   1. Notas e ordens (só administrador): contato, valores, pagamento, notas fiscais e ordens de serviço.
+//   2. Pedido: responsável e prazo, a solicitação (com os documentos do cliente) e anotações.
+//   3. Revisão: o que o cliente pediu para ajustar.
+//   4. Entregue: arquivos finais, molde do relatório, comentário e o registro do dia da entrega.
 // Clicar numa aba só mostra o conteúdo; mudar de etapa é pelo botão de ação, com confirmação.
 import { estado, acoes, contatoPorId, usuarioPorId, eAdmin } from './estado.js';
 import { api } from './api.js';
@@ -17,18 +17,20 @@ import {
 
 // O funcionário vê e envia só documentos do cliente e arquivos da entrega.
 const CATEGORIAS_FUNCIONARIO = ['cliente', 'entrega'];
-// Etapas em que o funcionário trabalha. Pedido e Notas e ordens são do administrador.
-const ETAPAS_FUNCIONARIO = ['processo_iniciado', 'revisado', 'entregue'];
+// Etapas em que o funcionário trabalha. Notas e ordens é do administrador.
+const ETAPAS_FUNCIONARIO = ['pedido', 'revisado', 'entregue'];
 
 const ABAS = [
-  { chave: 'entrada', nome: 'Caixa de entrada', etapas: [null, 'pedido'] },
   { chave: 'nota_emitida', nome: 'Notas e ordens', etapas: ['nota_emitida'], admin: true },
-  { chave: 'processo_iniciado', nome: 'Processo iniciado', etapas: ['processo_iniciado'] },
-  { chave: 'revisado', nome: 'Revisado pelo cliente', etapas: ['revisado'] },
+  { chave: 'pedido', nome: 'Pedido', etapas: ['pedido', 'processo_iniciado'] },
+  { chave: 'revisado', nome: 'Revisão', etapas: ['revisado'] },
   { chave: 'entregue', nome: 'Entregue', etapas: ['entregue'] },
 ];
-const abaDaEtapa = etapa => ABAS.find(a => a.etapas.includes(etapa ?? null)).chave;
+// Pedido novo ou recusado ainda não tem etapa: a ficha mostra a "entrada" (fora da trilha).
+const ABA_ENTRADA = { chave: 'entrada', nome: 'Pedido recebido' };
+const abaDaEtapa = etapa => (etapa ? (ABAS.find(a => a.etapas.includes(etapa)) || ABAS[0]).chave : 'entrada');
 const indiceAba = chave => ABAS.findIndex(a => a.chave === chave);
+const abaPorChave = chave => ABAS.find(a => a.chave === chave) || ABA_ENTRADA;
 
 const janela = () => document.querySelector('#ficha');
 let atualId = null;
@@ -39,7 +41,7 @@ let sequencia = 0;
 
 // Para o funcionário, a demanda concluída fica só para consulta.
 const somenteLeitura = c => !eAdmin() && c.etapa === 'entregue';
-// O funcionário leva a demanda, de onde estiver, para Processo iniciado, Revisado pelo cliente e Entregue.
+// O funcionário leva a demanda entre Pedido, Revisão e Entregue.
 const podeMoverPara = (c, etapa) => eAdmin() || (ETAPAS_FUNCIONARIO.includes(etapa) && !somenteLeitura(c));
 const podeVerAba = aba => !aba.admin || eAdmin();
 
@@ -54,8 +56,9 @@ export function abrirFicha(id, abaInicial = null) {
   atualId = id;
   editandoDados = false;
   dados = { itens: [], arquivos: [], carregado: false };
-  const aba = ABAS.find(a => a.chave === (abaInicial || abaDaEtapa(contato.etapa)));
-  abaAberta = aba && podeVerAba(aba) ? aba.chave : 'entrada';
+  const chave = abaInicial || abaDaEtapa(contato.etapa);
+  const aba = ABAS.find(a => a.chave === chave);
+  abaAberta = chave === 'entrada' ? 'entrada' : aba && podeVerAba(aba) ? aba.chave : abaDaEtapa(contato.etapa);
   desenhar();
   if (!janela().open) janela().showModal();
   janela().querySelector('.ficha-corpo').scrollTop = 0;
@@ -168,7 +171,15 @@ function andamento(c) {
 
 // Administrador: além de avançar, pode voltar uma etapa de cada vez, inclusive reabrir uma entregue.
 function acaoPrincipal(c) {
-  if (!eAdmin() || !c.etapa) return acaoAvancar(c);
+  if (!c.etapa) {
+    if (!eAdmin()) return null;
+    const aceitar = botao('Aceitar pedido', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'nota_emitida'), { icone: 'ok', titulo: 'Vai para o Andamento, em Notas e ordens' });
+    const outra = c.recusado_em
+      ? botao('Devolver para a caixa de entrada', 'botao--fantasma botao--pequeno', () => acoes.alterar(c.id, { recusado: false }, `${c.nome} voltou para a caixa de entrada.`), { icone: 'restaurar' })
+      : botao('Recusar', 'botao--fantasma botao--pequeno botao--recusar', () => acoes.recusar(c.id), { icone: 'recusar', titulo: 'O pedido fica guardado em Recusados' });
+    return el('div', 'acoes-etapa', outra, aceitar);
+  }
+  if (!eAdmin()) return acaoAvancar(c);
   const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
   const [anterior, nomeAnterior] = indice > 0 ? ETAPAS[indice - 1] : [null, CAIXA];
   const voltar = c.etapa === 'entregue'
@@ -180,19 +191,18 @@ function acaoPrincipal(c) {
 function acaoAvancar(c) {
   const admin = eAdmin();
   if (c.etapa === 'entregue') return el('span', 'concluido', icone('ok'), admin ? 'Entregue' : 'Concluída');
-  if (!admin && !ETAPAS_FUNCIONARIO.includes(c.etapa)) {
-    return botao('Iniciar processo', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'processo_iniciado'), { icone: 'seta_dir' });
-  }
-  const indice = c.etapa ? ETAPAS.findIndex(([k]) => k === c.etapa) : -1;
-  const [proxima, nome] = ETAPAS[indice + 1];
+  const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
+  const [proxima, nome] = ETAPAS[indice + 1] || [];
+  if (!proxima) return null;
   if (proxima === 'entregue') return botao('Concluir demanda', 'botao--primario botao--pequeno', () => { abrirAba('entregue'); }, { icone: 'ok', titulo: 'Abre a aba Entregue para enviar os arquivos finais e concluir' });
-  return botao(c.etapa ? `Avançar para ${nome}` : 'Aceitar como pedido', 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima), { icone: 'seta_dir' });
+  const rotulo = proxima === 'pedido' ? 'Passar para Pedido' : proxima === 'revisado' ? 'Enviar para revisão' : `Avançar para ${nome}`;
+  return botao(rotulo, 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima), { icone: 'seta_dir', titulo: proxima === 'pedido' ? 'Escolha quem da equipe vai cuidar' : '' });
 }
 
 function abrirAba(chave) {
   abaAberta = chave;
   for (const b of janela().querySelectorAll('.trilha-passo')) {
-    const aberta = b.querySelector('.trilha-nome').textContent === ABAS.find(a => a.chave === chave).nome;
+    const aberta = b.querySelector('.trilha-nome').textContent === abaPorChave(chave).nome;
     b.classList.toggle('is-aberta', aberta);
     b.setAttribute('aria-selected', String(aberta));
   }
@@ -206,11 +216,11 @@ function desenharPainel() {
   const c = contatoPorId(atualId);
   const painel = janela().querySelector('.ficha-painel');
   if (!c || !painel) return;
-  const aba = ABAS.find(a => a.chave === abaAberta);
+  const aba = abaPorChave(abaAberta);
   const conteudo = {
     entrada: painelEntrada,
     nota_emitida: painelNotas,
-    processo_iniciado: painelProcesso,
+    pedido: painelPedido,
     revisado: painelRevisado,
     entregue: painelEntregue,
   }[aba.chave](c);
@@ -220,45 +230,52 @@ function desenharPainel() {
 }
 
 function topoDoPainel(c, aba) {
+  if (aba.chave === 'entrada') {
+    const estadoEntrada = !c.etapa ? (c.recusado_em ? ['futuro', `Recusado ${relativo(c.recusado_em)}`] : ['atual', 'Aguardando aceite']) : ['feito', 'Aceito'];
+    return el('div', 'painel-topo', el('h3', '', aba.nome), el('span', `estado-aba estado-aba--${estadoEntrada[0]}`, estadoEntrada[1]));
+  }
   const atual = indiceAba(abaDaEtapa(c.etapa));
   const i = indiceAba(aba.chave);
   const situacao = i < atual ? ['feito', 'Etapa concluída'] : i === atual ? ['atual', 'Etapa atual'] : ['futuro', 'Ainda não chegou aqui'];
-  const extra = aba.chave === 'entrada' && c.etapa === 'pedido' ? ' · aceito como pedido' : '';
-  return el('div', 'painel-topo', el('h3', '', aba.nome), el('span', `estado-aba estado-aba--${situacao[0]}`, situacao[1] + extra));
+  return el('div', 'painel-topo', el('h3', '', aba.nome), el('span', `estado-aba estado-aba--${situacao[0]}`, situacao[1]));
 }
 
 // Em outra aba que não a atual: atalho para mover para ela (com confirmação).
 function rodapeDoPainel(c, aba) {
-  if (abaDaEtapa(c.etapa) === aba.chave) return null;
-  const destino = aba.chave === 'entrada' ? 'pedido' : aba.chave;
+  if (abaDaEtapa(c.etapa) === aba.chave || aba.chave === 'entrada' || !c.etapa) return null;
+  const destino = aba.chave;
   if (!podeMoverPara(c, destino) || destino === 'entregue') return null;
   return el('div', 'painel-rodape', botao(`Mover a demanda para ${aba.nome}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, destino), { icone: 'etapa' }));
 }
 
+// Pedido novo ou recusado: quem é, o que pediu e comentários. Aceitar e Recusar ficam no topo.
 function painelEntrada(c) {
   return [
-    el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoContato(c)),
-      el('div', 'ficha-coluna', blocoEntrega(c))),
+    blocoContato(c),
     blocoSolicitacao(c),
     comentarios(c, 'entrada', 'Comentários', 'Anotar algo sobre este contato…'),
   ];
 }
 
-// Notas fiscais, ordens de serviço e o que mais precisar: um envio só, sem escolher tipo.
+// 1. Notas e ordens: o administrador cobra, emite a nota e colhe a assinatura (Gerar OS fica no topo da ficha).
 function painelNotas(c) {
   return [
     el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoNegocio(c), blocoMoldes(['ordem'])),
+      el('div', 'ficha-coluna', blocoContato(c), blocoNegocio(c)),
       el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
     comentarios(c, 'nota_emitida', 'Comentários internos', 'Só administradores veem estes comentários…'),
   ];
 }
 
-function painelProcesso(c) {
+// 2. Pedido: responsável e prazo, a solicitação com os documentos do cliente e as anotações do trabalho.
+// O contato do cliente só aparece para o administrador.
+function painelPedido(c) {
   return [
+    eAdmin()
+      ? el('div', 'ficha-grade', el('div', 'ficha-coluna', blocoEntrega(c)), el('div', 'ficha-coluna', blocoContato(c)))
+      : blocoEntrega(c),
     blocoSolicitacao(c, { comEnvio: true }),
-    comentarios(c, 'processo_iniciado', 'Anotações do processo', 'Ex.: conferi os holerites, falta o índice de março…'),
+    comentarios(c, ['processo_iniciado', 'entrada'], 'Anotações do pedido', 'Ex.: conferi os holerites, falta o índice de março…'),
   ];
 }
 
@@ -342,8 +359,9 @@ function ultimaEntrega() {
 
 function acoesRapidas(c) {
   const barra = el('div', 'ficha-acoes');
-  const whatsapp = linkWhatsApp(c);
-  const email = linkEmail(c);
+  // O contato do cliente (WhatsApp e e-mail) fica com o administrador.
+  const whatsapp = eAdmin() ? linkWhatsApp(c) : null;
+  const email = eAdmin() ? linkEmail(c) : null;
   if (whatsapp) barra.append(link('WhatsApp', whatsapp, 'botao botao--whatsapp', { icone: 'whatsapp', novaAba: true, titulo: 'Abrir conversa com mensagem pronta' }));
   if (email) barra.append(link('Responder por e-mail', email, 'botao', { icone: 'email' }));
   if (!eAdmin()) return barra;
@@ -519,7 +537,7 @@ function blocoEntrega(c) {
   const salvo = indicadorSalvo();
   const salvar = salvarCampos(c, salvo);
   const responsavel = el('select');
-  responsavel.append(opcao('', 'Ninguém'));
+  if (c.etapa !== 'pedido') responsavel.append(opcao('', 'Ninguém'));
   for (const u of estado.usuarios) responsavel.append(opcao(String(u.id), u.id === estado.usuario.id ? `${u.nome} (você)` : u.nome));
   responsavel.value = c.responsavel_id ? String(c.responsavel_id) : '';
   responsavel.addEventListener('change', () => salvar({ responsavel_id: responsavel.value ? Number(responsavel.value) : null }));
@@ -787,10 +805,11 @@ function preencherArquivos() {
 
 // ---------- Comentários de cada aba ----------
 
-function comentarios(c, aba, titulo, exemplo, { destaque = false } = {}) {
+function comentarios(c, abas, titulo, exemplo, { destaque = false } = {}) {
+  const [aba] = [].concat(abas);
   const lista = el('ol', 'comentarios', el('li', 'carregando', 'Carregando…'));
   lista.dataset.lista = 'comentarios';
-  lista.dataset.aba = aba;
+  lista.dataset.aba = [].concat(abas).join(',');
   const partes = [el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('nota'), titulo)), lista];
   if (!somenteLeitura(c)) {
     const texto = el('textarea');
@@ -825,7 +844,8 @@ function comentarios(c, aba, titulo, exemplo, { destaque = false } = {}) {
 
 function preencherComentarios() {
   for (const lista of janela().querySelectorAll('[data-lista="comentarios"]')) {
-    const notas = dados.itens.filter(i => i.tipo === 'nota' && (i.aba || 'entrada') === lista.dataset.aba);
+    const abas = lista.dataset.aba.split(',');
+    const notas = dados.itens.filter(i => i.tipo === 'nota' && abas.includes(i.aba || 'entrada'));
     lista.replaceChildren(...(notas.length ? notas.map(comentario) : [el('li', 'vazio-mini', 'Nenhum comentário ainda.')]));
   }
 }
