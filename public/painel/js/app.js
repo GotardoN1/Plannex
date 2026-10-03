@@ -255,6 +255,7 @@ function mostrarUsuario() {
   for (const grupo of $$('.nav-grupo')) grupo.hidden = ![...grupo.querySelectorAll('[data-tela]')].some(b => !b.hidden);
   $('[data-tela="entrada"] .nav-rotulo').textContent = admin ? 'Caixa de entrada' : 'Minhas demandas';
   $('#novo-contato').hidden = !admin;
+  $('#ir-para-site').hidden = estado.demo;
   $('.marca').href = `#/${telaInicial()}`;
 }
 

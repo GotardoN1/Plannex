@@ -1,5 +1,6 @@
 // Visão geral: números do momento, contatos por mês, funil, pendências e atividade recente.
 import { estado, acoes, ativos } from './estado.js';
+import { api } from './api.js';
 import {
   el, svg, icone, botao, ETAPAS, NOME_ETAPA, CAIXA, SERVICOS, diaDe, hoje, diasEntre, somarDias,
   reais, reaisCurto, relativo, situacaoPrazo, primeiroNome, extenso, nomeMesCurto, diaBr, hora, nomeExibicao,
@@ -319,12 +320,53 @@ function listaPendencias(itens) {
 
 // ---------- Atividade recente ----------
 
+// "Ver mais": começa com 12 e vai abrindo de 15 em 15; o que é mais antigo que as 30 primeiras
+// movimentações vem do servidor aos poucos (/api/atividade).
+const MAIS_ATIVIDADE = 15;
+const atividade = { mostrar: 12, antigas: [], fim: false, carregando: false };
+
+function todasAsAtividades() {
+  const doServidor = [...estado.recentes, ...atividade.antigas];
+  const vistos = new Set();
+  const unicas = doServidor.filter(i => {
+    const chave = `${i.tipo}|${i.contato_id}|${i.quando}|${i.para || ''}|${i.texto || ''}`;
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
+  // As chegadas vêm dos contatos já carregados; enquanto o servidor tiver mais, só até a movimentação mais antiga
+  // que já chegou, para a lista não pular nada.
+  const maisAntiga = !atividade.fim && unicas.length ? unicas.map(i => String(i.quando)).sort()[0] : '';
+  const chegadas = estado.contatos
+    .filter(c => String(c.criado_em) >= maisAntiga)
+    .map(c => ({ tipo: 'chegada', quando: c.criado_em, contato_id: c.id, contato: c.nome, servico: c.servico, origem: c.origem, criado_por: c.criado_por }));
+  return [...unicas, ...chegadas].sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+}
+
+async function verMais(caixa) {
+  if (atividade.carregando) return;
+  atividade.mostrar += MAIS_ATIVIDADE;
+  if (!atividade.fim && atividade.mostrar > todasAsAtividades().length) {
+    atividade.carregando = true;
+    try {
+      const { itens, temMais } = await api(`/api/atividade?a_partir=${estado.recentes.length + atividade.antigas.length}`);
+      atividade.antigas.push(...itens);
+      atividade.fim = !temMais;
+    } catch (e) {
+      acoes.avisar(e.message, 'erro');
+    } finally {
+      atividade.carregando = false;
+    }
+  }
+  caixa.replaceWith(feedAtividade());
+}
+
 function feedAtividade() {
-  const chegadas = estado.contatos.slice(0, 15).map(c => ({ tipo: 'chegada', quando: c.criado_em, contato_id: c.id, contato: c.nome, servico: c.servico, origem: c.origem, criado_por: c.criado_por }));
-  const itens = [...estado.recentes, ...chegadas].sort((a, b) => String(b.quando).localeCompare(String(a.quando))).slice(0, 12);
+  const todas = todasAsAtividades();
+  const itens = todas.slice(0, atividade.mostrar);
   if (!itens.length) return el('p', 'vazio-mini', 'Nada aconteceu ainda. Os contatos do site aparecem aqui assim que chegarem.');
 
-  return el('ol', 'atividade', itens.map(item => {
+  const lista = el('ol', 'atividade', itens.map(item => {
     const nomeContato = el('button', 'link-contato', item.contato);
     nomeContato.type = 'button';
     nomeContato.addEventListener('click', () => acoes.abrirFicha(item.contato_id));
@@ -348,6 +390,15 @@ function feedAtividade() {
     return el('li', '', el('span', `atividade-icone atividade-icone--${item.tipo}`, icone(iconeItem)),
       el('div', '', el('p', '', frase), el('time', '', relativo(item.quando))));
   }));
+  const haMais = todas.length > itens.length || !atividade.fim;
+  const caixa = el('div', 'atividade-caixa', lista);
+  if (haMais) {
+    const mais = botao('Ver mais', 'botao--fantasma botao--pequeno atividade-mais', () => verMais(caixa), { icone: 'mais', titulo: 'Mostrar atividades mais antigas' });
+    caixa.append(mais);
+  } else if (itens.length > 12) {
+    caixa.append(el('p', 'atividade-fim', 'Essa é toda a atividade registrada.'));
+  }
+  return caixa;
 }
 
 function resumir(texto, maximo) {

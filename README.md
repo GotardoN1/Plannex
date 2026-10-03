@@ -15,7 +15,8 @@ Site da **Plannex**, com duas frentes de serviço:
 | Laboratório Plannex | Demonstração animada de uma memória de cálculo indo dos documentos ao parecer, com dados fictícios |
 | Exemplo de memória | Tabela ilustrativa com competência, fator, valor corrigido, juros e total |
 | Serviço de Automação | Planos de automação, a demonstração "da bagunça ao controle" e a lista do que pode ser automatizado |
-| Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta |
+| Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta; planos de cálculo e de automação, inclusive os personalizados (sob orçamento) |
+| Aparência | Pílula no canto inferior esquerdo: modo noturno (claro/escuro) e visual simples ou o original do site. A escolha fica no navegador e vale também na Central |
 | Central (`/painel/`) | Só com login: contatos, pedidos, prazos e pagamentos da equipe |
 
 Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev1.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões.
@@ -32,7 +33,7 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | **Andamento** | Quadro só com o que está em trabalho: Pedido → Notas e ordens → Processo iniciado → Revisado pelo cliente. Na última coluna, "Concluir" leva para Concluídos. Cartões compactos na cor do serviço (laranja: cálculos, azul: automação): nome e valor na primeira linha, depois serviço, nota e prazo, e no rodapé responsável e anexos; filtros por serviço e responsável; arrastar, setas ou teclado |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
-| **Equipe** | Quem acessa, nome completo (só o administrador altera), tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
+| **Equipe** | Quem acessa, nome completo, usuário de login e equipe/área (T.I., economista, advogado...) — só o administrador altera —, tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
 | **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta), visual simples ou o do site (neste navegador) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
 
 A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por etapa**. Clicar numa aba só mostra o conteúdo dela; mudar de etapa é pelo botão de ação, sempre com confirmação. O administrador também tem **"Voltar para…"**, uma etapa por vez, e numa demanda entregue **"Reabrir"**.

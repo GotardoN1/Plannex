@@ -2,11 +2,11 @@
 // Só é usado quando o Worker roda com DEMO=true (o "plannex-demo"); a Central real nunca chama isto.
 
 export const PERFIS_DEMO = [
-  { id: 1, usuario: 'carla', nome: 'Carla Mendes', papel: 'admin', dica: 'Administradora: vê tudo, inclusive valores, pagamentos, arquivo e equipe.' },
-  { id: 2, usuario: 'paulo', nome: 'Paulo Andrade', papel: 'admin', dica: 'Administrador: distribui as demandas entre a equipe e cuida das notas fiscais.' },
-  { id: 3, usuario: 'fernanda', nome: 'Fernanda Lima', papel: 'funcionario', dica: 'Funcionária: só vê as demandas em que é responsável, sem valores nem pagamentos.' },
-  { id: 4, usuario: 'diego', nome: 'Diego Rocha', papel: 'funcionario', dica: 'Funcionário: anota e avança as demandas dele até concluir. Não vê notas nem ordens de serviço.' },
-  { id: 5, usuario: 'juliana', nome: 'Juliana Prado', papel: 'funcionario', dica: 'Funcionária recém-chegada: poucas demandas, uma delas atrasada.' },
+  { id: 1, usuario: 'carla', area: 'Economista', nome: 'Carla Mendes', papel: 'admin', dica: 'Administradora: vê tudo, inclusive valores, pagamentos, arquivo e equipe.' },
+  { id: 2, usuario: 'paulo', area: 'Administrativo', nome: 'Paulo Andrade', papel: 'admin', dica: 'Administrador: distribui as demandas entre a equipe e cuida das notas fiscais.' },
+  { id: 3, usuario: 'fernanda', area: 'Economista', nome: 'Fernanda Lima', papel: 'funcionario', dica: 'Funcionária: só vê as demandas em que é responsável, sem valores nem pagamentos.' },
+  { id: 4, usuario: 'diego', area: 'Advogado', nome: 'Diego Rocha', papel: 'funcionario', dica: 'Funcionário: anota e avança as demandas dele até concluir. Não vê notas nem ordens de serviço.' },
+  { id: 5, usuario: 'juliana', area: 'T.I.', nome: 'Juliana Prado', papel: 'funcionario', dica: 'Funcionária recém-chegada: poucas demandas, uma delas atrasada.' },
 ];
 
 const NOMES = [
@@ -188,8 +188,8 @@ export async function resetarDemo(env) {
     // Mantém os contadores de limite da própria demonstração.
     env.DB.prepare("DELETE FROM tentativas WHERE chave NOT LIKE 'demo-%'"),
     env.DB.prepare(`DELETE FROM usuarios WHERE id NOT IN (${ids})`),
-    env.DB.prepare(inserir('usuarios', PERFIS_DEMO.map(p => ({ id: p.id, usuario: p.usuario, nome: p.nome, papel: p.papel, senha_hash: 'demo-sem-senha' })))
-      + ' ON CONFLICT (id) DO UPDATE SET usuario = excluded.usuario, nome = excluded.nome, papel = excluded.papel, senha_hash = excluded.senha_hash, apelido = NULL, tema = \'escuro\''),
+    env.DB.prepare(inserir('usuarios', PERFIS_DEMO.map(p => ({ id: p.id, usuario: p.usuario, nome: p.nome, papel: p.papel, area: p.area, senha_hash: 'demo-sem-senha' })))
+      + ' ON CONFLICT (id) DO UPDATE SET usuario = excluded.usuario, nome = excluded.nome, papel = excluded.papel, senha_hash = excluded.senha_hash, area = excluded.area, apelido = NULL, tema = \'escuro\''),
     env.DB.prepare(inserir('contatos', contatos)),
     env.DB.prepare(inserir('movimentacoes', movimentacoes)),
     env.DB.prepare(inserir('notas', notas)),

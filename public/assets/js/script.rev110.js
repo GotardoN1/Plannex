@@ -383,7 +383,8 @@ const contactPlanOptions = {
   ],
   automacao: [
     { value: 'Automação Pontual', title: 'Automação Pontual', price: 'R$199,90', detail: 'Criação, melhoria ou automação com escopo definido.' },
-    { value: 'Pacote Evolução', title: 'Pacote Evolução', price: 'R$399,90', detail: '4 demandas no total: 2 planilhas ou fluxos principais + 2 adições. Contratadas separadamente, custariam R$599,80 — economia de R$199,90.' }
+    { value: 'Pacote Evolução', title: 'Pacote Evolução', price: 'R$399,90', detail: '4 demandas no total: 2 planilhas ou fluxos principais + 2 adições. Contratadas separadamente, custariam R$599,80 — economia de R$199,90.' },
+    { value: 'Automação personalizada', title: 'Automação personalizada', price: 'Sob Orçamento', detail: 'Projetos maiores, várias planilhas conectadas ou integrações sob medida.' }
   ]
 };
 const contactDocumentExamples = {

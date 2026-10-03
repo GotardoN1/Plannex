@@ -106,6 +106,7 @@ async function api(request, env, url) {
 
   if (pathname === '/api/sessao' && metodo === 'GET') return json({ usuario, demo: emDemo(env) });
   if (pathname === '/api/central' && metodo === 'GET') return central(env, usuario);
+  if (pathname === '/api/atividade' && metodo === 'GET') return atividade(env, usuario, new URL(request.url).searchParams);
   if (pathname === '/api/senha' && metodo === 'POST') return trocarSenha(request, env, usuario);
   if (pathname === '/api/eu' && metodo === 'PATCH') return salvarPreferencias(request, env, usuario);
   if (pathname === '/api/contatos' && metodo === 'POST') return admin ? cadastrarContato(request, env, usuario) : negado();
@@ -315,7 +316,7 @@ async function usuarioDaSessao(request, env) {
   const token = lerCookie(request, COOKIE_SESSAO);
   if (!token) return null;
   return env.DB.prepare(
-    `SELECT u.id, u.usuario, u.nome, u.papel, u.apelido, u.tema FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
+    `SELECT u.id, u.usuario, u.nome, u.papel, u.apelido, u.tema, u.area FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
      WHERE s.token_hash = ? AND s.expira_em > ${AGORA_SQL}`
   ).bind(await sha256(token)).first();
 }
@@ -346,6 +347,7 @@ async function criarUsuario(request, env, autor) {
   const nome = limparTexto(dados?.nome, 80);
   const senha = String(dados?.senha || '');
   const papel = PAPEIS.includes(dados?.papel) ? dados.papel : 'funcionario';
+  const area = limparTexto(dados?.area, 30) || null;
   if (!/^[a-z0-9._-]{3,60}$/.test(login)) return json({ erro: 'O usuário aceita letras, números, ponto, hífen e sublinhado (3 a 60).' }, 400);
   if (nome.length < 2) return json({ erro: 'Informe o nome.' }, 400);
   if (senha.length < 10) return json({ erro: 'A senha precisa ter pelo menos 10 caracteres.' }, 400);
@@ -353,8 +355,8 @@ async function criarUsuario(request, env, autor) {
   const existe = await env.DB.prepare('SELECT id FROM usuarios WHERE usuario = ?').bind(login).first();
   if (existe) return json({ erro: 'Já existe alguém com esse usuário.' }, 409);
 
-  await env.DB.prepare('INSERT INTO usuarios (usuario, nome, senha_hash, papel) VALUES (?, ?, ?, ?)')
-    .bind(login, nome, await gerarHashSenha(senha), papel).run();
+  await env.DB.prepare('INSERT INTO usuarios (usuario, nome, senha_hash, papel, area) VALUES (?, ?, ?, ?, ?)')
+    .bind(login, nome, await gerarHashSenha(senha), papel, area).run();
   console.log(`usuário ${login} (${papel}) criado por ${autor.usuario}`);
   return json({ ok: true }, 201);
 }
@@ -375,6 +377,19 @@ async function alterarUsuario(request, env, autor, id) {
     const nome = limparTexto(dados.nome, 80);
     if (nome.length < 2) return json({ erro: 'Informe o nome completo.' }, 400);
     escritas.push(env.DB.prepare('UPDATE usuarios SET nome = ? WHERE id = ?').bind(nome, id));
+  }
+  // Usuário de login: o administrador pode trocar o de qualquer pessoa (a senha continua a mesma).
+  if ('usuario' in dados) {
+    if (emDemo(env)) return json({ erro: 'Na demonstração, o usuário de login dos perfis não muda.' }, 403);
+    const login = limparTexto(dados.usuario, 60).toLowerCase();
+    if (!/^[a-z0-9._-]{3,60}$/.test(login)) return json({ erro: 'O usuário aceita letras, números, ponto, hífen e sublinhado (3 a 60).' }, 400);
+    const outro = await env.DB.prepare('SELECT id FROM usuarios WHERE usuario = ? AND id <> ?').bind(login, id).first();
+    if (outro) return json({ erro: 'Já existe alguém com esse usuário.' }, 409);
+    escritas.push(env.DB.prepare('UPDATE usuarios SET usuario = ? WHERE id = ?').bind(login, id));
+  }
+  // Equipe/área (T.I., economista, advogado...).
+  if ('area' in dados) {
+    escritas.push(env.DB.prepare('UPDATE usuarios SET area = ? WHERE id = ?').bind(limparTexto(dados.area, 30) || null, id));
   }
   if (!escritas.length) return json({ ok: true });
   await env.DB.batch(escritas);
@@ -452,12 +467,37 @@ async function removerUsuario(env, autor, id) {
 
 // ---------- Central ----------
 
+// Movimentações e anotações, das mais novas para as mais antigas. O funcionário vê só as das demandas dele
+// (e nunca as anotações restritas). Parâmetros: [id do funcionário], limite, deslocamento.
+function consultaAtividade(env, usuario, limite, deslocamento) {
+  const admin = eAdmin(usuario);
+  const filtro = admin ? '' : 'WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL';
+  const [pLimite, pDeslocamento] = admin ? ['?1', '?2'] : ['?2', '?3'];
+  const consulta = env.DB.prepare(
+    `SELECT * FROM (
+       SELECT 'etapa' AS tipo, m.contato_id, c.nome AS contato, u.nome AS usuario, m.de, m.para, NULL AS texto, m.quando
+       FROM movimentacoes m JOIN contatos c ON c.id = m.contato_id LEFT JOIN usuarios u ON u.id = m.usuario_id ${filtro}
+       UNION ALL
+       SELECT n.tipo, n.contato_id, c.nome, u.nome, NULL, NULL, n.texto, n.criado_em
+       FROM notas n JOIN contatos c ON c.id = n.contato_id LEFT JOIN usuarios u ON u.id = n.usuario_id
+       ${admin ? '' : `${filtro} AND n.restrito = 0`}
+     ) ORDER BY quando DESC LIMIT ${pLimite} OFFSET ${pDeslocamento}`
+  );
+  return admin ? consulta.bind(limite, deslocamento) : consulta.bind(usuario.id, limite, deslocamento);
+}
+
+// "Ver mais" da atividade recente: as próximas, a partir de onde a tela parou.
+async function atividade(env, usuario, parametros) {
+  const deslocamento = Math.max(0, Math.min(100000, Number(parametros.get('a_partir')) || 0));
+  const limite = 40;
+  const { results } = await consultaAtividade(env, usuario, limite + 1, deslocamento).all();
+  return json({ itens: results.slice(0, limite), temMais: results.length > limite });
+}
+
 // Tudo que a Central precisa numa chamada só. O funcionário recebe só o que é dele.
 async function central(env, usuario) {
   const admin = eAdmin(usuario);
   const filtroContatos = admin ? '' : 'WHERE responsavel_id = ?1 AND arquivado_em IS NULL';
-
-  const filtroRecentes = admin ? '' : 'WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL';
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
   const [contatos, usuarios, recentes, etiquetas, moldes] = await env.DB.batch([
@@ -469,17 +509,8 @@ async function central(env, usuario) {
               (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${admin ? '' : "AND a.categoria IN ('cliente', 'entrega')"}) AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
     )),
-    env.DB.prepare(`SELECT id, nome, apelido, papel${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
-    ligar(env.DB.prepare(
-      `SELECT * FROM (
-         SELECT 'etapa' AS tipo, m.contato_id, c.nome AS contato, u.nome AS usuario, m.de, m.para, NULL AS texto, m.quando
-         FROM movimentacoes m JOIN contatos c ON c.id = m.contato_id LEFT JOIN usuarios u ON u.id = m.usuario_id ${filtroRecentes}
-         UNION ALL
-         SELECT n.tipo, n.contato_id, c.nome, u.nome, NULL, NULL, n.texto, n.criado_em
-         FROM notas n JOIN contatos c ON c.id = n.contato_id LEFT JOIN usuarios u ON u.id = n.usuario_id
-         ${admin ? '' : `${filtroRecentes} AND n.restrito = 0`}
-       ) ORDER BY quando DESC LIMIT 30`
-    )),
+    env.DB.prepare(`SELECT id, nome, apelido, papel, area${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
+    consultaAtividade(env, usuario, 30, 0),
     env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
     env.DB.prepare(admin
       ? 'SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id'

@@ -29,6 +29,7 @@
     </label>
     <p class="aviso" id="login-erro" role="alert"></p>
     <button class="botao botao--primario botao--largo" type="submit" id="login-botao">Entrar</button>
+    <a class="login-voltar" href="/" id="login-voltar">← Voltar para a página inicial</a>
   </form>
   <div class="demo-entrada" id="demo-entrada" hidden></div>
 </main>
@@ -39,9 +40,8 @@
 <!-- Central -->
 <div class="app" id="tela-app" hidden>
   <aside class="lateral">
-    <a class="marca" href="#/visao" aria-label="Central Plannex, visão geral">
+    <a class="marca" href="#/visao" aria-label="Plannex, visão geral">
       <img src="../assets/img/logo-plannex-full-white.rev83.png?v=83" alt="Plannex" width="2048" height="385">
-      <span>Central</span>
     </a>
     <nav class="nav" aria-label="Seções da Central">
       <div class="nav-grupo">
@@ -58,6 +58,7 @@
         <button type="button" class="nav-item" data-tela="arquivo" data-icone="arquivo"><span class="nav-rotulo">Arquivo</span></button>
       </div>
       <div class="nav-grupo nav-grupo--fim">
+        <a class="nav-item nav-item--site" href="/" data-icone="casa" id="ir-para-site"><span class="nav-rotulo">Ir para o site</span></a>
         <button type="button" class="nav-item" data-tela="preferencias" data-icone="preferencias"><span class="nav-rotulo">Preferências</span></button>
       </div>
     </nav>

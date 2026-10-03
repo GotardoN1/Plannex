@@ -21,10 +21,16 @@
 /assets/css/simples.rev1.css
   Cache-Control: public, max-age=31536000, immutable
 
+/assets/css/aparencia.rev1.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/js/aparencia.rev1.js
+  Cache-Control: public, max-age=31536000, immutable
+
 /assets/css/noscript.css
   Cache-Control: public, max-age=86400
 
-/assets/js/script.rev109.js
+/assets/js/script.rev110.js
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/js/calculos-ui.rev91.js

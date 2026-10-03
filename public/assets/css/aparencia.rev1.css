@@ -1,0 +1,170 @@
+/* Plannex · aparência do site: pílula de modo noturno/visual, modo claro e ajustes do formulário.
+   Carregado depois do CSS do site e do visual simples. */
+
+/* ---------- Formulário: a opção "personalizada" ocupa a largura de duas ---------- */
+.contact-plan-choices > .contact-plan-choice:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* ---------- Pílula no canto inferior esquerdo ---------- */
+.aparencia {
+  position: fixed; left: 16px; bottom: 16px; z-index: 40;
+  display: flex; align-items: center; gap: 4px; padding: 4px;
+  border: 1px solid #3a4f6c; border-radius: 999px; background: #111e30f2;
+  box-shadow: 0 8px 24px #02060d66; font-family: inherit;
+}
+.aparencia button { font: inherit; cursor: pointer; }
+.aparencia-tema {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: #f29a63;
+}
+.aparencia-tema:hover { background: #1c3150; }
+.aparencia-tema svg { width: 17px; height: 17px; }
+.aparencia-visual { display: flex; gap: 2px; padding-left: 4px; border-left: 1px solid #2a3b53; }
+.aparencia-visual button {
+  min-height: 28px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent;
+  color: #b1bed0; font-size: 12px; font-weight: 600;
+}
+.aparencia-visual button:hover { color: #eef3f8; }
+.aparencia-visual button[aria-pressed="true"] { background: #1c3150; color: #eef3f8; }
+.aparencia :focus-visible { outline: 2px solid #f29a63; outline-offset: 2px; }
+@media (max-width: 760px) {
+  .aparencia { left: 10px; bottom: 10px; }
+  .aparencia-visual button { padding: 0 9px; }
+}
+@media print { .aparencia { display: none; } }
+
+/* =====================================================================
+   Modo claro
+   ===================================================================== */
+:root[data-tema="claro"] {
+  color-scheme: light;
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #eef2f7;
+  --surface-3: #e2e8f0;
+  --ink: #142032;
+  --muted: #45556b;
+  --subtle: #66768b;
+  --line: #d8dfe9;
+  --line-forte: #c2ccd9;
+  --accent: #d96f2e;
+  --accent-forte: #c25f22;
+  --sobre-accent: #101925;
+  --green: #17804a;
+}
+[data-tema="claro"], [data-tema="claro"] body { background: #f3f5f9 !important; color: #142032; }
+[data-tema="claro"] .bg-glow { display: none !important; }
+[data-tema="claro"] .brand img, [data-tema="claro"] .brand--footer img { filter: invert(1) hue-rotate(180deg) saturate(1.4); }
+
+/* Superfícies: tudo que era azul-marinho vira branco com borda clara (sem degradês nem brilhos). */
+[data-tema="claro"] :is(.calculation-scope-item, .calculation-scope-summary, .calc-price-card, .plan, .contact-request-form,
+    .contact-help-card, .automation-overview, .transform-panel, .simulation, .calculation-workbook, .home-process-compact,
+    .secondary-vertical, .delivery-feature, .report-document-stage, .grupo-calculos, .fase, .calc-garantia,
+    .automation-page article, .hero-price-preview, .delivery-security, .contact-plan-choice, .contact-service-choice,
+    .live-report, .report-document, .automation-demo-panel) {
+  background: #ffffff !important; background-image: none !important; border-color: #d3dbe6 !important;
+  box-shadow: 0 6px 20px #1b2a400d !important; backdrop-filter: none !important;
+}
+[data-tema="claro"] :is(.calc-offer-price-zone, .calculation-scope-notes span, .delivery-checks li, .home-process-compact li,
+    .automation-preview-card, .secondary-mini-ui, .contact-attachment-choice, .memory-scroll, .calculation-scope-tags span,
+    .secondary-compact-tags span, .calculation-scope-item > span, .delivery-icon, .sheet-tab, .workbook-title, .formula-bar,
+    .demo-modes, .demo-pipeline > span, .simulation-header) {
+  background: #f3f5f9 !important; background-image: none !important; border-color: #d8dfe9 !important; box-shadow: none !important;
+}
+[data-tema="claro"] :is(.automation-page article, .hero-price-preview, .home-process-compact, .secondary-vertical, section#contato)::before,
+[data-tema="claro"] :is(.automation-page article, .hero-price-preview, .home-process-compact, .secondary-vertical, section#contato)::after {
+  background-image: none !important; box-shadow: none !important;
+}
+[data-tema="claro"] header, [data-tema="claro"] .site-footer { background: #f3f5f9 !important; border-color: #d8dfe9 !important; }
+[data-tema="claro"] .site-footer { border-top: 1px solid #d8dfe9 !important; }
+[data-tema="claro"] .footer-bottom { border-top-color: #d8dfe9 !important; }
+[data-tema="claro"] hr, [data-tema="claro"] .section-divider { border-color: #d8dfe9 !important; background: #d8dfe9 !important; }
+
+/* Texto: escuro sobre o claro. */
+[data-tema="claro"] :is(h1, h2, h3, h4, strong, b, th, legend, .page-title, .calc-price strong, .tile-valor) { color: #142032 !important; }
+[data-tema="claro"] :is(p, li, small, dd, td, label, figcaption, caption, .lead, .footer-summary, .footer-column a, .footer-bottom small) { color: #45556b !important; }
+[data-tema="claro"] :is(.eyebrow, .report-label, .text-link, .page-title em, .footer-column h3) { color: #b4551a !important; }
+[data-tema="claro"] .automation-page :is(.eyebrow, .page-title em, .text-link) { color: #2459a0 !important; }
+[data-tema="claro"] header nav a { color: #45556b !important; }
+[data-tema="claro"] header nav a:is(:hover, [aria-current="page"], .is-active) { color: #142032 !important; }
+
+/* Botões e campos. */
+[data-tema="claro"] .button:not(.outline):not(.contact-whatsapp-button) { background: #d96f2e !important; border-color: #d96f2e !important; color: #101925 !important; }
+[data-tema="claro"] .button.outline { background: #ffffff !important; border-color: #c2ccd9 !important; color: #142032 !important; }
+[data-tema="claro"] .button.contact-whatsapp-button, [data-tema="claro"] #whatsapp.button { background: #e5f7ec !important; border-color: #9fd8b6 !important; color: #146b3a !important; }
+[data-tema="claro"] :is(.contact-field input, .contact-field textarea, .contact-field select, input, textarea, select) {
+  background-color: #ffffff !important; border-color: #c2ccd9 !important; color: #142032 !important;
+}
+[data-tema="claro"] :is(input, textarea)::placeholder { color: #8a98ab !important; }
+
+/* Tabelas e planilhas de demonstração. */
+[data-tema="claro"] :is(table, thead, tbody, tfoot, tr) { background: transparent !important; }
+[data-tema="claro"] :is(th, td) { border-color: #e2e8f0 !important; }
+[data-tema="claro"] .footer-login { color: #142032; border-color: #d96f2e80; }
+
+/* Pílula no claro. */
+[data-tema="claro"] .aparencia { border-color: #c2ccd9; background: #fffffff2; box-shadow: 0 8px 24px #1b2a401f; }
+[data-tema="claro"] .aparencia-tema { color: #b4551a; }
+[data-tema="claro"] .aparencia-tema:hover, [data-tema="claro"] .aparencia-visual button[aria-pressed="true"] { background: #e2e8f0; color: #142032; }
+[data-tema="claro"] .aparencia-visual { border-left-color: #d8dfe9; }
+[data-tema="claro"] .aparencia-visual button { color: #45556b; }
+
+/* Modo claro: demonstrações (laboratório de cálculo e fluxo de automação). */
+[data-tema="claro"] .skip-link { color: #101925 !important; }
+[data-tema="claro"] .hero-price-preview :is(em, span, small) { color: #45556b !important; }
+[data-tema="claro"] :is(.calc-mode-content, .demo-pipeline, .simulation-bottom, .sheet-frame, .sheet-caption, .secondary-mini-ui-row) {
+  background: #ffffff !important; border-color: #d8dfe9 !important;
+}
+[data-tema="claro"] .live-sheet :is(th, td) { background-color: #ffffff !important; color: #142032 !important; }
+[data-tema="claro"] .live-sheet thead th { background-color: #f3f5f9 !important; color: #45556b !important; }
+[data-tema="claro"] .live-sheet tr:is([class], [data-state]) :is(th, td), [data-tema="claro"] .live-sheet td.result-ready { background-color: #fff4ec !important; }
+[data-tema="claro"] .live-sheet td.err, [data-tema="claro"] .sheet-frame td.err { background-color: #fde8e8 !important; color: #9b2c2c !important; }
+[data-tema="claro"] .demo-modes button { color: #45556b !important; background: transparent !important; }
+[data-tema="claro"] .demo-modes button[aria-pressed="true"] { background: #142032 !important; color: #ffffff !important; }
+[data-tema="claro"] :is(#calc-workbook-state, #calc-toolbar-symbol, #calc-formula-value, #calc-sheet-name, .formula-bar code) { color: #b4551a !important; }
+[data-tema="claro"] .calc-symbol { background: #d96f2e !important; color: #ffffff !important; }
+[data-tema="claro"] :is(.sim-control, .automation-demo-restart) { background: #ffffff !important; border-color: #c2ccd9 !important; color: #142032 !important; }
+[data-tema="claro"] .sim-control.primary-control { background: #e3f5ea !important; border-color: #9fd8b6 !important; color: #146b3a !important; }
+[data-tema="claro"] .delivery-checks em { color: #5b6b80 !important; }
+[data-tema="claro"] .calculation-scope-notes span { color: #45556b !important; }
+[data-tema="claro"] :is(.secondary-mini-ui-title, .secondary-mini-ui-status) { color: #2459a0 !important; }
+[data-tema="claro"] .mini-ui-step { background: #e6f0fc !important; color: #2459a0 !important; }
+[data-tema="claro"] :is(.transform-state, .service-icon) { background: #f3f5f9 !important; color: #45556b !important; }
+[data-tema="claro"] .transform-state.state-manual { background: #fde8e8 !important; color: #9b2c2c !important; }
+[data-tema="claro"] :is(.sheet-tab span, .automation-preview-meta, .plan-price-caption, .plan small, .contact-textarea-example) { color: #5b6b80 !important; }
+[data-tema="claro"] .automation-preview-card del, [data-tema="claro"] .plan del { color: #66768b !important; }
+[data-tema="claro"] .automation-preview-saving { color: #2459a0 !important; }
+[data-tema="claro"] .transform-panel span:not(.transform-state):not(.service-icon) { color: #2459a0; }
+[data-tema="claro"] .sheet-frame th { background-color: #f3f5f9 !important; color: #45556b !important; }
+[data-tema="claro"] body.rev100-system #automacao .support-plans-two :is(.plan-price-caption, .plan .plan-price-top > small) { color: #5b6b80 !important; }
+[data-tema="claro"] .automation-overview-head span { color: #2459a0 !important; }
+[data-tema="claro"] .calc-price-promo span { color: #a14d16 !important; background: #fff1e7 !important; border-color: #f0c9ac !important; }
+[data-tema="claro"] .calc-pacote-card .calc-price-promo span { color: #142032 !important; background: #eef2f7 !important; border-color: #c2ccd9 !important; }
+[data-tema="claro"] :is(.automation-preview-card, .plan) del { color: #5b6b80 !important; }
+[data-tema="claro"] .automation-path-step > span { color: #2459a0 !important; }
+[data-tema="claro"] body.rev100-system #automacao :is(.plan-price-promo del, .price del) { color: #5b6b80 !important; }
+[data-tema="claro"] .delivery-security span { color: #45556b !important; }
+[data-tema="claro"] .automation-snapshot li span { color: #45556b !important; }
+[data-tema="claro"] .home-process-steps li > span { color: #b4551a !important; }
+[data-tema="claro"] :is(.calculation-scope-tags, .secondary-compact-tags) span { color: #45556b !important; }
+[data-tema="claro"] .secondary-mini-ui-foot span { color: #45556b !important; }
+[data-tema="claro"] .transform-issues span { background: #f3f5f9 !important; border-color: #d8dfe9 !important; color: #45556b !important; }
+[data-tema="claro"] .calc-offer-points span { color: #45556b !important; }
+[data-tema="claro"] body.rev100-system #automacao .plan-price-promo span { color: #2459a0 !important; background: #e6f0fc !important; border-color: #b8d0f0 !important; }
+[data-tema="claro"] body.rev100-system #automacao .plan-price-main, [data-tema="claro"] body.rev100-system #automacao .plan-price-main span { color: #142032 !important; }
+:root:not([data-tema="claro"]) :is(.contact-textarea-example, .contact-privacy-note) { color: #8a9bb3 !important; }
+
+/* Modo claro: círculos de seleção do formulário (brancos; o escolhido na cor do serviço). */
+[data-tema="claro"] :is(.contact-service-radio, .contact-plan-radio, .contact-attachment-radio) {
+  background: #ffffff !important; border-color: #9aa8bb !important; box-shadow: inset 0 0 0 4px #ffffff !important;
+}
+[data-tema="claro"] :is(.contact-service-choice, .contact-plan-choice, .contact-attachment-choice).is-selected :is(.contact-service-radio, .contact-plan-radio, .contact-attachment-radio) {
+  background: #d96f2e !important; border-color: #d96f2e !important; box-shadow: inset 0 0 0 4px #ffffff !important;
+}
+[data-tema="claro"] .contact-service-choice[data-contact-choice="automacao"].is-selected .contact-service-radio,
+[data-tema="claro"] .contact-plan-fieldset[data-service="automacao"] .contact-plan-choice.is-selected .contact-plan-radio,
+[data-tema="claro"] body[data-contact-theme="automacao"] .contact-attachment-choice.is-selected .contact-attachment-radio {
+  background: #2f6fc0 !important; border-color: #2f6fc0 !important;
+}
+[data-tema="claro"] :is(.contact-service-choice, .contact-plan-choice).is-selected { border-color: #d96f2e !important; background: #fff8f3 !important; }
+[data-tema="claro"] .contact-service-choice[data-contact-choice="automacao"].is-selected,
+[data-tema="claro"] .contact-plan-fieldset[data-service="automacao"] .contact-plan-choice.is-selected { border-color: #2f6fc0 !important; background: #f3f8fe !important; }

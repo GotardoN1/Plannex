@@ -1104,3 +1104,26 @@ body.com-demo .barra { top: 40px; }
 .pref-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); font-weight: 600; font-size: 14px; }
 .pref-linha > span:first-child { display: inline-flex; align-items: center; gap: 10px; }
 .pref-linha > span:first-child .icone { color: var(--destaque); }
+
+/* Marca: só o logo, no meio da lateral. */
+.marca { justify-content: center; padding: 0; }
+.marca img { width: 118px; }
+/* "Ir para o site" é um link com cara de item do menu. */
+a.nav-item { text-decoration: none; }
+/* Login: voltar para a página inicial. */
+.login-voltar { justify-self: center; color: var(--muted); font-size: 13px; text-decoration: none; }
+.login-voltar:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Equipe: área ao lado do tipo de acesso e formulário de dados da pessoa. */
+.pessoa-acoes { align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.area-equipe { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--line-forte); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.area-equipe .icone { width: 13px; height: 13px; }
+.pessoa-dados { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; padding-top: 4px; }
+.pessoa-dados .form-acoes { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+@media (max-width: 760px) { .pessoa-dados { grid-template-columns: minmax(0, 1fr); } }
+
+/* Atividade recente: "Ver mais". */
+.atividade-caixa { display: grid; gap: 12px; }
+.atividade-mais { justify-self: stretch; border: 1px dashed var(--line-forte) !important; }
+.atividade-fim { color: var(--subtle); font-size: 12px; text-align: center; }
+[data-tema="claro"] .login { background: var(--bg); }

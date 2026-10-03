@@ -4,6 +4,23 @@ import { estado, acoes, ativos } from './estado.js';
 import { api } from './api.js';
 import { el, botao, icone, avatar, dataCurta, PAPEIS, hoje, diaDe, nomeExibicao } from './util.js';
 
+// Sugestões de equipe/área; dá para escrever outra.
+const AREAS = ['Administrativo', 'Advogado', 'Contador', 'Economista', 'Financeiro', 'Comercial', 'T.I.'];
+
+function listaDeAreas() {
+  const lista = el('datalist');
+  lista.id = 'areas-equipe';
+  const usadas = estado.usuarios.map(u => u.area).filter(Boolean);
+  for (const area of [...new Set([...AREAS, ...usadas])].sort((a, b) => a.localeCompare(b))) {
+    const opcao = el('option');
+    opcao.value = area;
+    lista.append(opcao);
+  }
+  return lista;
+}
+
+const etiquetaArea = u => (u.area ? el('span', 'area-equipe', icone('equipe'), u.area) : null);
+
 export function desenharEquipe(raiz) {
   const cabecalho = el('header', 'tela-topo',
     el('div', '', el('h1', '', 'Equipe')));
@@ -14,7 +31,7 @@ export function desenharEquipe(raiz) {
     el('div', 'bloco-topo', el('h2', '', `${titulo} (${pessoas.length})`)),
     pessoas.length ? el('ul', 'equipe', pessoas.map(pessoa)) : el('p', 'vazio-mini', 'Ninguém com este acesso ainda.'));
 
-  raiz.replaceChildren(cabecalho,
+  raiz.replaceChildren(cabecalho, listaDeAreas(),
     el('div', 'equipe-grade',
       el('div', 'equipe-lado', grupo('Administradores', admins), grupo('Funcionários', funcionarios)),
       el('div', 'equipe-lado', cargaDaEquipe(), formularioNovo())));
@@ -23,18 +40,18 @@ export function desenharEquipe(raiz) {
 function pessoa(u) {
   const voce = u.id === estado.usuario.id;
   const comEla = ativos().filter(c => c.responsavel_id === u.id && c.etapa !== 'entregue').length;
-  const formNome = formularioNome(u);
+  const formNome = formularioDados(u);
   const editarNome = botao('', 'botao--icone botao--fantasma botao--pequeno', () => {
     formNome.hidden = !formNome.hidden;
     if (!formNome.hidden) formNome.querySelector('input').focus();
-  }, { icone: 'editar', titulo: `Alterar o nome completo de ${u.nome}` });
+  }, { icone: 'editar', titulo: `Alterar nome, usuário ou equipe de ${u.nome}` });
   const li = el('li', 'pessoa',
     avatar(u.nome, 'avatar--medio'),
     el('div', 'pessoa-texto',
       el('strong', '', u.nome, editarNome, voce ? el('span', 'voce', 'você') : null),
       el('span', '', [`@${u.usuario}`, u.apelido ? `"${u.apelido}"` : null, `desde ${dataCurta(u.criado_em)}`, `${comEla} ${comEla === 1 ? 'demanda ativa' : 'demandas ativas'}`].filter(Boolean).join(' · '))));
   if (voce) {
-    li.append(el('span', `papel papel--${u.papel}`, icone(u.papel === 'admin' ? 'escudo' : 'usuario'), PAPEIS[u.papel].nome), formNome);
+    li.append(el('div', 'pessoa-acoes', etiquetaArea(u), el('span', `papel papel--${u.papel}`, icone(u.papel === 'admin' ? 'escudo' : 'usuario'), PAPEIS[u.papel].nome)), formNome);
     return li;
   }
 
@@ -100,6 +117,7 @@ function pessoa(u) {
 
   li.append(
     el('div', 'pessoa-acoes',
+      etiquetaArea(u),
       papel,
       botao('Senha', 'botao--fantasma botao--pequeno', () => { formSenha.hidden = !formSenha.hidden; if (!formSenha.hidden) campo.focus(); }, { icone: 'chave', titulo: 'Definir uma senha provisória' }),
       remover),
@@ -108,26 +126,39 @@ function pessoa(u) {
   return li;
 }
 
-function formularioNome(u) {
-  const form = el('form', 'pessoa-senha');
+// Nome completo, usuário de login e equipe. Só o que mudou vai para o servidor.
+function formularioDados(u) {
+  const form = el('form', 'pessoa-dados');
   form.hidden = true;
-  const campo = el('input');
-  campo.maxLength = 80;
-  campo.value = u.nome;
-  campo.autocomplete = 'off';
-  campo.setAttribute('aria-label', `Nome completo de ${u.nome}`);
-  form.append(campo, botao('Salvar nome', 'botao--primario botao--pequeno', null));
-  form.querySelector('button').type = 'submit';
+  const entrada = (rotulo, valor, extras = {}) => {
+    const campo = el('input');
+    campo.value = valor || '';
+    campo.autocomplete = 'off';
+    Object.assign(campo, extras);
+    return [campo, el('label', 'campo', rotulo, campo)];
+  };
+  const [nome, campoNome] = entrada('Nome completo', u.nome, { maxLength: 80 });
+  const [login, campoLogin] = entrada('Usuário (para entrar)', u.usuario, { maxLength: 60, autocapitalize: 'none', spellcheck: false });
+  const [area, campoArea] = entrada('Equipe', u.area, { maxLength: 30, placeholder: 'Ex.: Economista' });
+  area.setAttribute('list', 'areas-equipe');
+  const salvar = botao('Salvar', 'botao--primario botao--pequeno', null);
+  salvar.type = 'submit';
+  form.append(campoNome, campoLogin, campoArea, el('div', 'form-acoes', salvar));
   form.addEventListener('submit', async evento => {
     evento.preventDefault();
-    const nome = campo.value.trim();
-    if (nome === u.nome) { form.hidden = true; return; }
+    const corpo = {};
+    if (nome.value.trim() !== u.nome) corpo.nome = nome.value.trim();
+    if (login.value.trim().toLowerCase() !== u.usuario) corpo.usuario = login.value.trim().toLowerCase();
+    if (area.value.trim() !== (u.area || '')) corpo.area = area.value.trim();
+    if (!Object.keys(corpo).length) { form.hidden = true; return; }
+    salvar.disabled = true;
     try {
-      await api(`/api/usuarios/${u.id}`, { method: 'PATCH', corpo: { nome } });
-      acoes.avisar(`Nome alterado para ${nome}.`);
+      await api(`/api/usuarios/${u.id}`, { method: 'PATCH', corpo });
+      acoes.avisar(corpo.usuario ? `Dados salvos. ${u.nome} agora entra com o usuário "${corpo.usuario}".` : 'Dados salvos.');
       acoes.recarregar();
     } catch (e) {
       acoes.avisar(e.message, 'erro');
+      salvar.disabled = false;
     }
   });
   return form;
@@ -170,6 +201,16 @@ function cargaDaEquipe() {
       : null);
 }
 
+function campoArea() {
+  const entrada = el('input');
+  entrada.name = 'area';
+  entrada.maxLength = 30;
+  entrada.autocomplete = 'off';
+  entrada.placeholder = 'Ex.: Economista, Advogado, T.I.';
+  entrada.setAttribute('list', 'areas-equipe');
+  return el('label', 'campo', 'Equipe', entrada);
+}
+
 function formularioNovo() {
   const form = el('form', 'bloco form-equipe');
   const campo = (rotulo, nome, tipo, extras = {}) => {
@@ -193,6 +234,7 @@ function formularioNovo() {
     el('div', 'bloco-topo', el('h2', '', 'Dar acesso a alguém')),
     campo('Nome', 'nome', 'text', { autocomplete: 'off', maxLength: 80, placeholder: 'Ex.: Maria Souza' }),
     campo('Usuário (para entrar)', 'usuario', 'text', { autocomplete: 'off', maxLength: 60, placeholder: 'Ex.: maria', autocapitalize: 'none', spellcheck: false }),
+    campoArea(),
     campo('Senha provisória', 'senha', 'password', { autocomplete: 'new-password', minLength: 10, placeholder: 'Mínimo de 10 caracteres' }),
     el('fieldset', 'campo', el('legend', '', 'Tipo de acesso'), papeis),
     aviso,
