@@ -7,6 +7,7 @@ import { desenharEntrada } from './entrada.js';
 import { desenharQuadro } from './quadro.js';
 import { desenharAgenda } from './agenda.js';
 import { desenharEquipe } from './equipe.js';
+import { desenharMateriais } from './materiais.js';
 import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema, aplicarVisual, visualGuardado } from './preferencias.js';
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
@@ -24,6 +25,7 @@ const TELAS = {
   arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
   concluidos: { titulo: 'Concluídos', desenhar: raiz => desenharEntrada(raiz, { concluidos: true }) },
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
+  materiais: { titulo: 'Materiais', desenhar: desenharMateriais },
   preferencias: { titulo: 'Preferências', desenhar: desenharPreferencias },
 };
 const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin());
@@ -101,7 +103,7 @@ async function recarregar({ silencioso = false } = {}) {
     const dados = await api('/api/central');
     const admin = dados.usuario.papel === 'admin';
     const novos = idsConhecidos ? dados.contatos.filter(c => !idsConhecidos.has(c.id) && (!admin || c.origem === 'site')) : [];
-    Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, etiquetas: dados.etiquetas || [], moldes: dados.moldes || [], demo: Boolean(dados.demo), atualizadoEm: new Date().toISOString() });
+    Object.assign(estado, { usuario: dados.usuario, contatos: dados.contatos, usuarios: dados.usuarios, recentes: dados.recentes, etiquetas: dados.etiquetas || [], moldes: dados.moldes || [], materiais: dados.materiais || [], demo: Boolean(dados.demo), atualizadoEm: new Date().toISOString() });
     aplicarTema(dados.usuario.tema);
     idsConhecidos = new Set(dados.contatos.map(c => c.id));
     mostrarUsuario();

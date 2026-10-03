@@ -156,7 +156,7 @@ export async function resetarDemo(env) {
   // O KV grátis tem poucas gravações por dia, compartilhadas com a Central real. Por isso os arquivos
   // de exemplo têm chave fixa e só são gravados quando faltam; o reinício apaga só os enviados por visitantes.
   const { results: antigos } = await env.DB.prepare(
-    "SELECT chave FROM arquivos WHERE chave NOT LIKE 'demo/amostra/%' UNION ALL SELECT chave FROM moldes WHERE chave NOT LIKE 'demo/amostra/%'"
+    "SELECT chave FROM arquivos WHERE chave NOT LIKE 'demo/amostra/%' UNION ALL SELECT chave FROM moldes WHERE chave NOT LIKE 'demo/amostra/%' UNION ALL SELECT chave FROM materiais WHERE chave NOT LIKE 'demo/amostra/%'"
   ).all();
   await Promise.all(antigos.map(a => env.ARQUIVOS.delete(a.chave)));
 
@@ -168,6 +168,18 @@ export async function resetarDemo(env) {
     const chave = `demo/amostra/moldes/${m.nome}`;
     if (!(await env.ARQUIVOS.get(chave, { type: 'arrayBuffer' }))) await env.ARQUIVOS.put(chave, m.conteudo);
     return { tipo: m.tipo, nome: m.nome, tamanho: m.conteudo.byteLength, chave, usuario_id: 1 };
+  }));
+
+  // Materiais de exemplo (aba Materiais): uma planilha de índices, um PDF de apresentação e um checklist.
+  const materiais = await Promise.all([
+    { nome: 'Indices-de-correcao-exemplo.csv', descricao: 'Tabela de índices usada nos cálculos de exemplo', tipo: 'text/csv', conteudo: new TextEncoder().encode('﻿Mes;IPCA-E;SELIC\r\nJan/2026;0,42;0,95\r\nFev/2026;0,38;0,88\r\nMar/2026;0,31;0,91'), usuario_id: 1, dias: 20 },
+    { nome: 'Apresentacao-Plannex.pdf', descricao: 'Apresentação curta para enviar a escritórios', tipo: 'application/pdf', conteudo: pdfDeExemplo('Plannex - apresentacao', 'Escritorios parceiros'), usuario_id: 2, dias: 9 },
+    { nome: 'Checklist-de-documentos.pdf', descricao: 'O que pedir ao cliente antes de começar um cálculo', tipo: 'application/pdf', conteudo: pdfDeExemplo('Checklist de documentos', 'Uso interno'), usuario_id: 1, dias: 3 },
+  ].map(async m => {
+    const chave = `demo/amostra/materiais/${m.nome}`;
+    if (!(await env.ARQUIVOS.get(chave, { type: 'arrayBuffer' }))) await env.ARQUIVOS.put(chave, m.conteudo);
+    const quando = iso(agora - m.dias * DIA);
+    return { nome: m.nome, descricao: m.descricao, tipo: m.tipo, tamanho: m.conteudo.byteLength, chave, usuario_id: m.usuario_id, criado_em: quando, atualizado_em: quando };
   }));
 
   const arquivosComChave = await Promise.all(arquivos.map(async a => {
@@ -196,6 +208,8 @@ export async function resetarDemo(env) {
     // Etiquetas pessoais de exemplo: cada perfil vê só as suas.
     env.DB.prepare(inserir('etiquetas', ETIQUETAS_EXEMPLO)),
     env.DB.prepare('DELETE FROM moldes'),
+    env.DB.prepare('DELETE FROM materiais'),
+    env.DB.prepare(inserir('materiais', materiais)),
     env.DB.prepare(inserir('moldes', moldes)),
     env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: a.categoria, nome: a.nome, tipo: a.nome.endsWith('.csv') ? 'text/csv' : 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),
   ]);

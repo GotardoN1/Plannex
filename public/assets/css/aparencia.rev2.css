@@ -168,3 +168,75 @@
 [data-tema="claro"] :is(.contact-service-choice, .contact-plan-choice).is-selected { border-color: #d96f2e !important; background: #fff8f3 !important; }
 [data-tema="claro"] .contact-service-choice[data-contact-choice="automacao"].is-selected,
 [data-tema="claro"] .contact-plan-fieldset[data-service="automacao"] .contact-plan-choice.is-selected { border-color: #2f6fc0 !important; background: #f3f8fe !important; }
+
+/* =====================================================================
+   Blocos novos da página inicial nos dois visuais
+   ===================================================================== */
+
+/* "Cálculos que atendemos": cada item em uma linha, todos os grupos com o mesmo tamanho. */
+.grupos-calculos .grupo-calculos li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grupos-calculos { align-items: stretch; }
+.calculos-outros { margin: 16px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+.calculos-outros .text-link { margin-left: 4px; color: var(--accent); font-weight: 700; text-decoration: none; }
+.calculos-outros .text-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Visual Sofisticado (o original do site, sem o simples.rev1.css) ---------- */
+[data-visual="site"] .calc-fases, [data-visual="site"] .calc-atendidos { margin-top: clamp(40px, 5vw, 64px); }
+[data-visual="site"] .fases-calculo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0 0; padding: 0; list-style: none; }
+[data-visual="site"] .grupos-calculos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+[data-visual="site"] :is(.fase, .grupo-calculos) {
+  border: 1px solid rgba(78, 102, 132, .52); border-radius: 16px;
+  background: linear-gradient(rgba(16, 30, 48, .84), rgba(11, 24, 39, .84));
+  box-shadow: 0 18px 44px rgba(2, 9, 18, .14), inset 0 1px 0 rgba(255, 255, 255, .024);
+}
+[data-visual="site"] .fase { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; }
+[data-visual="site"] .fase-numero {
+  display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #f6b083, #f29a63); color: #101925; font-size: 14px; font-weight: 800;
+  box-shadow: 0 6px 16px rgba(242, 154, 99, .28);
+}
+[data-visual="site"] .fase strong { display: block; color: var(--ink); font-size: 16px; }
+[data-visual="site"] .fase small { display: block; margin-top: 3px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+[data-visual="site"] .grupo-calculos { padding: 20px 22px; }
+[data-visual="site"] .grupo-calculos h3 { margin: 0 0 12px; color: var(--ink); font-size: 17px; font-weight: 700; }
+[data-visual="site"] .grupo-calculos ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+[data-visual="site"] .grupo-calculos li { position: relative; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+[data-visual="site"] .grupo-calculos li::before {
+  content: ""; position: absolute; left: 2px; top: .5em; width: 8px; height: 8px; border-radius: 50%;
+  background: #f29a63; box-shadow: 0 0 0 3px rgba(242, 154, 99, .18);
+}
+/* Preços no Sofisticado: dois por linha e o personalizado ocupando a largura dos dois. */
+[data-visual="site"] #calculos .calc-offer-pair { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px !important; }
+[data-visual="site"] #calculos .calc-offer-pair .calc-custom-card { grid-column: 1 / -1 !important; width: auto !important; max-width: none !important; justify-self: stretch !important; }
+[data-visual="site"] #calculos .calc-offer-pair .calc-price-card { height: auto !important; min-height: 0 !important; }
+@media (max-width: 980px) {
+  [data-visual="site"] .grupos-calculos, [data-visual="site"] #calculos .calc-offer-pair { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (max-width: 760px) {
+  [data-visual="site"] .fases-calculo { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Modo claro nos blocos novos (os dois visuais). */
+[data-tema="claro"] :is(.fase, .grupo-calculos) { background: #ffffff !important; border-color: #c3cdda !important; box-shadow: 0 6px 20px #1b2a400d !important; }
+[data-tema="claro"] .grupo-calculos li { color: #45556b !important; }
+[data-tema="claro"] .grupo-calculos li::before { background: #d96f2e !important; box-shadow: none !important; }
+[data-tema="claro"] .fase-numero { background: #d96f2e !important; color: #101925 !important; box-shadow: none !important; }
+[data-tema="claro"] .calculos-outros { color: #45556b; }
+[data-tema="claro"] .calculos-outros .text-link { color: #b4551a !important; }
+
+/* Modo claro: bordas um pouco mais marcadas, para ver as divisórias e os recortes. */
+[data-tema="claro"] :is(.calculation-scope-item, .calculation-scope-summary, .calc-price-card, .plan, .contact-request-form,
+    .contact-help-card, .automation-overview, .transform-panel, .simulation, .calculation-workbook, .home-process-compact,
+    .secondary-vertical, .delivery-feature, .report-document-stage, .automation-page article, .hero-price-preview,
+    .delivery-security, .contact-plan-choice, .contact-service-choice, .automation-demo-panel) { border-color: #c3cdda !important; }
+[data-tema="claro"] :is(.calc-offer-price-zone, .calculation-scope-notes span, .delivery-checks li, .home-process-compact li,
+    .automation-preview-card, .secondary-mini-ui, .contact-attachment-choice, .memory-scroll, .sheet-tab, .workbook-title,
+    .formula-bar, .demo-modes, .demo-pipeline > span, .simulation-header, .secondary-mini-ui-row) { border-color: #cbd4df !important; }
+[data-tema="claro"] :is(.contact-field input, .contact-field textarea, .contact-field select) { border-color: #b3bfce !important; }
+[data-tema="claro"] .live-sheet :is(th, td) { border-color: #dbe2ea !important; }
+[data-tema="claro"] :is(small#contact-file-summary, #contact-file-help, .contact-field-help) { color: #5b6b80 !important; }
+/* Modo claro: caixa de anexos do formulário e botões "Ver detalhes…" do celular. */
+[data-tema="claro"] .contact-file-upload { background: #f3f5f9 !important; border-color: #b3bfce !important; color: #45556b !important; }
+[data-tema="claro"] .contact-file-upload :is(strong, span) { color: #142032 !important; }
+[data-tema="claro"] .mobile-section-toggle { background: #ffffff !important; background-image: none !important; border-color: #c3cdda !important; color: #142032 !important; }
+[data-tema="claro"] .mobile-section-toggle :is(span, i) { color: #142032 !important; }

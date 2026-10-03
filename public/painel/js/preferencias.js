@@ -107,7 +107,7 @@ function blocoAparencia(u) {
   chave.addEventListener('change', () => trocarTema(chave.checked ? 'escuro' : 'claro'));
   // Visual simples ou o do site, para comparar.
   const atual = visualGuardado();
-  const opcoes = el('div', 'segmentado', [['simples', 'Simples'], ['site', 'Do site']].map(([valor, rotulo]) => {
+  const opcoes = el('div', 'segmentado', [['simples', 'Simples'], ['site', 'Sofisticado']].map(([valor, rotulo]) => {
     const b = el('button', 'segmento', rotulo);
     b.type = 'button';
     b.setAttribute('aria-pressed', String(valor === atual));

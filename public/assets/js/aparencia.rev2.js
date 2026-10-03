@@ -74,7 +74,7 @@
 
     var opcoes = document.createElement('div');
     opcoes.className = 'aparencia-visual';
-    [['simples', 'Simples', 'Visual simples, igual ao da Central'], ['site', 'Site', 'Visual original do site, com brilhos e degradês']].forEach(function (op) {
+    [['simples', 'Simples', 'Visual simples, igual ao da Central'], ['site', 'Sofisticado', 'Visual sofisticado: brilhos, degradês e cartões com profundidade']].forEach(function (op) {
       var b = document.createElement('button');
       b.type = 'button';
       b.textContent = op[1];

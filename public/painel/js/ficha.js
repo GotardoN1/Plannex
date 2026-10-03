@@ -12,7 +12,7 @@ import { gerarOS } from './os.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, ETAPAS,
   dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr, tamanhoArquivo,
-  hoje, tipoArquivo,
+  hoje, tipoArquivo, diaDe,
 } from './util.js';
 
 // O funcionário vê e envia só documentos do cliente e arquivos da entrega.
@@ -249,7 +249,7 @@ function painelEntrada(c) {
 function painelNotas(c) {
   return [
     el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoNegocio(c), blocoMoldes()),
+      el('div', 'ficha-coluna', blocoNegocio(c), blocoMoldes(['ordem'])),
       el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
     comentarios(c, 'nota_emitida', 'Comentários internos', 'Só administradores veem estes comentários…'),
   ];
@@ -272,18 +272,51 @@ function painelEntregue(c) {
   const entregue = c.etapa === 'entregue';
   const registro = entregue ? ultimaEntrega() : null;
   const partes = [];
-  if (entregue) {
-    partes.push(el('p', 'chamada-entrega is-feita', icone('ok'),
-      el('span', '', el('strong', '', 'Entregue'), registro ? ` em ${dataHora(registro.quando)} por ${registro.usuario || 'usuário removido'}.` : ` em ${dataHora(c.atualizado_em)}.`)));
-  }
+  if (entregue) partes.push(registroDaEntrega(c, registro));
   partes.push(
-    blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c) }),
+    el('div', 'ficha-grade',
+      el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c) })),
+      el('div', 'ficha-coluna', blocoMoldes(['relatorio']))),
     comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'));
   if (!entregue && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
       botao('Concluir e registrar entrega', 'botao--primario', () => concluir(c), { icone: 'ok' })));
   }
   return partes;
+}
+
+// "Entregue em … por …". O administrador corrige o dia quando a entrega foi registrada depois.
+function registroDaEntrega(c, registro) {
+  const quando = registro?.quando || c.atualizado_em;
+  const texto = el('span', 'chamada-texto', el('strong', '', 'Entregue'), ` em ${dataHora(quando)}${registro ? ` por ${registro.usuario || 'usuário removido'}` : ''}.`);
+  const caixa = el('div', 'chamada-entrega is-feita', icone('ok'), texto);
+  if (!eAdmin()) return caixa;
+
+  const data = el('input');
+  data.type = 'date';
+  data.max = hoje();
+  data.min = diaDe(c.criado_em);
+  data.setAttribute('aria-label', 'Dia da entrega');
+  const local = new Date(quando);
+  data.value = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+  const salvar = botao('Salvar', 'botao--primario botao--pequeno', null);
+  salvar.type = 'submit';
+  const form = el('form', 'entrega-data', data, salvar, botao('Cancelar', 'botao--fantasma botao--pequeno', () => { form.hidden = true; alterar.hidden = false; }));
+  form.hidden = true;
+  form.addEventListener('submit', async evento => {
+    evento.preventDefault();
+    if (!data.value) return;
+    // Mantém o horário registrado; muda só o dia.
+    const novo = new Date(`${data.value}T${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}:00`);
+    if (novo.getTime() > Date.now()) novo.setTime(Date.now());
+    salvar.disabled = true;
+    const ok = await acoes.alterar(c.id, { entregue_em: novo.toISOString() }, `Data da entrega corrigida para ${diaBr(data.value)}.`);
+    salvar.disabled = false;
+    if (ok) await depoisDeMudar();
+  });
+  const alterar = botao('Alterar data', 'botao--fantasma botao--pequeno', () => { form.hidden = false; alterar.hidden = true; data.focus(); }, { icone: 'agenda', titulo: 'Corrigir o dia em que a demanda foi entregue' });
+  caixa.append(el('span', 'chamada-acoes', alterar, form));
+  return caixa;
 }
 
 // Depois de enviar um arquivo final, oferece concluir na hora.
@@ -655,10 +688,12 @@ const MOLDES = [
   { tipo: 'relatorio', nome: 'Relatório' },
 ];
 
-function blocoMoldes() {
+function blocoMoldes(tipos) {
+  const lista = MOLDES.filter(m => tipos.includes(m.tipo));
+  const titulo = lista.length === 1 ? `Molde em branco: ${lista[0].nome.toLowerCase()}` : 'Moldes em branco';
   return el('section', 'bloco bloco--moldes',
-    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('baixar'), 'Moldes em branco')),
-    el('ul', 'moldes', MOLDES.map(linhaMolde)));
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('baixar'), titulo)),
+    el('ul', 'moldes', lista.map(linhaMolde)));
 }
 
 function linhaMolde({ tipo, nome }) {
@@ -684,13 +719,14 @@ function linhaMolde({ tipo, nome }) {
       entrada.value = '';
     }
   });
-  const trocar = botao(molde ? 'Trocar' : 'Enviar molde', 'botao--fantasma botao--pequeno', () => entrada.click(), {
+  const trocar = !eAdmin() ? null : botao(molde ? 'Trocar' : 'Enviar molde', 'botao--fantasma botao--pequeno', () => entrada.click(), {
     icone: 'enviar', titulo: molde ? `Enviar outro molde de ${nome.toLowerCase()} (substitui o atual)` : `Enviar o molde de ${nome.toLowerCase()} (PDF ou Word)`,
   });
 
   if (!molde) {
     return el('li', 'molde is-vazio', miniatura(tipo === 'ordem' ? 'molde.pdf' : 'molde.docx'),
-      el('span', 'molde-texto', el('strong', '', nome), el('small', '', 'Nenhum molde enviado')), el('span', 'molde-acoes', trocar), entrada);
+      el('span', 'molde-texto', el('strong', '', nome), el('small', '', eAdmin() ? 'Nenhum molde enviado' : 'O administrador ainda não enviou o molde')),
+      trocar ? el('span', 'molde-acoes', trocar) : null, trocar ? entrada : null);
   }
   const baixar = el('a', 'botao botao--primario botao--pequeno', icone('baixar'), el('span', '', 'Baixar'));
   baixar.href = `/api/moldes/${tipo}`;
@@ -698,7 +734,7 @@ function linhaMolde({ tipo, nome }) {
   baixar.title = `Baixar ${molde.nome}`;
   return el('li', 'molde', miniatura(molde.nome),
     el('span', 'molde-texto', el('strong', '', nome), el('small', '', `${molde.nome} · ${tamanhoArquivo(molde.tamanho)}`)),
-    el('span', 'molde-acoes', baixar, trocar), entrada);
+    el('span', 'molde-acoes', baixar, trocar), trocar ? entrada : null);
 }
 
 // Miniatura do arquivo: uma folhinha com a cor e a sigla do tipo (PDF, DOC, XLS…).
@@ -860,5 +896,5 @@ function preencher() {
   // Na aba Entregue, o registro do dia depende da linha do tempo: redesenha a chamada quando ela chega.
   const chamada = janela().querySelector('.chamada-entrega.is-feita');
   const registro = chamada ? ultimaEntrega() : null;
-  if (chamada && registro) chamada.lastChild.replaceChildren(el('strong', '', 'Entregue'), ` em ${dataHora(registro.quando)} por ${registro.usuario || 'usuário removido'}.`);
+  if (chamada && registro) chamada.querySelector('.chamada-texto')?.replaceChildren(el('strong', '', 'Entregue'), ` em ${dataHora(registro.quando)} por ${registro.usuario || 'usuário removido'}.`);
 }

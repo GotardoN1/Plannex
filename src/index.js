@@ -54,6 +54,8 @@ const DEMO_ARQUIVO_MAXIMO = 1024 * 1024;
 // Moldes em branco (só administrador): a ordem de serviço e o relatório. Aceitam PDF ou Word.
 const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do relatório' };
 const EXTENSOES_MOLDE = /\.(pdf|docx?)$/i;
+// Materiais: armazenamento pequeno da equipe (moldes, planilhas de demonstração, PDFs).
+const MATERIAIS_TOTAL_MAXIMO = 100 * 1024 * 1024;
 const DEMO_LIMITE_ENVIOS = [40, 24 * 60];
 
 export default {
@@ -133,10 +135,22 @@ async function api(request, env, url) {
 
   rota = pathname.match(/^\/api\/moldes\/(ordem|relatorio)$/);
   if (rota) {
+    // O molde do relatório fica na aba Entregue, que o funcionário também usa; a ordem de serviço é só do administrador.
+    if (metodo === 'GET' && (admin || rota[1] === 'relatorio')) return baixarMolde(env, rota[1]);
     if (!admin) return negado();
-    if (metodo === 'GET') return baixarMolde(env, rota[1]);
     if (metodo === 'POST') return enviarMolde(request, env, usuario, rota[1]);
     if (metodo === 'DELETE') return excluirMolde(env, rota[1]);
+  }
+
+  if (pathname === '/api/materiais' && metodo === 'POST') return admin ? enviarMaterial(request, env, usuario, null) : negado();
+  rota = pathname.match(/^\/api\/materiais\/(\d+)$/);
+  if (rota) {
+    const id = Number(rota[1]);
+    if (metodo === 'GET') return baixarMaterial(env, id);
+    if (!admin) return negado();
+    if (metodo === 'POST') return enviarMaterial(request, env, usuario, id);
+    if (metodo === 'PATCH') return descreverMaterial(request, env, id);
+    if (metodo === 'DELETE') return excluirMaterial(env, id);
   }
 
   rota = pathname.match(/^\/api\/etiquetas\/(\d+)$/);
@@ -460,6 +474,8 @@ async function removerUsuario(env, autor, id) {
     env.DB.prepare('UPDATE notas SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
     env.DB.prepare('UPDATE arquivos SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
     env.DB.prepare('DELETE FROM etiquetas WHERE usuario_id = ?').bind(id),
+    env.DB.prepare('UPDATE materiais SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
+    env.DB.prepare('UPDATE moldes SET usuario_id = NULL WHERE usuario_id = ?').bind(id),
     env.DB.prepare('DELETE FROM usuarios WHERE id = ?').bind(id),
   ]);
   return json({ ok: true });
@@ -500,7 +516,7 @@ async function central(env, usuario) {
   const filtroContatos = admin ? '' : 'WHERE responsavel_id = ?1 AND arquivado_em IS NULL';
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
-  const [contatos, usuarios, recentes, etiquetas, moldes] = await env.DB.batch([
+  const [contatos, usuarios, recentes, etiquetas, moldes, materiais] = await env.DB.batch([
     ligar(env.DB.prepare(
       `SELECT id, servico, nome, telefone, email, plano, descricao, atividade_manual, manter_inalterado,
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
@@ -512,9 +528,10 @@ async function central(env, usuario) {
     env.DB.prepare(`SELECT id, nome, apelido, papel, area${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
     consultaAtividade(env, usuario, 30, 0),
     env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
-    env.DB.prepare(admin
-      ? 'SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id'
-      : 'SELECT tipo FROM moldes WHERE 0'),
+    env.DB.prepare(`SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id
+      ${admin ? '' : "WHERE m.tipo = 'relatorio'"}`),
+    env.DB.prepare(`SELECT m.id, m.nome, m.descricao, m.tipo, m.tamanho, m.criado_em, m.atualizado_em, u.nome AS usuario
+      FROM materiais m LEFT JOIN usuarios u ON u.id = m.usuario_id ORDER BY m.atualizado_em DESC, m.id DESC`),
   ]);
 
   const lista = admin ? contatos.results : contatos.results.map(c => {
@@ -522,7 +539,7 @@ async function central(env, usuario) {
     for (const campo of CAMPOS_FINANCEIROS) limpo[campo] = null;
     return limpo;
   });
-  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, moldes: admin ? moldes.results : [], etapas: ETAPAS, demo: emDemo(env) });
+  return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, moldes: moldes.results, materiais: materiais.results, etapas: ETAPAS, demo: emDemo(env) });
 }
 
 async function cadastrarContato(request, env, usuario) {
@@ -580,6 +597,21 @@ async function alterarContato(request, env, usuario, contato) {
       registros.push(env.DB.prepare('INSERT INTO movimentacoes (contato_id, de, para, usuario_id) VALUES (?, ?, ?, ?)')
         .bind(id, contato.etapa, etapa, usuario.id));
     }
+  }
+
+  // Data da entrega (só administrador; a regra lá em cima já barra o funcionário): corrige o registro quando a
+  // entrega foi marcada depois do dia em que aconteceu. Ajusta a demanda e a movimentação para Entregue.
+  if ('entregue_em' in dados) {
+    if (contato.etapa !== 'entregue') return json({ erro: 'A demanda ainda não foi entregue.' }, 400);
+    const quando = new Date(String(dados.entregue_em || ''));
+    if (Number.isNaN(quando.getTime())) return json({ erro: 'Data de entrega inválida.' }, 400);
+    if (quando.getTime() > Date.now() + 5 * 60 * 1000) return json({ erro: 'A data de entrega não pode ser no futuro.' }, 400);
+    if (quando.getTime() < new Date(contato.criado_em).getTime()) return json({ erro: 'A entrega não pode ser antes de o contato chegar.' }, 400);
+    const iso = quando.toISOString().replace(/\.\d+Z$/, 'Z');
+    definir('atualizado_em', iso);
+    registros.push(env.DB.prepare(`UPDATE movimentacoes SET quando = ? WHERE id = (
+      SELECT id FROM movimentacoes WHERE contato_id = ? AND para = 'entregue' ORDER BY quando DESC, id DESC LIMIT 1)`).bind(iso, id));
+    registrar(`corrigiu a data da entrega para ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
   }
 
   if ('lido' in dados) definir('lido_em', dados.lido ? (contato.lido_em || new Date().toISOString().replace(/\.\d+Z$/, 'Z')) : null);
@@ -865,6 +897,81 @@ async function excluirMolde(env, tipo) {
   if (!molde) return json({ ok: true });
   await env.DB.prepare('DELETE FROM moldes WHERE tipo = ?').bind(tipo).run();
   await env.ARQUIVOS.delete(molde.chave);
+  return json({ ok: true });
+}
+
+// ---------- Materiais ----------
+
+async function baixarMaterial(env, id) {
+  const material = await env.DB.prepare('SELECT nome, tamanho, chave FROM materiais WHERE id = ?').bind(id).first();
+  if (!material) return json({ erro: 'Material não encontrado.' }, 404);
+  const conteudo = await env.ARQUIVOS.get(material.chave, { type: 'stream' });
+  if (!conteudo) return json({ erro: 'O conteúdo do material não foi encontrado.' }, 404);
+  return new Response(conteudo, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${material.nome.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(material.nome)}`,
+      'Content-Length': String(material.tamanho),
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
+// Novo material (id nulo) ou troca do arquivo de um que já existe.
+async function enviarMaterial(request, env, usuario, id) {
+  if (Number(request.headers.get('Content-Length') || 0) > ARQUIVO_MAXIMO + 64 * 1024) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
+  const formulario = await request.formData().catch(() => null);
+  const arquivo = formulario?.get('arquivo');
+  if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
+  if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
+  if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
+  const anterior = id ? await env.DB.prepare('SELECT chave, tamanho FROM materiais WHERE id = ?').bind(id).first() : null;
+  if (id && !anterior) return json({ erro: 'Material não encontrado.' }, 404);
+  const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM materiais').first();
+  if (usado - (anterior?.tamanho || 0) + arquivo.size > MATERIAIS_TOTAL_MAXIMO) {
+    return json({ erro: 'O espaço de materiais (100 MB) está cheio. Exclua algum antes de enviar outro.' }, 413);
+  }
+  if (emDemo(env)) {
+    if (arquivo.size > DEMO_ARQUIVO_MAXIMO) return json({ erro: 'Na demonstração, o limite é 1 MB por arquivo.' }, 413);
+    if (await excedeuLimite(env, 'demo-envio', DEMO_LIMITE_ENVIOS)) return json({ erro: 'A demonstração atingiu o limite de envios de hoje.' }, 429);
+    await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-envio').run();
+  }
+  const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'material';
+  const tipo = limparTexto(arquivo.type, 100) || 'application/octet-stream';
+  const descricao = formulario.has('descricao') ? (limparTexto(formulario.get('descricao'), 160) || null) : undefined;
+  const chave = `materiais/${crypto.randomUUID()}`;
+  await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
+  try {
+    if (id) {
+      await env.DB.prepare(`UPDATE materiais SET nome = ?, tipo = ?, tamanho = ?, chave = ?, usuario_id = ?,
+        atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')${descricao !== undefined ? ', descricao = ?' : ''} WHERE id = ?`)
+        .bind(...[nome, tipo, arquivo.size, chave, usuario.id, ...(descricao !== undefined ? [descricao] : []), id]).run();
+    } else {
+      await env.DB.prepare('INSERT INTO materiais (nome, descricao, tipo, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(nome, descricao ?? null, tipo, arquivo.size, chave, usuario.id).run();
+    }
+  } catch (erro) {
+    await env.ARQUIVOS.delete(chave);
+    throw erro;
+  }
+  if (anterior && !anterior.chave.startsWith('demo/amostra/')) await env.ARQUIVOS.delete(anterior.chave);
+  return json({ ok: true }, id ? 200 : 201);
+}
+
+async function descreverMaterial(request, env, id) {
+  const dados = await lerJson(request);
+  if (!dados || !('descricao' in dados)) return json({ erro: 'Dados inválidos.' }, 400);
+  const { meta } = await env.DB.prepare('UPDATE materiais SET descricao = ? WHERE id = ?').bind(limparTexto(dados.descricao, 160) || null, id).run();
+  if (!meta.changes) return json({ erro: 'Material não encontrado.' }, 404);
+  return json({ ok: true });
+}
+
+async function excluirMaterial(env, id) {
+  const material = await env.DB.prepare('SELECT chave FROM materiais WHERE id = ?').bind(id).first();
+  if (!material) return json({ ok: true });
+  await env.DB.prepare('DELETE FROM materiais WHERE id = ?').bind(id).run();
+  if (!material.chave.startsWith('demo/amostra/')) await env.ARQUIVOS.delete(material.chave);
   return json({ ok: true });
 }
 
