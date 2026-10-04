@@ -540,7 +540,10 @@ $$('a[data-contact-area],button[data-contact-area]').forEach(control => {
 
 const contactPhone = $('#contact-phone');
 function formatBrazilianMobilePhone(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  let digits = String(value || '').replace(/\D/g, '');
+  // +55 na frente não atrapalha: o código do país sai e fica o (DD) 9XXXX-XXXX de sempre.
+  if (digits.length > 11 && digits.startsWith('55')) digits = digits.slice(2);
+  digits = digits.slice(0, 11);
   if (!digits) return '';
   if (digits.length <= 2) return `(${digits}`;
   if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
@@ -557,12 +560,41 @@ if (contactPhone) {
   setTimeout(syncContactPhoneMask, 180);
 }
 
+const contactCpf = $('#contact-cpf');
+function formatCpfCnpj(value) {
+  const d = String(value || '').replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 11) {
+    return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+  }
+  return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, '$1.$2.$3/$4-$5');
+}
+function validCpfCnpj(value) {
+  const d = String(value || '').replace(/\D/g, '');
+  if (/^(\d)\1+$/.test(d)) return false;
+  if (d.length === 11) {
+    const digit = n => { let sum = 0; for (let i = 0; i < n; i++) sum += Number(d[i]) * (n + 1 - i); const r = (sum * 10) % 11; return r === 10 ? 0 : r; };
+    return digit(9) === Number(d[9]) && digit(10) === Number(d[10]);
+  }
+  if (d.length === 14) {
+    const digit = n => { const w = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]; let sum = 0; for (let i = 0; i < n; i++) sum += Number(d[i]) * w[i]; const r = sum % 11; return r < 2 ? 0 : 11 - r; };
+    return digit(12) === Number(d[12]) && digit(13) === Number(d[13]);
+  }
+  return false;
+}
+function syncContactCpf() {
+  if (!contactCpf) return;
+  const formatted = formatCpfCnpj(contactCpf.value);
+  if (contactCpf.value !== formatted) contactCpf.value = formatted;
+  contactCpf.setCustomValidity(!contactCpf.value || validCpfCnpj(contactCpf.value) ? '' : 'Confira o CPF ou CNPJ informado.');
+}
+if (contactCpf) ['input', 'change', 'blur'].forEach(type => contactCpf.addEventListener(type, syncContactCpf));
+
 function resetContactAttachmentChoice() {
   const later = document.querySelector('[data-attachment-choice="later"]');
   const now = document.querySelector('[data-attachment-choice="now"]');
-  if (now) now.checked = true;
-  if (later) later.checked = false;
-  setContactAttachmentMode('now');
+  if (now) now.checked = false;
+  if (later) later.checked = true;
+  setContactAttachmentMode('later');
 }
 
 function showContactAttachmentChoices() {
@@ -593,7 +625,7 @@ $$('[data-attachment-choice]').forEach(input => {
   });
 });
 const restoredAttachmentChoice = document.querySelector('[data-attachment-choice]:checked');
-setContactAttachmentMode(restoredAttachmentChoice?.dataset.attachmentChoice || 'now');
+setContactAttachmentMode(restoredAttachmentChoice?.dataset.attachmentChoice || 'later');
 if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
 if (contactFileField) contactFileField.hidden = true;
 if (contactFiles) contactFiles.disabled = true;
@@ -604,7 +636,7 @@ const CONTACT_BLOCKED_FILES = /\.(exe|com|bat|cmd|msi|msp|msc|scr|pif|cpl|dll|sy
 const contactBlockedFiles = files => files.filter(file => CONTACT_BLOCKED_FILES.test((file.name || '').trim()));
 
 // Caixa de confirmação depois do envio.
-function contactShowSuccess(repeated) {
+function contactShowSuccess(repeated, protocol) {
   document.querySelector('.contact-success')?.remove();
   const box = document.createElement('div');
   box.className = 'contact-success';
@@ -619,9 +651,20 @@ function contactShowSuccess(repeated) {
   icon.textContent = '✓';
   const title = document.createElement('h3');
   title.id = 'contact-success-title';
-  title.textContent = repeated ? 'Pedido já recebido!' : 'Pedido efetuado com sucesso!';
+  title.textContent = repeated ? 'Solicitação já recebida' : 'Solicitação recebida';
+  const number = document.createElement('p');
+  number.className = 'contact-success-protocol';
+  if (protocol) {
+    const label = document.createElement('small');
+    label.textContent = 'Protocolo';
+    const code = document.createElement('strong');
+    code.textContent = protocol;
+    number.append(label, code);
+  }
   const text = document.createElement('p');
-  text.textContent = 'Entraremos em contato após a análise da solicitação.';
+  text.textContent = protocol
+    ? 'Guarde este número para acompanhar o atendimento. Entraremos em contato após a análise da solicitação.'
+    : 'Pedido efetuado com sucesso! Entraremos em contato após a análise da solicitação.';
   const ok = document.createElement('button');
   ok.type = 'button';
   ok.className = 'button';
@@ -632,7 +675,7 @@ function contactShowSuccess(repeated) {
   ok.addEventListener('click', close);
   box.addEventListener('click', event => { if (event.target === box) close(); });
   document.addEventListener('keydown', onKey);
-  card.append(icon, title, text, ok);
+  card.append(icon, title, ...(protocol ? [number] : []), text, ok);
   box.append(card);
   document.body.append(box);
   ok.focus();
@@ -692,6 +735,15 @@ $('#contact-form')?.addEventListener('submit', async event => {
   }
 
   const files = contactFiles && !contactFiles.disabled ? [...contactFiles.files] : [];
+  if (contactFiles && !contactFiles.disabled && !files.length) {
+    if (status) {
+      status.textContent = 'Você escolheu anexar agora: selecione pelo menos um documento ou marque "Enviar depois".';
+      status.classList.add('is-error');
+    }
+    contactFiles.focus();
+    $('#contact-file-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   if (contactBlockedFiles(files).length) {
     if (status) {
       status.textContent = 'Há anexos de um tipo que não aceitamos (programas ou scripts). Envie documentos, planilhas ou imagens.';
@@ -741,9 +793,11 @@ $('#contact-form')?.addEventListener('submit', async event => {
   formData.delete('name');
   formData.delete('tel');
   formData.delete('email');
+  formData.delete('cpf');
   formData.set('Nome completo', name);
   formData.set('WhatsApp', phone);
   formData.set('E-mail', email);
+  formData.set('CPF/CNPJ', ($('#contact-cpf')?.value || '').trim());
   formData.set('_replyto', email);
   formData.set('_subject', `Plannex · Nova solicitação · ${serviceLabel} · ${name}`);
 
@@ -755,9 +809,15 @@ $('#contact-form')?.addEventListener('submit', async event => {
   if (status) status.textContent = 'Enviando informações e arquivos…';
 
   try {
-    // O e-mail (FormSubmit) e o registro na Central saem juntos. O pedido conta como enviado se a Central
-    // confirmar ou se o e-mail confirmar; só dá erro se os dois falharem.
-    const emailSending = fetch(FORM_SUBMIT_ENDPOINT, {
+    // Primeiro a Central, que devolve o protocolo (PLX-ANO-NNNN); depois o e-mail (FormSubmit), já com o
+    // protocolo no assunto. Conta como enviado se qualquer um dos dois confirmar. Pedido repetido não
+    // manda o e-mail de novo.
+    const central = window.PlannexCentral ? await window.PlannexCentral.registrar(form, files) : { ok: false };
+    if (central.protocolo) {
+      formData.set('Protocolo', central.protocolo);
+      formData.set('_subject', `Plannex · ${central.protocolo} · Nova solicitação · ${serviceLabel} · ${name}`);
+    }
+    const emailOk = central.repetido ? true : await fetch(FORM_SUBMIT_ENDPOINT, {
       method: 'POST',
       headers: { 'Accept': 'application/json' },
       body: formData
@@ -765,18 +825,16 @@ $('#contact-form')?.addEventListener('submit', async event => {
       const data = await response.json().catch(() => ({}));
       return response.ok && data.success !== 'false' && data.success !== false;
     }).catch(() => false);
-    const centralSending = window.PlannexCentral ? window.PlannexCentral.registrar(form, files) : Promise.resolve({ ok: false });
-    const [emailOk, central] = await Promise.all([emailSending, centralSending]);
     if (!emailOk && !central.ok) throw new Error('Falha no envio');
 
     contactRemember(signature);
     if (status) {
-      status.textContent = central.repetido
-        ? 'Recebemos sua solicitação (ela já tinha chegado). Retornaremos em breve.'
-        : 'Pedido efetuado com sucesso. Entraremos em contato após a análise da solicitação.';
+      status.textContent = `${central.protocolo ? `${central.protocolo} · ` : ''}${central.repetido
+        ? 'Recebemos sua solicitação (ela já tinha chegado). Entraremos em contato após a análise.'
+        : 'Solicitação recebida. Entraremos em contato após a análise da solicitação.'}`;
       status.classList.add('is-success');
     }
-    contactShowSuccess(central.repetido);
+    contactShowSuccess(central.repetido, central.protocolo);
     if (submit) {
       submit.classList.remove('is-loading');
       submit.classList.add('is-sent');
@@ -1059,6 +1117,29 @@ function initAutomationPlanSelector() {
 }
 
 initAutomationPlanSelector();
+
+// Celular: "Do cálculo pontual…" e "Do pedido inicial…" ficam recolhidas lá embaixo, junto com as demais
+// (antes de "Ver detalhes da entrega técnica"), cada uma logo depois do seu botão. No tablet e no
+// computador, voltam ao lugar de sempre.
+function initMobileGroupedSections(){
+  const mobileQuery=window.matchMedia('(max-width: 760px)');
+  const items=['home-calc-intro-mobile','fases-calculo'].map(id=>{
+    const section=document.getElementById(id);
+    const toggle=document.querySelector(`[data-mobile-toggle="${id}"]`);
+    if(!section||!toggle)return null;
+    const place=document.createComment(`lugar de #${id}`);
+    section.before(place);
+    return {section,toggle,place};
+  }).filter(Boolean);
+  const sync=()=>items.forEach(({section,toggle,place})=>{
+    if(mobileQuery.matches)toggle.after(section);
+    else place.after(section);
+  });
+  sync();
+  if(typeof mobileQuery.addEventListener==='function')mobileQuery.addEventListener('change',sync);
+  else if(typeof mobileQuery.addListener==='function')mobileQuery.addListener(sync);
+}
+initMobileGroupedSections();
 
 // REV37 — seções informativas recolhíveis somente em celulares.
 function initMobileSectionToggles(){

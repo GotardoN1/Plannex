@@ -52,7 +52,7 @@ const ARQUIVO_MAXIMO = 10 * 1024 * 1024;
 // Tamanho máximo de cada campo do contato (os mesmos limites do formulário do site).
 const CAMPOS_CONTATO = {
   nome: 120, telefone: 20, email: 180, plano: 80, descricao: 1800, atividade_manual: 900,
-  manter_inalterado: 900, envio_documentos: 40, observacoes: 1200, chamada: 120,
+  manter_inalterado: 900, envio_documentos: 40, observacoes: 1200, chamada: 120, cpf: 20,
 };
 // Campos que o funcionário não recebe.
 const CAMPOS_FINANCEIROS = ['valor_centavos', 'nota_fiscal', 'pago_em'];
@@ -198,16 +198,51 @@ async function contatoVisivel(env, usuario, id) {
   return contato.responsavel_id === usuario.id && !contato.arquivado_em && !contato.recusado_em && (ETAPAS_FUNCIONARIO.includes(contato.etapa) || contato.etapa === 'concluido') ? contato : null;
 }
 
+// ---------- Protocolo ----------
+
+// PLX-ANO-NNNN: o contador do ano (horário de Brasília) sobe e o contato nasce com o número, na mesma
+// transação. Um contato excluído não devolve o número; na virada do ano, a contagem recomeça em 0001.
+async function inserirComProtocolo(env, campos) {
+  const ano = new Date(Date.now() - 3 * 3600000).getUTCFullYear();
+  const colunas = Object.keys(campos);
+  const [, inserido] = await env.DB.batch([
+    env.DB.prepare('INSERT INTO protocolos (ano, ultimo) VALUES (?, 1) ON CONFLICT (ano) DO UPDATE SET ultimo = ultimo + 1').bind(ano),
+    env.DB.prepare(
+      `INSERT INTO contatos (${colunas.join(', ')}, protocolo)
+       VALUES (${colunas.map(() => '?').join(', ')}, 'PLX-' || ? || '-' || printf('%04d', (SELECT ultimo FROM protocolos WHERE ano = ?)))
+       RETURNING id, protocolo`
+    ).bind(...colunas.map(c => campos[c]), String(ano), ano),
+  ]);
+  return inserido.results[0];
+}
+
+// CPF (11 dígitos) ou CNPJ (14) no formato de sempre; qualquer outra coisa não é guardada.
+function cpfOuCnpj(valor) {
+  const d = String(valor || '').replace(/\D/g, '');
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return null;
+}
+
+// Telefone: aceita +55 na frente (ou não) e guarda sempre como (DD) 9XXXX-XXXX.
+function telefoneBr(valor) {
+  const texto = String(valor || '').trim();
+  let d = texto.replace(/\D/g, '');
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  return texto || null;
+}
+
 // ---------- Formulário do site ----------
 
 // O mesmo pedido enviado de novo em pouco tempo (clique duplo, robô) não vira outro contato.
 async function pedidoRepetido(env, campos) {
-  if (!campos.email && !campos.telefone) return false;
-  const repetido = await env.DB.prepare(
-    `SELECT id FROM contatos WHERE (email = ?1 OR telefone = ?2) AND COALESCE(descricao, '') = ?3
+  if (!campos.email && !campos.telefone) return null;
+  return env.DB.prepare(
+    `SELECT id, protocolo FROM contatos WHERE (email = ?1 OR telefone = ?2) AND COALESCE(descricao, '') = ?3
        AND criado_em > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 minutes') LIMIT 1`
   ).bind(campos.email || '-', campos.telefone || '-', campos.descricao || '').first();
-  return Boolean(repetido);
 }
 
 async function registrarContato(request, env) {
@@ -239,12 +274,12 @@ async function registrarContato(request, env) {
 
   // Quem reenvia depois de uma falha não gera um contato repetido.
   const repetido = await env.DB.prepare(
-    "SELECT id FROM contatos WHERE servico = ? AND nome = ? AND criado_em > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes')"
-  ).bind(servico, campos.nome).first();
+    "SELECT id, protocolo FROM contatos WHERE servico = ? AND nome = ? AND criado_em > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes')"
+  ).bind(servico, campos.nome).first() || await pedidoRepetido(env, campos);
   await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind(chave).run();
-  if (repetido || await pedidoRepetido(env, campos)) return json({ ok: true, repetido: true }, 200);
+  if (repetido) return json({ ok: true, repetido: true, protocolo: repetido.protocolo }, 200);
 
-  const novo = await inserirContato(env, { ...campos, servico, origem: 'site' }, true).first();
+  const novo = await inserirComProtocolo(env, { ...campos, servico, origem: 'site' });
 
   // Documentos que a pessoa anexou: mesmas regras do formulário (até 10 arquivos, 10 MB no total),
   // só tipos de documento e só enquanto houver espaço no armazenamento grátis.
@@ -258,7 +293,7 @@ async function registrarContato(request, env) {
       await nota(env, novo.id, null, 'enviou documentos pelo site, mas o armazenamento da Central está cheio: eles estão só no e-mail', 'sistema', false, 'entrada').run();
     }
   }
-  return json({ ok: true }, 201);
+  return json({ ok: true, protocolo: novo.protocolo }, 201);
 }
 
 function camposDoContato(dados) {
@@ -269,13 +304,9 @@ function camposDoContato(dados) {
     campos[campo] = valor || null;
   }
   if (campos.email) campos.email = campos.email.toLowerCase();
+  campos.cpf = cpfOuCnpj(campos.cpf);
+  if (campos.telefone) campos.telefone = telefoneBr(campos.telefone);
   return campos;
-}
-
-function inserirContato(env, campos, devolverId = false) {
-  const colunas = Object.keys(campos);
-  return env.DB.prepare(`INSERT INTO contatos (${colunas.join(', ')}) VALUES (${colunas.map(() => '?').join(', ')})${devolverId ? ' RETURNING id' : ''}`)
-    .bind(...colunas.map(c => campos[c]));
 }
 
 // ---------- Login e sessão ----------
@@ -548,7 +579,7 @@ async function central(env, usuario) {
 
   const [contatos, usuarios, recentes, etiquetas, moldes, materiais] = await env.DB.batch([
     ligar(env.DB.prepare(
-      `SELECT id, servico, nome, telefone, email, plano, descricao, atividade_manual, manter_inalterado,
+      `SELECT id, protocolo, servico, nome, telefone, email, cpf, plano, descricao, atividade_manual, manter_inalterado,
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
               lido_em, arquivado_em, recusado_em, iniciado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
               (SELECT COUNT(*) FROM movimentacoes m WHERE m.contato_id = contatos.id AND m.para = 'revisado') AS retificacoes,
@@ -572,6 +603,7 @@ async function central(env, usuario) {
     // O contato do cliente fica com o administrador.
     limpo.telefone = null;
     limpo.email = null;
+    limpo.cpf = null;
     return limpo;
   });
   return json({ usuario, contatos: lista, usuarios: usuarios.results, recentes: recentes.results, etiquetas: etiquetas.results, moldes: moldes.results, materiais: materiais.results, etapas: ETAPAS, demo: emDemo(env) });
@@ -588,15 +620,16 @@ async function cadastrarContato(request, env, usuario) {
   // Cadastro manual já entra lido e, se já aceito, direto em Notas e ordens (etapa 1 do andamento).
   const etapa = dados?.direto_para_pedido ? 'nota_emitida' : null;
   const prazo = etapa ? diasUteisAPartirDeHoje(PRAZO_PADRAO[servico] || 3) : null;
-  const resultado = await env.DB.prepare(
-    `INSERT INTO contatos (servico, nome, telefone, email, descricao, observacoes, origem, criado_por, lido_em, etapa, atualizado_em, prazo)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${AGORA_SQL}, ?, ${etapa ? AGORA_SQL : 'NULL'}, ?) RETURNING id`
-  ).bind(servico, campos.nome, campos.telefone, campos.email, campos.descricao, campos.observacoes, origem, usuario.id, etapa, prazo).first();
+  const agora = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const resultado = await inserirComProtocolo(env, {
+    servico, nome: campos.nome, telefone: campos.telefone, email: campos.email, cpf: campos.cpf, descricao: campos.descricao,
+    observacoes: campos.observacoes, origem, criado_por: usuario.id, lido_em: agora, etapa, atualizado_em: etapa ? agora : null, prazo,
+  });
   if (etapa) {
     await env.DB.prepare('INSERT INTO movimentacoes (contato_id, de, para, usuario_id) VALUES (?, NULL, ?, ?)')
       .bind(resultado.id, etapa, usuario.id).run();
   }
-  return json({ ok: true, id: resultado.id }, 201);
+  return json({ ok: true, id: resultado.id, protocolo: resultado.protocolo }, 201);
 }
 
 async function alterarContato(request, env, usuario, contato) {
@@ -757,11 +790,11 @@ async function alterarContato(request, env, usuario, contato) {
   if (dados.dados && typeof dados.dados === 'object') {
     const campos = camposDoContato({ ...contato, ...dados.dados });
     const alterados = [];
-    for (const campo of ['nome', 'telefone', 'email', 'descricao', 'observacoes']) {
+    for (const campo of ['nome', 'telefone', 'email', 'cpf', 'descricao', 'observacoes']) {
       if (campo in dados.dados && campos[campo] !== contato[campo]) {
         if (campo === 'nome' && (!campos.nome || campos.nome.length < 2)) return json({ erro: 'Informe o nome do contato.' }, 400);
         definir(campo, campos[campo]);
-        alterados.push(campo === 'descricao' ? 'descrição' : campo === 'observacoes' ? 'observações' : campo);
+        alterados.push(campo === 'descricao' ? 'descrição' : campo === 'observacoes' ? 'observações' : campo === 'cpf' ? 'CPF/CNPJ' : campo);
       }
     }
     if ('servico' in dados.dados && SERVICOS.includes(dados.dados.servico) && dados.dados.servico !== contato.servico) {

@@ -10,9 +10,11 @@ import { estado, acoes, contatoPorId, usuarioPorId, eAdmin } from './estado.js';
 import { api } from './api.js';
 import { etiquetasDaDemanda } from './etiquetas.js';
 import { gerarOS } from './os.js';
+import { momento, MOMENTOS, linkWhatsAppMensagem, linkEmailMensagem } from './mensagens.js';
+import { criarZip } from './zip.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, ETAPAS,
-  dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr, tamanhoArquivo,
+  dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, diaBr, tamanhoArquivo,
   hoje, tipoArquivo, diaDe, fechada,
 } from './util.js';
 
@@ -110,7 +112,7 @@ function desenhar() {
     avatar(c.nome, 'avatar--grande'),
     el('div', 'ficha-titulo',
       el('h2', '', c.nome),
-      el('p', '', etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`))),
+      el('p', '', c.protocolo ? el('span', 'etiqueta-protocolo', c.protocolo) : null, etiquetaServico(c.servico), el('span', '', origem), el('span', '', `chegou ${relativo(c.criado_em)}`, el('span', 'sr', ` (${dataHora(c.criado_em)})`))),
       etiquetasDaDemanda(c)),
     fechar);
 
@@ -282,9 +284,10 @@ function painelEntrada(c) {
 // 1. Notas e ordens: o administrador cobra, emite a nota e colhe a assinatura (Gerar OS fica no topo da ficha).
 function painelNotas(c) {
   return [
-    el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoContato(c), blocoNegocio(c)),
-      el('div', 'ficha-coluna', blocoPrazo(c), blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
+    el('div', 'ficha-grade ficha-grade--3',
+      el('div', 'ficha-coluna', blocoContato(c)),
+      el('div', 'ficha-coluna', blocoNegocio(c), blocoPrazo(c)),
+      el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
     comentarios(c, 'nota_emitida', 'Comentários internos', 'Só administradores veem estes comentários…'),
   ];
 }
@@ -329,6 +332,7 @@ function painelEntregue(c) {
   const registro = entregue ? ultimaEntrega() : null;
   const partes = [];
   if (entregue) partes.push(registroDaEntrega(c, registro));
+  if (entregue && eAdmin()) partes.push(blocoEnvioCliente(c));
   partes.push(
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c) })),
@@ -347,6 +351,83 @@ function painelEntregue(c) {
       botao('Aprovar e concluir', 'botao--primario', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'O cliente aprovou: vai para Concluídos' })));
   }
   return partes;
+}
+
+// ---------- Envio ao cliente (Conclusão) ----------
+
+// Versão da entrega: v1 na primeira, v2 depois da primeira retificação, e assim por diante.
+const versaoDaEntrega = c => (c.retificacoes || 0) + 1;
+const nomeZip = (c, versao) => `${c.protocolo || `Plannex-${c.id}`}_v${versao}.zip`;
+const opcoesDaEntrega = c => ({ versao: versaoDaEntrega(c), arquivo: nomeZip(c, versaoDaEntrega(c)) });
+
+// Arquivos da versão atual: os enviados depois da última retificação (ou todos, se não houve).
+function arquivosDaVersao() {
+  const entrega = dados.arquivos.filter(a => a.categoria === 'entrega');
+  const reprovada = [...dados.itens].reverse().find(i => i.tipo === 'etapa' && i.para === 'revisado');
+  if (!reprovada) return entrega;
+  const novos = entrega.filter(a => String(a.criado_em) > String(reprovada.quando));
+  return novos.length ? novos : entrega;
+}
+
+function blocoEnvioCliente(c) {
+  const versao = versaoDaEntrega(c);
+  const nome = nomeZip(c, versao);
+  const resumo = el('p', 'envio-resumo', 'Carregando os arquivos da entrega…');
+  resumo.dataset.envioResumo = '';
+
+  // Baixa os arquivos, junta no ZIP e (se pedido) abre a conversa com a mensagem da entrega.
+  const enviar = canal => async evento => {
+    const botaoClicado = evento.currentTarget;
+    // A aba do WhatsApp abre já no clique (senão o navegador bloqueia como pop-up).
+    const aba = canal === 'whatsapp' ? window.open('about:blank', '_blank') : null;
+    botaoClicado.disabled = true;
+    try {
+      if (!dados.carregado) await carregar();
+      const lista = arquivosDaVersao();
+      if (!lista.length) throw new Error('Ainda não há arquivos da entrega para juntar no ZIP.');
+      const conteudos = await Promise.all(lista.map(async a => {
+        const resposta = await fetch(`/api/arquivos/${a.id}`, { credentials: 'same-origin' });
+        if (!resposta.ok) throw new Error(`Não foi possível baixar ${a.nome}.`);
+        return { nome: a.nome, bytes: new Uint8Array(await resposta.arrayBuffer()), data: new Date(a.criado_em) };
+      }));
+      const zip = criarZip(conteudos);
+      const baixar = document.createElement('a');
+      baixar.href = URL.createObjectURL(zip);
+      baixar.download = nome;
+      document.body.append(baixar);
+      baixar.click();
+      baixar.remove();
+      setTimeout(() => URL.revokeObjectURL(baixar.href), 4000);
+      const opcoes = { versao, arquivo: nome };
+      if (canal === 'whatsapp') {
+        const url = linkWhatsAppMensagem(c, 'entregue', opcoes);
+        if (url && aba) aba.location.href = url;
+        else aba?.close();
+        acoes.avisar(`${nome} baixado. Anexe o arquivo na conversa do WhatsApp que abriu.`);
+      } else if (canal === 'email') {
+        const url = linkEmailMensagem(c, 'entregue', opcoes);
+        if (url) location.href = url;
+        acoes.avisar(`${nome} baixado. Anexe o arquivo no e-mail que abriu.`);
+      } else {
+        acoes.avisar(`${nome} baixado.`);
+      }
+    } catch (e) {
+      aba?.close();
+      acoes.avisar(e.message || 'Não foi possível montar o ZIP.', 'erro');
+    } finally {
+      botaoClicado.disabled = false;
+    }
+  };
+
+  const whatsapp = linkWhatsAppMensagem(c, 'entregue') ? botao('ZIP + WhatsApp', 'botao--whatsapp', enviar('whatsapp'), { icone: 'whatsapp', titulo: `Baixa ${nome} e abre a conversa com a mensagem da entrega` }) : null;
+  const email = c.email ? botao('ZIP + e-mail', '', enviar('email'), { icone: 'email', titulo: `Baixa ${nome} e abre um e-mail com a mensagem da entrega` }) : null;
+  return el('section', 'bloco bloco--envio',
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('enviar'), 'Enviar ao cliente'), el('span', 'versao-entrega', `v${versao}`)),
+    resumo,
+    el('div', 'envio-acoes',
+      whatsapp,
+      email,
+      botao(`Baixar ${nome}`, 'botao--fantasma', enviar(null), { icone: 'baixar' })));
 }
 
 // "Entregue em … por …". O administrador corrige o dia quando a entrega foi registrada depois.
@@ -416,12 +497,29 @@ function ultimaEntrega() {
 
 function acoesRapidas(c) {
   const barra = el('div', 'ficha-acoes');
-  // O contato do cliente (WhatsApp e e-mail) fica com o administrador.
-  const whatsapp = eAdmin() ? linkWhatsApp(c) : null;
-  const email = eAdmin() ? linkEmail(c) : null;
-  if (whatsapp) barra.append(link('WhatsApp', whatsapp, 'botao botao--whatsapp', { icone: 'whatsapp', novaAba: true, titulo: 'Abrir conversa com mensagem pronta' }));
-  if (email) barra.append(link('Responder por e-mail', email, 'botao', { icone: 'email' }));
   if (!eAdmin()) return barra;
+  // O contato do cliente (WhatsApp e e-mail) fica com o administrador. A mensagem pronta segue o
+  // momento da demanda; dá para escolher outra na lista antes de abrir.
+  if (c.telefone || c.email) {
+    let qual = momento(c);
+    const escolha = el('select', 'mensagem-escolha');
+    escolha.setAttribute('aria-label', 'Mensagem pronta para o cliente');
+    for (const [chave, nome] of Object.entries(MOMENTOS)) escolha.append(opcao(chave, nome, chave === qual));
+    const whatsapp = link('WhatsApp', '#', 'botao botao--whatsapp', { icone: 'whatsapp', novaAba: true, titulo: 'Abrir a conversa com a mensagem pronta' });
+    const email = link('E-mail', '#', 'botao', { icone: 'email', titulo: 'Abrir um e-mail com a mensagem pronta' });
+    const atualizar = () => {
+      const opcoes = opcoesDaEntrega(c);
+      const w = linkWhatsAppMensagem(c, qual, opcoes);
+      const m = linkEmailMensagem(c, qual, opcoes);
+      whatsapp.hidden = !w;
+      email.hidden = !m;
+      if (w) whatsapp.href = w;
+      if (m) email.href = m;
+    };
+    escolha.addEventListener('change', () => { qual = escolha.value; atualizar(); });
+    atualizar();
+    barra.append(el('label', 'mensagem-pronta', el('span', '', 'Mensagem'), escolha), whatsapp, email);
+  }
   // Ordem de serviço da casa, já preenchida com o que o cliente informou.
   const os = botao('Gerar OS', '', null, { icone: 'documento', titulo: 'Baixa a ordem de serviço em PDF já preenchida; o resto se completa no PDF e o cliente assina' });
   os.addEventListener('click', async () => {
@@ -495,6 +593,8 @@ function blocoContato(c) {
   return el('section', 'bloco', titulo, el('dl', 'dados',
     item('WhatsApp', c.telefone ? el('span', 'com-acao', c.telefone, copiar(c.telefone, 'Telefone')) : null),
     item('E-mail', c.email ? el('span', 'com-acao', c.email, copiar(c.email, 'E-mail')) : null),
+    item('CPF/CNPJ', c.cpf ? el('span', 'com-acao', c.cpf, copiar(c.cpf, 'CPF/CNPJ')) : null),
+    item('Protocolo', c.protocolo ? el('span', 'com-acao', c.protocolo, copiar(c.protocolo, 'Protocolo')) : null),
     item('Chegou em', dataHora(c.criado_em)),
     c.criado_por ? item('Cadastrado por', usuarioPorId(c.criado_por)?.nome || 'usuário removido') : null));
 }
@@ -514,7 +614,7 @@ function formularioDados(c) {
   for (const [chave, info] of Object.entries(SERVICOS)) servico.append(opcao(chave, info.nome, chave === c.servico));
   form.append(
     campo('Nome', 'nome', c.nome),
-    el('div', 'campos-lado', campo('WhatsApp', 'telefone', c.telefone, 'tel'), campo('E-mail', 'email', c.email, 'email')),
+    el('div', 'campos-lado campos-lado--3', campo('WhatsApp', 'telefone', c.telefone, 'tel'), campo('E-mail', 'email', c.email, 'email'), campo('CPF/CNPJ', 'cpf', c.cpf)),
     el('label', 'campo', 'Serviço', servico),
     campo('Necessidade', 'descricao', c.descricao, 'textarea'),
     campo('Observações', 'observacoes', c.observacoes, 'textarea'),
@@ -964,7 +1064,18 @@ function itemHistorico(i, c) {
     el('div', 'evento-conteudo', conteudo, el('time', '', dataHora(i.quando))));
 }
 
+function preencherEnvio() {
+  const resumo = janela().querySelector('[data-envio-resumo]');
+  if (!resumo || !dados.carregado) return;
+  const lista = arquivosDaVersao();
+  const c = contatoPorId(atualId);
+  resumo.replaceChildren(lista.length
+    ? `${lista.length} arquivo${lista.length > 1 ? 's' : ''} da versão ${versaoDaEntrega(c)} (${lista.map(a => a.nome).join(', ')}) vão no ZIP. O WhatsApp não anexa sozinho: depois de abrir a conversa, anexe o ZIP baixado.`
+    : 'Ainda não há arquivos da entrega.');
+}
+
 function preencher() {
+  preencherEnvio();
   if (!dados.carregado) return;
   preencherArquivos();
   preencherComentarios();

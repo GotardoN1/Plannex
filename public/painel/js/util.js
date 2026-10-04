@@ -257,22 +257,10 @@ export const PAPEIS = {
 
 // ---------- Contato ----------
 
-export function linkWhatsApp(contato) {
-  let numero = String(contato.telefone || '').replace(/\D/g, '');
-  if (numero.length < 10) return null;
-  if (numero.length <= 11) numero = `55${numero}`;
-  const mensagem = `Olá, ${primeiroNome(contato.nome)}! Aqui é da Plannex. Recebemos sua solicitação de ${SERVICOS[contato.servico]?.nome.toLowerCase() || 'serviço'} e vamos dar sequência por aqui.`;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
-}
-
-export function linkEmail(contato) {
-  if (!contato.email) return null;
-  const assunto = `Plannex · sua solicitação de ${SERVICOS[contato.servico]?.nome.toLowerCase() || 'serviço'}`;
-  return `mailto:${encodeURIComponent(contato.email)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(`Olá, ${primeiroNome(contato.nome)}!\n\n`)}`;
-}
+// Links de WhatsApp e e-mail com mensagem pronta: ver mensagens.js.
 
 export function textoBusca(contato) {
-  return normalizar([contato.nome, contato.email, contato.telefone, contato.descricao, contato.nota_fiscal, contato.plano].join(' '));
+  return normalizar([contato.protocolo, contato.nome, contato.email, contato.telefone, contato.cpf, contato.descricao, contato.nota_fiscal, contato.plano].join(' '));
 }
 
 // ---------- Etiquetas pessoais e nome de exibição ----------

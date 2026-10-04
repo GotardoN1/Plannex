@@ -18,22 +18,31 @@
 /assets/css/simples.rev1.css
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/css/aparencia.rev5.css
+/assets/css/aparencia.rev6.css
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/js/aparencia.rev2.js
+/assets/js/aparencia.rev3.js
   Cache-Control: public, max-age=31536000, immutable
+
+/assets/css/legal.rev1.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/privacidade.html
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/privacidade
+  Cache-Control: no-cache, max-age=0, must-revalidate
 
 /assets/css/noscript.css
   Cache-Control: public, max-age=86400
 
-/assets/js/script.rev112.js
+/assets/js/script.rev113.js
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/js/calculos-ui.rev91.js
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/js/registro-contato.rev143.js
+/assets/js/registro-contato.rev144.js
   Cache-Control: public, max-age=31536000, immutable
 
 /painel/*

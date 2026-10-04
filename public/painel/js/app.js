@@ -12,6 +12,8 @@ import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema, aplicarVis
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
 import { perfisDemo, desenharEscolha, desenharFaixa } from './demo.js';
+import { gerarOS } from './os.js';
+import { linkWhatsAppMensagem, linkEmailMensagem } from './mensagens.js';
 
 const $ = seletor => document.querySelector(seletor);
 const $$ = seletor => [...document.querySelectorAll(seletor)];
@@ -169,6 +171,8 @@ async function mover(id, etapa) {
   const voltando = ordem(etapa) < ordem(anterior);
   // Entrar em Pedido: o administrador escolhe quem da equipe vai cuidar (ele continua vendo tudo).
   const escolha = etapa === 'pedido' && eAdmin() ? seletorResponsavel(contato) : null;
+  // Aceitar: já avisa o cliente (OS, conferência e pagamento) pelo canal escolhido e baixa a OS para anexar.
+  const aviso = aceitando && etapa === 'nota_emitida' && eAdmin() ? avisoDoAceite(contato) : null;
   const ok = await confirmar({
     titulo: concluindo ? 'Aprovar e concluir a demanda?' : entregando ? (anterior === 'revisado' ? 'Entregar a nova versão?' : 'Entregar a demanda?') : aceitando ? 'Aceitar o pedido?' : escolha ? 'Quem da equipe vai cuidar?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
     texto: concluindo
@@ -183,7 +187,7 @@ async function mover(id, etapa) {
     de: contato.recusado_em && !anterior ? 'Recusados' : nomeDe,
     para: etapa === 'entregue' ? 'Conclusão' : nomePara,
     botao: concluindo ? 'Aprovar e concluir' : entregando ? 'Entregar' : aceitando ? 'Aceitar' : voltando ? 'Voltar' : 'Enviar',
-    extra: escolha,
+    extra: escolha || aviso,
     validar: () => (!escolha || escolha.querySelector('select').value ? '' : 'Escolha quem da equipe vai cuidar do pedido.'),
   });
   if (!ok) return;
@@ -198,7 +202,57 @@ async function mover(id, etapa) {
       ? `Pedido de ${primeiroNome(contato.nome)} aceito. Está no Andamento, em ${nomePara}.`
       : quem ? `${primeiroNome(contato.nome)} → Pedido, com ${primeiroNome(quem.nome)}` : `${primeiroNome(contato.nome)} → ${nomePara}`;
   const desfazer = contato.recusado_em && !anterior ? { etapa: null, recusado: true } : { etapa: anterior };
-  return alterar(id, campos, mensagem, { rotulo: 'Desfazer', aoClicar: () => alterar(id, desfazer, 'Desfeito.') });
+  const canal = aviso?.querySelector('select')?.value || '';
+  const comOS = Boolean(aviso?.querySelector('input[type="checkbox"]')?.checked);
+  if (aviso) guardarCanal(canal);
+  // A aba do WhatsApp abre no clique de confirmar (depois o navegador bloquearia como pop-up).
+  const abaWhatsApp = canal === 'whatsapp' ? window.open('about:blank', '_blank') : null;
+  const mudou = await alterar(id, campos, mensagem, { rotulo: 'Desfazer', aoClicar: () => alterar(id, desfazer, 'Desfeito.') });
+  if (!aviso) return mudou;
+  if (!mudou) { abaWhatsApp?.close(); return mudou; }
+  const atual = contatoPorId(id) || contato;
+  if (comOS) {
+    try {
+      const { arquivos } = await api(`/api/contatos/${id}/arquivos`);
+      const nome = await gerarOS(atual, arquivos.filter(a => a.categoria === 'cliente'));
+      avisar(`${nome} baixada. Anexe a OS na mensagem ao cliente.`);
+    } catch (e) {
+      avisar(e.message || 'Não foi possível gerar a ordem de serviço.', 'erro');
+    }
+  }
+  if (canal === 'whatsapp') {
+    const url = linkWhatsAppMensagem(atual, 'nota_emitida');
+    if (url && abaWhatsApp) abaWhatsApp.location.href = url;
+    else abaWhatsApp?.close();
+  } else if (canal === 'email') {
+    const url = linkEmailMensagem(atual, 'nota_emitida');
+    if (url) location.href = url;
+  }
+  return mudou;
+}
+
+// Canal preferido para avisar o cliente (lembrado neste navegador).
+const lerCanal = () => { try { return localStorage.getItem('plannex-canal'); } catch { return null; } };
+const guardarCanal = canal => { try { localStorage.setItem('plannex-canal', canal); } catch { /* sem armazenamento */ } };
+
+function avisoDoAceite(contato) {
+  const canais = [];
+  if (linkWhatsAppMensagem(contato, 'nota_emitida')) canais.push(['whatsapp', 'WhatsApp']);
+  if (contato.email) canais.push(['email', 'E-mail']);
+  const lista = el('select');
+  for (const [valor, texto] of [...canais, ['', 'Agora não']]) {
+    const opcao = el('option', '', texto);
+    opcao.value = valor;
+    lista.append(opcao);
+  }
+  const preferido = lerCanal();
+  lista.value = preferido !== null && [...canais, ['']].some(([v]) => v === preferido) ? preferido : (canais[0]?.[0] || '');
+  const os = el('input');
+  os.type = 'checkbox';
+  os.checked = true;
+  return el('div', 'aviso-aceite',
+    el('label', 'campo', 'Avisar o cliente (aceite, OS e pagamento) por', lista),
+    el('label', 'campo-check', os, el('span', '', 'Baixar a OS preenchida para anexar')));
 }
 
 // Lista da equipe para escolher o responsável do pedido.

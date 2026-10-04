@@ -4,9 +4,26 @@
 /* ---------- Formulário: a opção "personalizada" ocupa a largura de duas ---------- */
 .contact-plan-choices > .contact-plan-choice:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
-/* ---------- Pílula no canto inferior esquerdo ---------- */
+/* ---------- Canto inferior direito: WhatsApp (em cima) e aparência, com a mesma largura ---------- */
+.canto-flutuante {
+  position: fixed; right: 16px; bottom: 16px; z-index: 40;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+}
+.whatsapp-flutuante {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 4px 14px;
+  border: 1px solid #25d36699; border-radius: 999px; background: #0f2a1ef2; color: #eafff2;
+  box-shadow: 0 8px 24px #02060d66; font-size: 13px; font-weight: 700; text-decoration: none;
+  animation: whatsapp-pulso 3.2s ease-in-out infinite;
+}
+.whatsapp-flutuante svg { width: 18px; height: 18px; color: #4ce08a; flex: none; }
+.whatsapp-flutuante:hover { background: #134030; border-color: #25d366; }
+.whatsapp-flutuante:focus-visible { outline: 2px solid #4ce08a; outline-offset: 2px; }
+@keyframes whatsapp-pulso {
+  0%, 100% { box-shadow: 0 8px 24px #02060d66, 0 0 0 0 #25d36600; }
+  50% { box-shadow: 0 8px 24px #02060d66, 0 0 0 7px #25d36626; }
+}
+@media (prefers-reduced-motion: reduce) { .whatsapp-flutuante { animation: none; } }
 .aparencia {
-  position: fixed; left: 16px; bottom: 16px; z-index: 40;
   display: flex; align-items: center; gap: 4px; padding: 4px;
   border: 1px solid #3a4f6c; border-radius: 999px; background: #111e30f2;
   box-shadow: 0 8px 24px #02060d66; font-family: inherit;
@@ -27,10 +44,10 @@
 .aparencia-visual button[aria-pressed="true"] { background: #1c3150; color: #eef3f8; }
 .aparencia :focus-visible { outline: 2px solid #f29a63; outline-offset: 2px; }
 @media (max-width: 760px) {
-  .aparencia { left: 10px; bottom: 10px; }
+  .canto-flutuante { right: 10px; bottom: 10px; }
   .aparencia-visual button { padding: 0 9px; }
 }
-@media print { .aparencia { display: none; } }
+@media print { .canto-flutuante { display: none; } }
 
 /* =====================================================================
    Modo claro
@@ -103,6 +120,9 @@
 
 /* Pílula no claro. */
 [data-tema="claro"] .aparencia { border-color: #c2ccd9; background: #fffffff2; box-shadow: 0 8px 24px #1b2a401f; }
+[data-tema="claro"] .whatsapp-flutuante { border-color: #1fa855; background: #effbf3f2; color: #0f5a2e; }
+[data-tema="claro"] .whatsapp-flutuante svg { color: #128c4a; }
+[data-tema="claro"] .whatsapp-flutuante:hover { background: #dcf5e5; }
 [data-tema="claro"] .aparencia-tema { color: #b4551a; }
 [data-tema="claro"] .aparencia-tema:hover, [data-tema="claro"] .aparencia-visual button[aria-pressed="true"] { background: #e2e8f0; color: #142032; }
 [data-tema="claro"] .aparencia-visual { border-left-color: #d8dfe9; }
@@ -246,7 +266,7 @@
 
 /* Celular: a pílula de aparência não cobre o fim do rodapé, e a seção de Automação abre como as outras. */
 @media (max-width: 760px) {
-  .site-footer { padding-bottom: 64px !important; }
+  .site-footer { padding-bottom: 110px !important; }
   #automacao-chamada.is-mobile-open { display: block !important; margin-top: 12px; }
 }
 
@@ -290,3 +310,30 @@
   .contact-help-card { align-items: stretch !important; text-align: left !important; }
   .contact-help-card > :is(.report-label, h3, p) { text-align: left !important; align-self: stretch !important; margin-left: 0 !important; }
 }
+
+/* Celular: as seções agrupadas lá embaixo abrem pelo botão (antes ficavam sempre abertas). */
+@media (max-width: 760px) {
+  #home-calc-intro-mobile.mobile-collapsible-section:not(.is-mobile-open),
+  #fases-calculo.mobile-collapsible-section:not(.is-mobile-open) { display: none !important; }
+  #home-calc-intro-mobile.mobile-collapsible-section.is-mobile-open,
+  #fases-calculo.mobile-collapsible-section.is-mobile-open { display: block !important; margin-top: 12px; }
+  .mobile-section-toggle--delivery.mobile-section-toggle--compact-neighbor { margin-top: 9px; }
+}
+
+/* Rodapé: Política de Privacidade (LGPD) e Termos de Uso. */
+.footer-legal { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.footer-legal a { color: var(--muted); font-size: 12px; text-decoration: none; }
+.footer-legal a:hover { color: var(--ink); text-decoration: underline; }
+[data-tema="claro"] .footer-legal a { color: #45556b !important; }
+[data-tema="claro"] .footer-legal a:hover { color: #142032 !important; }
+@media (max-width: 760px) {
+  .footer-bottom { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
+}
+
+/* Caixa de sucesso: o protocolo em destaque. */
+.contact-success-protocol { display: grid; gap: 2px; margin: 0 0 12px !important; padding: 10px 14px; border: 1px dashed #f29a6399; border-radius: 12px; background: #f29a6314; }
+.contact-success-protocol small { color: var(--muted, #a9b6c8); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.contact-success-protocol strong { color: #f6b083; font-size: 22px; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+[data-tema="claro"] .contact-success-protocol { background: #fff4ec; border-color: #e2a57d; }
+[data-tema="claro"] .contact-success-protocol strong { color: #a14d16 !important; }
+[data-tema="claro"] .contact-success-protocol small { color: #5b6b80 !important; }

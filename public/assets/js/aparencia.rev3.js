@@ -1,5 +1,6 @@
 /* Aparência do site: modo noturno (escuro/claro) e visual (simples/site), como na Central.
-   Roda no <head>, antes de desenhar, para a página não piscar; depois monta a pílula no canto.
+   Roda no <head>, antes de desenhar, para a página não piscar; depois monta, no canto inferior direito,
+   a pílula do WhatsApp (sempre à vista, pulsando de leve) e, embaixo, a pílula de aparência.
    As escolhas ficam neste navegador e valem também na Central (mesmas chaves). */
 (function () {
   'use strict';
@@ -45,11 +46,29 @@
     s.appendChild(p);
     return s;
   }
+  // Mesmo número do botão "Falar no WhatsApp" do contato (WHATSAPP_NUMBER em script.revNNN.js).
+  var WHATSAPP = '5511945383454';
+  var MENSAGEM = 'Olá! Vim pelo site da Plannex e gostaria de falar sobre uma demanda.';
+  var ZAP = 'M4 20l1.3-4A8 8 0 1 1 8 18.7zM9.2 8.6c.3 2.4 2 4.3 4.6 5.1l1.1-1.2 1.8.9-.4 1.6c-3.8.2-7.2-3.2-7-7l1.6-.4.9 1.8z';
   var LUA = 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z';
   var SOL = 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4';
 
   function montar() {
     if (document.querySelector('.aparencia')) return;
+    var canto = document.createElement('div');
+    canto.className = 'canto-flutuante';
+
+    var zap = document.createElement('a');
+    zap.className = 'whatsapp-flutuante';
+    zap.href = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(MENSAGEM);
+    zap.target = '_blank';
+    zap.rel = 'noopener';
+    zap.title = 'Conversar com a Plannex no WhatsApp';
+    var zapTexto = document.createElement('span');
+    zapTexto.textContent = 'Fale no WhatsApp';
+    zap.appendChild(icone(ZAP));
+    zap.appendChild(zapTexto);
+
     var caixa = document.createElement('div');
     caixa.className = 'aparencia';
     caixa.setAttribute('role', 'group');
@@ -93,7 +112,9 @@
 
     caixa.appendChild(botaoTema);
     caixa.appendChild(opcoes);
-    document.body.appendChild(caixa);
+    canto.appendChild(zap);
+    canto.appendChild(caixa);
+    document.body.appendChild(canto);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar);

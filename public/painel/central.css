@@ -1212,3 +1212,64 @@ a.nav-item { text-decoration: none; }
 
 /* Lateral: sem divisória acima de "Início" (o grupo do fim fica junto da linha do usuário). */
 .nav .nav-grupo.nav-grupo--fim:not([hidden]) { padding-top: 0; border-top: 0 !important; }
+
+/* ---------- Ficha compacta (2026-10-04) ----------
+   Tudo abaixo dos botões de WhatsApp, e-mail, arquivar e excluir fica mais junto, para ler a demanda
+   sem rolar tanto: menos respiro nos blocos, dados lado a lado e Notas e ordens em três colunas. */
+.ficha-acoes { align-items: center; }
+.mensagem-pronta { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.mensagem-pronta select { width: auto; min-width: 200px; min-height: 36px; padding: 6px 10px; font-size: 13px; }
+.etiqueta-protocolo { display: inline-flex; align-items: center; padding: 1px 8px; border: 1px solid var(--line-forte); border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cartao-meta .cartao-protocolo { color: var(--subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.ficha .ficha-painel { gap: 10px; padding: 12px; }
+.ficha .ficha-painel .painel-topo h3 { font-size: 15px; }
+.ficha .ficha-painel .ficha-grade { gap: 10px; }
+.ficha .ficha-painel .ficha-grade--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ficha .ficha-painel .ficha-coluna { gap: 10px; }
+.ficha .ficha-painel .bloco { gap: 8px; padding: 12px 14px; }
+.ficha .ficha-painel .bloco-topo { min-height: 24px; }
+.ficha .ficha-painel .bloco-topo h3 { font-size: 13.5px; }
+.ficha .ficha-painel .dados { gap: 6px 20px; }
+.ficha .ficha-painel .dado dt { font-size: 11px; margin-bottom: 0; }
+.ficha .ficha-painel .dado dd { font-size: 13px; }
+.ficha .ficha-painel .dados--texto { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.ficha .ficha-painel .dados--texto .dado--largo { grid-column: 1 / -1; }
+.ficha .ficha-painel .dados--texto dd { line-height: 1.45; }
+.ficha .ficha-painel .campo { gap: 3px; font-size: 12px; }
+.ficha .ficha-painel :where(input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.ficha .ficha-painel textarea { min-height: 56px; padding: 6px 10px; font-size: 13px; }
+.ficha .ficha-painel .prefixo input { padding-left: 34px; }
+.ficha .ficha-painel .prefixo i { left: 10px; font-size: 13px; }
+.ficha .ficha-painel .negocio { gap: 8px; }
+.ficha .ficha-painel .negocio-resumo { padding: 6px 10px; font-size: 13px; }
+.ficha .ficha-painel .documentos { gap: 4px; }
+.ficha .ficha-painel .documento { padding: 6px 9px; }
+.ficha .ficha-painel .documento-nome { font-size: 13px; }
+.ficha .ficha-painel .zona-envio { padding: 8px; font-size: 12px; }
+.ficha .ficha-painel .comentarios { gap: 6px; }
+.ficha .ficha-painel .comentario-corpo { padding: 6px 10px; }
+.ficha .ficha-painel .comentario-corpo p { margin-top: 2px; font-size: 13px; line-height: 1.45; }
+.ficha .ficha-painel .chamada-entrega { padding: 8px 12px; font-size: 13px; }
+.ficha .ficha-painel .painel-rodape--destaque { padding-top: 0; }
+.ficha .ficha-painel .botao { min-height: 34px; }
+.ficha .ficha-painel .botao--pequeno { min-height: 28px; }
+@media (max-width: 1100px) {
+  .ficha .ficha-painel .ficha-grade--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ficha .ficha-painel .ficha-grade--3 > :last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .ficha .ficha-painel .ficha-grade--3 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Aceite: avisar o cliente e baixar a OS. */
+.aviso-aceite { display: grid; gap: 8px; }
+.campo-check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+
+/* Conclusão: enviar ao cliente (ZIP versionado). */
+.bloco--envio { border-color: #25d36655; }
+.versao-entrega { padding: 2px 9px; border-radius: 999px; background: var(--destaque-fundo); color: var(--destaque-claro); font-size: 12px; font-weight: 700; }
+.envio-resumo { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.envio-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.campos-lado--3 { grid-template-columns: 1fr 1.3fr 1fr; }
+@media (max-width: 720px) { .campos-lado--3 { grid-template-columns: 1fr; } }

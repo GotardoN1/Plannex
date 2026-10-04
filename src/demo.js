@@ -125,10 +125,15 @@ export async function resetarDemo(env) {
     const pagoHoje = [15, 22].includes(i);
     const pago = pagoHoje ? dia(agora) : indice >= 1 || (comNota && ![10, 13].includes(i)) ? dia(Math.max(criado, atualizado - DIA)) : null;
     const arquivado = i >= ROTEIRO.length - ARQUIVADOS;
+    // CPF fictício (empresas ganham CNPJ), só para a ordem de serviço sair completa.
+    const numeros = n => Array.from({ length: n }, () => Math.floor(sorte() * 10)).join('');
+    const cpf = /distribui|constru|mercado|escrit|padaria|transport|cl[ií]nica|loja|auto pe|academia|hotel|gr[aá]fica|contabil|farm[aá]cia/i.test(nome)
+      ? numeros(14).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+      : numeros(11).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
     const email = `${nome.toLowerCase().normalize('NFD').replace(/[^a-z ]/g, '').trim().split(/\s+/).slice(0, 2).join('.')}@exemplo.com`;
     contatos.push({
       id, servico, nome, telefone: `(11) 9${String(80000000 + Math.floor(sorte() * 19999999)).replace(/(\d{4})(\d{4})/, '$1-$2')}`,
-      email, plano, descricao, envio_documentos: i % 3 ? 'Enviar posteriormente' : 'Anexar agora',
+      email, cpf, plano, descricao, envio_documentos: i % 3 ? 'Enviar posteriormente' : 'Anexar agora',
       origem: i % 7 === 3 ? 'whatsapp' : i % 11 === 5 ? 'indicacao' : 'site', criado_em: iso(criado), etapa,
       atualizado_em: atualizado ? iso(atualizado) : null,
       lido_em: diasChegada === 0 && i < 2 ? null : iso(criado + 1800000),
@@ -171,6 +176,14 @@ export async function resetarDemo(env) {
     // Documentos que a pessoa enviou pelo site.
     if (i % 3 === 0 && i < 30) arquivos.push({ contato_id: id, categoria: 'cliente', nome: servico === 'calculos' ? 'Sentenca-e-holerites.pdf' : 'Planilha-atual.csv', usuario_id: null, criado_em: iso(criado), contato: nome });
   });
+
+  // Protocolo PLX-ANO-NNNN na ordem de chegada, como na Central real.
+  const contagem = {};
+  for (const c of [...contatos].sort((a, b) => a.criado_em.localeCompare(b.criado_em) || a.id - b.id)) {
+    const ano = new Date(new Date(c.criado_em).getTime() - 3 * 3600000).getUTCFullYear();
+    contagem[ano] = (contagem[ano] || 0) + 1;
+    c.protocolo = `PLX-${ano}-${String(contagem[ano]).padStart(4, '0')}`;
+  }
 
   // O KV grátis tem poucas gravações por dia, compartilhadas com a Central real. Por isso os arquivos
   // de exemplo têm chave fixa e só são gravados quando faltam; o reinício apaga só os enviados por visitantes.
@@ -222,6 +235,8 @@ export async function resetarDemo(env) {
     env.DB.prepare(inserir('usuarios', PERFIS_DEMO.map(p => ({ id: p.id, usuario: p.usuario, nome: p.nome, papel: p.papel, area: p.area, senha_hash: 'demo-sem-senha' })))
       + ' ON CONFLICT (id) DO UPDATE SET usuario = excluded.usuario, nome = excluded.nome, papel = excluded.papel, senha_hash = excluded.senha_hash, area = excluded.area, apelido = NULL, tema = \'escuro\''),
     env.DB.prepare(inserir('contatos', contatos)),
+    env.DB.prepare('DELETE FROM protocolos'),
+    env.DB.prepare(inserir('protocolos', Object.entries(contagem).map(([ano, ultimo]) => ({ ano: Number(ano), ultimo })))),
     env.DB.prepare(inserir('movimentacoes', movimentacoes)),
     env.DB.prepare(inserir('notas', notas)),
     // Etiquetas pessoais de exemplo: cada perfil vê só as suas.

@@ -3,7 +3,8 @@
 // Central, se for um PDF com os mesmos campos). Os campos continuam editáveis: o resto se completa no
 // leitor de PDF (ou à mão) e o cliente assina.
 import { estado, usuarioPorId } from './estado.js';
-import { NOME_ETAPA, CAIXA, reais, diaBr, diaDe } from './util.js';
+import { NOME_ETAPA, CAIXA, reais, diaBr, diaDe, hoje } from './util.js';
+import { PIX, PRAZO_DIAS } from './mensagens.js';
 
 const MODELO_PADRAO = './modelos/ordem-de-servico.pdf';
 
@@ -87,38 +88,59 @@ function tiposDeDocumento(nomes) {
   return marcas;
 }
 
+// Escopo padrão de cada serviço: o que vai assinalado e o texto do escopo contratado.
+const ESCOPO = {
+  automacao: {
+    marcas: ['ent_planilha', 'ent_video', 'ent_guia', 'ent_ajustes'],
+    texto: 'Criação ou automação da planilha conforme a solicitação, com vídeo demonstrativo, guia de uso e rodada de ajustes após a entrega.',
+  },
+  calculos: {
+    marcas: ['ent_memoria', 'ent_parecer', 'ent_planilha', 'ent_ajustes', 'ent_outro'],
+    texto: 'Cálculo conforme a solicitação e os documentos recebidos, com memória de cálculo, parecer técnico, planilha de apoio e ajuste/suporte após a entrega.',
+  },
+};
+
 function dados(c, arquivosDoCliente) {
   const automacao = c.servico === 'automacao';
   const responsavel = usuarioPorId(c.responsavel_id);
+  const escopo = ESCOPO[automacao ? 'automacao' : 'calculos'];
+  const dias = PRAZO_DIAS[c.servico] || 3;
   const resumo = [
     c.descricao,
     c.atividade_manual ? `Atividade manual a automatizar: ${c.atividade_manual}` : '',
     c.manter_inalterado ? `Deve permanecer inalterado: ${c.manter_inalterado}` : '',
+    c.observacoes ? `Observações do cliente: ${c.observacoes}` : '',
   ].filter(Boolean).join('\n');
   const nomes = arquivosDoCliente.map(a => a.nome);
   const pendencias = nomes.length
     ? `Recebidos: ${nomes.join(', ')}`
     : c.envio_documentos === 'Enviar posteriormente' ? 'O cliente vai enviar os documentos depois.' : '';
-  const etapa = c.etapa === 'concluido' ? 'Concluído' : c.etapa === 'entregue' ? 'Entregue (aguardando conclusão)' : c.etapa ? NOME_ETAPA[c.etapa] : `Na ${CAIXA.toLowerCase()}`;
+  const etapa = c.etapa === 'concluido' ? 'Concluído' : c.etapa === 'entregue' ? 'Entregue (aguardando conclusão)'
+    : !c.etapa || c.etapa === 'nota_emitida' ? 'Aguardando assinatura' : NOME_ETAPA[c.etapa] || `Na ${CAIXA.toLowerCase()}`;
 
   const textos = {
-    protocolo: `${diaDe(c.criado_em).slice(0, 4)}/${String(c.id).padStart(4, '0')}`,
+    protocolo: c.protocolo || `${diaDe(c.criado_em).slice(0, 4)}/${String(c.id).padStart(4, '0')}`,
     data_abertura: diaBr(diaDe(c.criado_em)),
     responsavel: responsavel?.nome || '',
     cliente: c.nome,
+    cpf_cnpj: c.cpf,
     whatsapp: c.telefone,
     email: c.email,
-    plano_modalidade: c.plano,
+    plano_modalidade: c.plano || (automacao ? 'Automação' : 'Cálculo'),
     resumo_solicitacao: resumo,
     documentos_pendencias: pendencias,
+    escopo: escopo.texto,
     valor: c.valor_centavos !== null && c.valor_centavos !== undefined ? reais(c.valor_centavos) : '',
-    pagamento: c.pago_em ? `Pago em ${diaBr(c.pago_em)}` : '',
-    prazo: c.prazo ? diaBr(c.prazo) : '',
+    pagamento: c.pago_em ? `Pago em ${diaBr(c.pago_em)}` : `PIX${PIX.chave ? ` ${PIX.chave}` : ''}, antes do início`,
+    // Prazo estimado conta da confirmação (assinatura e pagamento).
+    prazo: `${dias} dias úteis`,
     status_entrega: etapa,
-    observacoes: c.observacoes,
+    proximos_passos: 'Conferir os dados, assinar esta OS e enviar o comprovante do PIX para iniciarmos.',
     cliente_aprovacao: c.nome,
+    // Data da confirmação: o dia em que a OS foi gerada.
+    data_aprovacao: diaBr(hoje()),
   };
-  const marcas = new Set(automacao ? ['serv_automacao', 'ent_planilha'] : ['serv_calculos', 'ent_memoria', 'ent_parecer']);
+  const marcas = new Set([automacao ? 'serv_automacao' : 'serv_calculos', ...escopo.marcas]);
   if (automacao && /evolu/i.test(c.plano || '')) marcas.add('serv_suporte');
   if (!automacao && /confer|revis|impugna/i.test(`${c.plano} ${c.descricao}`)) marcas.add('serv_conferencia');
   for (const m of tiposDeDocumento(nomes)) marcas.add(m);

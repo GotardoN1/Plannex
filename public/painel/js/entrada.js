@@ -5,8 +5,9 @@ import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
 import { etiquetasDaDemanda } from './etiquetas.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, fechada, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
-  relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
+  relativo, dataHora, normalizar, textoBusca, reais, diaBr,
 } from './util.js';
+import { linkWhatsAppMensagem, momento, MOMENTOS } from './mensagens.js';
 
 const filtro = { modo: 'todos', servico: '', texto: '', responsavel: '' };
 
@@ -104,7 +105,7 @@ function linha(c, tipo) {
     el('span', 'contato-marcador', c.lido_em || concluida ? '' : el('span', 'ponto-novo', el('span', 'sr', 'Não lido'))),
     avatar(c.nome),
     el('span', 'contato-texto',
-      el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico), etiquetasDaDemanda(c)),
+      el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico), c.protocolo ? el('span', 'etiqueta-protocolo', c.protocolo) : null, etiquetasDaDemanda(c)),
       el('span', 'contato-previa', previa || (c.email || c.telefone || 'Sem descrição'))));
   principal.tabIndex = 0;
   principal.setAttribute('role', 'button');
@@ -127,9 +128,10 @@ function linha(c, tipo) {
             c.etapa === 'pedido' ? (c.iniciado_em ? 'Em andamento' : 'Novo pedido') : c.etapa ? NOME_ETAPA[c.etapa] : 'Novo pedido'));
   situacao.addEventListener('click', abrir);
 
-  const whatsapp = linkWhatsApp(c);
+  // WhatsApp com a mensagem do momento (recebida, recusada, aceite…).
+  const whatsapp = linkWhatsAppMensagem(c, momento(c));
   const celulaWhatsapp = el('div', 'celula celula--icone',
-    whatsapp ? link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `Chamar ${c.nome} no WhatsApp` }) : null);
+    whatsapp ? link('', whatsapp, 'botao botao--icone botao--fantasma', { icone: 'whatsapp', novaAba: true, titulo: `WhatsApp para ${c.nome} · mensagem pronta: ${MOMENTOS[momento(c)]}` }) : null);
 
   const celulaResponsavel = el('div', 'celula celula--icone',
     responsavel ? avatar(responsavel.nome, 'avatar--pequeno') : el('span', 'sem-responsavel', icone('usuario'), el('span', 'sr', 'Sem responsável')));

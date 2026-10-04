@@ -1,7 +1,7 @@
 'use strict';
 // Registra cada solicitação na Central da Plannex (/painel/), com os documentos anexados.
-// O script principal chama window.PlannexCentral.registrar(form) junto com o envio do e-mail e
-// considera o pedido enviado se qualquer um dos dois confirmar.
+// O script principal chama window.PlannexCentral.registrar(form) antes do e-mail (a Central devolve o
+// protocolo, que vai no assunto) e considera o pedido enviado se qualquer um dos dois confirmar.
 (() => {
   const valor = (form, seletor) => (form.querySelector(seletor)?.value || '').trim();
   const marcado = (form, nome) => form.querySelector(`[name="${nome}"]:checked`)?.value || '';
@@ -10,7 +10,7 @@
     return campo && !campo.disabled && campo.offsetParent !== null ? campo.value.trim() : '';
   };
 
-  // Resolve com { ok, repetido } e nunca rejeita (falha vira { ok: false }).
+  // Resolve com { ok, repetido, protocolo } e nunca rejeita (falha vira { ok: false }).
   async function registrar(form, arquivos = []) {
     const servico = form.querySelector('[data-contact-service]:checked')?.dataset.contactService;
     if (!servico) return { ok: false };
@@ -19,6 +19,7 @@
       nome: valor(form, '#contact-name'),
       telefone: valor(form, '#contact-phone'),
       email: valor(form, '#contact-email'),
+      cpf: valor(form, '#contact-cpf'),
       plano: marcado(form, 'Plano de interesse'),
       descricao: valor(form, '#contact-description'),
       atividade_manual: visivel(form, '#contact-manual-task'),
@@ -45,7 +46,7 @@
         });
       }
       const retorno = await resposta.json().catch(() => ({}));
-      return { ok: resposta.ok && retorno.ok !== false, repetido: Boolean(retorno.repetido) };
+      return { ok: resposta.ok && retorno.ok !== false, repetido: Boolean(retorno.repetido), protocolo: retorno.protocolo || '' };
     } catch {
       return { ok: false };
     }

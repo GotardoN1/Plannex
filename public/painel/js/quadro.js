@@ -108,6 +108,7 @@ function cartao(c, indice) {
     el('div', 'cartao-linha1', el('strong', 'cartao-nome', c.nome), valor),
     el('div', 'cartao-meta',
       el('span', `servico-mini servico-mini--${c.servico}`, SERVICOS[c.servico]?.nome || c.servico),
+      c.protocolo ? el('span', 'cartao-protocolo', c.protocolo) : null,
       c.nota_fiscal ? el('span', 'cartao-nf', `NF ${c.nota_fiscal}`) : null,
       prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null,
       // Em Pedido, o administrador vê se o funcionário já iniciou; na Retificação, quantas vezes voltou.
