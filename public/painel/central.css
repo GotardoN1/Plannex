@@ -1217,8 +1217,6 @@ a.nav-item { text-decoration: none; }
    Tudo abaixo dos botões de WhatsApp, e-mail, arquivar e excluir fica mais junto, para ler a demanda
    sem rolar tanto: menos respiro nos blocos, dados lado a lado e Notas e ordens em três colunas. */
 .ficha-acoes { align-items: center; }
-.mensagem-pronta { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
-.mensagem-pronta select { width: auto; min-width: 200px; min-height: 36px; padding: 6px 10px; font-size: 13px; }
 .etiqueta-protocolo { display: inline-flex; align-items: center; padding: 1px 8px; border: 1px solid var(--line-forte); border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cartao-meta .cartao-protocolo { color: var(--subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
 
@@ -1270,6 +1268,9 @@ a.nav-item { text-decoration: none; }
 .bloco--envio { border-color: #25d36655; }
 .versao-entrega { padding: 2px 9px; border-radius: 999px; background: var(--destaque-fundo); color: var(--destaque-claro); font-size: 12px; font-weight: 700; }
 .envio-resumo { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
-.envio-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.envio-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.envio-linha .envio-resumo { flex: 1; min-width: 200px; }
 .campos-lado--3 { grid-template-columns: 1fr 1.3fr 1fr; }
 @media (max-width: 720px) { .campos-lado--3 { grid-template-columns: 1fr; } }
+/* Entregue: o molde em branco do relatório acompanha a altura de "Arquivos da entrega", lado a lado. */
+.ficha-grade > .ficha-coluna > .bloco--moldes:only-child { flex: 1 1 auto; }

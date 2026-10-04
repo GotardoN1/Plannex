@@ -651,20 +651,13 @@ function contactShowSuccess(repeated, protocol) {
   icon.textContent = '✓';
   const title = document.createElement('h3');
   title.id = 'contact-success-title';
-  title.textContent = repeated ? 'Solicitação já recebida' : 'Solicitação recebida';
-  const number = document.createElement('p');
-  number.className = 'contact-success-protocol';
-  if (protocol) {
-    const label = document.createElement('small');
-    label.textContent = 'Protocolo';
-    const code = document.createElement('strong');
-    code.textContent = protocol;
-    number.append(label, code);
-  }
+  title.textContent = repeated ? 'Pedido já recebido!' : 'Pedido efetuado com sucesso!';
   const text = document.createElement('p');
-  text.textContent = protocol
-    ? 'Guarde este número para acompanhar o atendimento. Entraremos em contato após a análise da solicitação.'
-    : 'Pedido efetuado com sucesso! Entraremos em contato após a análise da solicitação.';
+  text.textContent = 'Entraremos em contato após a análise da solicitação.';
+  // Número da solicitação: discreto, só como referência (quem usa é a equipe).
+  const number = document.createElement('small');
+  number.className = 'contact-success-ref';
+  number.textContent = protocol ? `Ref. ${protocol}` : '';
   const ok = document.createElement('button');
   ok.type = 'button';
   ok.className = 'button';
@@ -675,7 +668,7 @@ function contactShowSuccess(repeated, protocol) {
   ok.addEventListener('click', close);
   box.addEventListener('click', event => { if (event.target === box) close(); });
   document.addEventListener('keydown', onKey);
-  card.append(icon, title, ...(protocol ? [number] : []), text, ok);
+  card.append(icon, title, text, ok, ...(protocol ? [number] : []));
   box.append(card);
   document.body.append(box);
   ok.focus();
@@ -829,9 +822,9 @@ $('#contact-form')?.addEventListener('submit', async event => {
 
     contactRemember(signature);
     if (status) {
-      status.textContent = `${central.protocolo ? `${central.protocolo} · ` : ''}${central.repetido
+      status.textContent = central.repetido
         ? 'Recebemos sua solicitação (ela já tinha chegado). Entraremos em contato após a análise.'
-        : 'Solicitação recebida. Entraremos em contato após a análise da solicitação.'}`;
+        : 'Pedido efetuado com sucesso. Entraremos em contato após a análise da solicitação.';
       status.classList.add('is-success');
     }
     contactShowSuccess(central.repetido, central.protocolo);
