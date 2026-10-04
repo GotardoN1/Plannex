@@ -4,7 +4,7 @@
 import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
 import { etiquetasDaDemanda } from './etiquetas.js';
 import {
-  el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
+  el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, fechada, SERVICOS, ORIGENS, diaDe, hoje, diasEntre,
   relativo, dataHora, normalizar, textoBusca, linkWhatsApp, reais, diaBr,
 } from './util.js';
 
@@ -26,8 +26,8 @@ export function desenharEntrada(raiz, { arquivo = false, concluidos = false, rec
   // O que chega em Entregue vai para Concluídos.
   const base = tipo === 'arquivo' ? estado.contatos.filter(c => c.arquivado_em)
     : tipo === 'recusados' ? estado.contatos.filter(c => c.recusado_em && !c.arquivado_em)
-      : tipo === 'concluidos' ? ativos().filter(c => c.etapa === 'entregue')
-        : admin ? ativos().filter(c => !c.etapa) : ativos().filter(c => c.etapa !== 'entregue');
+      : tipo === 'concluidos' ? ativos().filter(c => (admin ? c.etapa === 'concluido' : fechada(c.etapa)))
+        : admin ? ativos().filter(c => !c.etapa) : ativos().filter(c => !fechada(c.etapa));
   const filtrar = () => {
     const busca = normalizar(filtro.texto);
     return base.filter(c =>
@@ -157,8 +157,8 @@ function linha(c, tipo) {
   let modelo;
   if (concluida) {
     if (admin) {
-      celulaAcao.append(botao('Reabrir', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, 'revisado'),
-        { icone: 'restaurar', titulo: 'Devolve ao Andamento, em Revisão' }));
+      celulaAcao.append(botao('Reabrir', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, 'entregue'),
+        { icone: 'restaurar', titulo: 'Devolve ao Andamento, na Conclusão' }));
     }
     celulas = admin ? [situacao, celulaResponsavel, celulaValor, celulaAcao] : [situacao];
     modelo = admin ? 'concluidos' : 'concluidos-func';

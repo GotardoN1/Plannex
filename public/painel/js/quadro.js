@@ -38,8 +38,9 @@ function filtrados() {
     (!busca || textoBusca(c).includes(busca)));
 }
 
-// O quadro mostra só o que está em trabalho; o que chega em Entregue vai para Concluídos.
-const ETAPAS_QUADRO = ETAPAS.filter(([chave]) => chave !== 'entregue');
+// Quatro colunas: Notas e ordens, Pedido, Revisão e Conclusão (o que o funcionário entregou e o
+// administrador ainda vai concluir de verdade). O concluído vai para Concluídos.
+const ETAPAS_QUADRO = ETAPAS.filter(([chave]) => chave !== 'concluido').map(([chave, nome]) => [chave, chave === 'entregue' ? 'Conclusão' : nome]);
 
 function colunas() {
   const contatos = filtrados();
@@ -88,6 +89,7 @@ function cartao(c, indice) {
   });
 
   const prazo = c.etapa !== 'entregue' ? situacaoPrazo(c.prazo) : null;
+  const naConclusao = c.etapa === 'entregue';
   const responsavel = usuarioPorId(c.responsavel_id);
   const temValor = c.valor_centavos !== null && c.valor_centavos !== undefined;
   const valor = temValor
@@ -97,7 +99,7 @@ function cartao(c, indice) {
 
   const anterior = indice > 0 ? ETAPAS[indice - 1] : null;
   const proxima = ETAPAS[indice + 1];
-  const concluir = proxima?.[0] === 'entregue';
+  const concluir = proxima?.[0] === 'concluido';
   // Três linhas curtas: nome e valor · serviço, nota e prazo · responsável, contadores e setas.
   artigo.append(...[
     el('div', 'cartao-linha1', el('strong', 'cartao-nome', c.nome), valor),
@@ -113,7 +115,7 @@ function cartao(c, indice) {
       el('span', 'cartao-setas',
         botao('', 'botao--icone botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior ? anterior[0] : null), { icone: 'seta_esq', titulo: `Voltar para ${anterior ? anterior[1] : CAIXA}` }),
         concluir
-          ? botao('Concluir', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'entregue'), { icone: 'ok', titulo: 'Concluir a demanda (vai para Concluídos)' })
+          ? botao('Concluir', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: naConclusao ? 'Concluir de vez (vai para Concluídos)' : 'Concluir a demanda' })
           : proxima ? botao('', 'botao--icone botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir', titulo: `Avançar para ${proxima[1]}` }) : null)),
   ].filter(Boolean));
   return artigo;

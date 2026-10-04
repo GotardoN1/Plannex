@@ -12,7 +12,7 @@ import { gerarOS } from './os.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, ETAPAS,
   dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, linkWhatsApp, linkEmail, diaBr, tamanhoArquivo,
-  hoje, tipoArquivo, diaDe,
+  hoje, tipoArquivo, diaDe, fechada,
 } from './util.js';
 
 // O funcionário vê e envia só documentos do cliente e arquivos da entrega.
@@ -24,7 +24,7 @@ const ABAS = [
   { chave: 'nota_emitida', nome: 'Notas e ordens', etapas: ['nota_emitida'], admin: true },
   { chave: 'pedido', nome: 'Pedido', etapas: ['pedido', 'processo_iniciado'] },
   { chave: 'revisado', nome: 'Revisão', etapas: ['revisado'] },
-  { chave: 'entregue', nome: 'Entregue', etapas: ['entregue'] },
+  { chave: 'entregue', nome: 'Entregue', etapas: ['entregue', 'concluido'] },
 ];
 // Pedido novo ou recusado ainda não tem etapa: a ficha mostra a "entrada" (fora da trilha).
 const ABA_ENTRADA = { chave: 'entrada', nome: 'Pedido recebido' };
@@ -40,7 +40,7 @@ let dados = { itens: [], arquivos: [], carregado: false };
 let sequencia = 0;
 
 // Para o funcionário, a demanda concluída fica só para consulta.
-const somenteLeitura = c => !eAdmin() && c.etapa === 'entregue';
+const somenteLeitura = c => !eAdmin() && fechada(c.etapa);
 // O funcionário leva a demanda entre Pedido, Revisão e Entregue.
 const podeMoverPara = (c, etapa) => eAdmin() || (ETAPAS_FUNCIONARIO.includes(etapa) && !somenteLeitura(c));
 const podeVerAba = aba => !aba.admin || eAdmin();
@@ -182,19 +182,25 @@ function acaoPrincipal(c) {
   if (!eAdmin()) return acaoAvancar(c);
   const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
   const [anterior, nomeAnterior] = indice > 0 ? ETAPAS[indice - 1] : [null, CAIXA];
-  const voltar = c.etapa === 'entregue'
-    ? botao(`Reabrir: voltar para ${nomeAnterior}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'restaurar', titulo: 'Tira a demanda de Concluídos e devolve ao Andamento' })
+  const voltar = c.etapa === 'concluido'
+    ? botao('Reabrir: voltar para a Conclusão', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'restaurar', titulo: 'Tira a demanda de Concluídos e devolve ao Andamento' })
     : botao(`Voltar para ${nomeAnterior}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'seta_esq' });
   return el('div', 'acoes-etapa', voltar, acaoAvancar(c));
 }
 
 function acaoAvancar(c) {
   const admin = eAdmin();
-  if (c.etapa === 'entregue') return el('span', 'concluido', icone('ok'), admin ? 'Entregue' : 'Concluída');
+  if (c.etapa === 'concluido') return el('span', 'concluido', icone('ok'), 'Concluída');
+  if (c.etapa === 'entregue') {
+    // Volta para o administrador finalizar com o cliente; para o funcionário, já está concluída.
+    return admin
+      ? botao('Concluir de vez', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'Finalizar com o cliente: vai para Concluídos' })
+      : el('span', 'concluido', icone('ok'), 'Entregue');
+  }
   const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
   const [proxima, nome] = ETAPAS[indice + 1] || [];
   if (!proxima) return null;
-  if (proxima === 'entregue') return botao('Concluir demanda', 'botao--primario botao--pequeno', () => { abrirAba('entregue'); }, { icone: 'ok', titulo: 'Abre a aba Entregue para enviar os arquivos finais e concluir' });
+  if (proxima === 'entregue') return botao('Entregar', 'botao--primario botao--pequeno', () => { abrirAba('entregue'); }, { icone: 'ok', titulo: 'Abre a aba Entregue para enviar os arquivos finais e entregar' });
   const rotulo = proxima === 'pedido' ? 'Passar para Pedido' : proxima === 'revisado' ? 'Enviar para revisão' : `Avançar para ${nome}`;
   return botao(rotulo, 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima), { icone: 'seta_dir', titulo: proxima === 'pedido' ? 'Escolha quem da equipe vai cuidar' : '' });
 }
@@ -286,7 +292,7 @@ function painelRevisado(c) {
 }
 
 function painelEntregue(c) {
-  const entregue = c.etapa === 'entregue';
+  const entregue = fechada(c.etapa);
   const registro = entregue ? ultimaEntrega() : null;
   const partes = [];
   if (entregue) partes.push(registroDaEntrega(c, registro));
@@ -297,7 +303,12 @@ function painelEntregue(c) {
     comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'));
   if (!entregue && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
-      botao('Concluir e registrar entrega', 'botao--primario', () => concluir(c), { icone: 'ok' })));
+      botao('Entregar e registrar entrega', 'botao--primario', () => concluir(c), { icone: 'ok' })));
+  }
+  // Na Conclusão, o administrador finaliza com o cliente (ou volta as etapas e realoca).
+  if (c.etapa === 'entregue' && eAdmin()) {
+    partes.push(el('div', 'painel-rodape painel-rodape--destaque',
+      botao('Concluir de vez', 'botao--primario', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'Depois de falar com o cliente: vai para Concluídos' })));
   }
   return partes;
 }
@@ -311,8 +322,8 @@ function registroDaEntrega(c, registro) {
 
   const data = el('input');
   data.type = 'date';
-  data.max = hoje();
-  data.min = diaDe(c.criado_em);
+  data.min = '2000-01-01';
+  data.max = '2100-12-31';
   data.setAttribute('aria-label', 'Dia da entrega');
   const local = new Date(quando);
   data.value = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
@@ -325,7 +336,15 @@ function registroDaEntrega(c, registro) {
     if (!data.value) return;
     // Mantém o horário registrado; muda só o dia.
     const novo = new Date(`${data.value}T${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}:00`);
-    if (novo.getTime() > Date.now()) novo.setTime(Date.now());
+    if (Number.isNaN(novo.getTime())) return;
+    const confirmado = await acoes.confirmar({
+      titulo: 'Alterar a data de entrega?',
+      texto: `A entrega de ${c.nome} passa a constar em ${diaBr(data.value)}. Fica registrado no histórico.`,
+      de: diaBr(diaDe(new Date(quando).toISOString())),
+      para: diaBr(data.value),
+      botao: 'Alterar data',
+    });
+    if (!confirmado) return;
     salvar.disabled = true;
     const ok = await acoes.alterar(c.id, { entregue_em: novo.toISOString() }, `Data da entrega corrigida para ${diaBr(data.value)}.`);
     salvar.disabled = false;
@@ -338,7 +357,7 @@ function registroDaEntrega(c, registro) {
 
 // Depois de enviar um arquivo final, oferece concluir na hora.
 function perguntarSeConclui(c) {
-  if (contatoPorId(c.id)?.etapa === 'entregue') return;
+  if (fechada(contatoPorId(c.id)?.etapa)) return;
   acoes.avisar('Arquivo da entrega anexado.', 'ok', { rotulo: 'Concluir agora', aoClicar: () => concluir(c) });
 }
 
@@ -524,7 +543,7 @@ function indicadorSalvo() {
 }
 
 function blocoEntrega(c) {
-  const prazo = c.etapa !== 'entregue' ? situacaoPrazo(c.prazo) : null;
+  const prazo = !fechada(c.etapa) ? situacaoPrazo(c.prazo) : null;
   const chipPrazo = prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, prazo.texto) : null;
   if (!eAdmin()) {
     const responsavel = usuarioPorId(c.responsavel_id);

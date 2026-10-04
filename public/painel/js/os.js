@@ -99,7 +99,7 @@ function dados(c, arquivosDoCliente) {
   const pendencias = nomes.length
     ? `Recebidos: ${nomes.join(', ')}`
     : c.envio_documentos === 'Enviar posteriormente' ? 'O cliente vai enviar os documentos depois.' : '';
-  const etapa = c.etapa === 'entregue' ? 'Entregue' : c.etapa ? NOME_ETAPA[c.etapa] : `Na ${CAIXA.toLowerCase()}`;
+  const etapa = c.etapa === 'concluido' ? 'Concluído' : c.etapa === 'entregue' ? 'Entregue (aguardando conclusão)' : c.etapa ? NOME_ETAPA[c.etapa] : `Na ${CAIXA.toLowerCase()}`;
 
   const textos = {
     protocolo: `${diaDe(c.criado_em).slice(0, 4)}/${String(c.id).padStart(4, '0')}`,

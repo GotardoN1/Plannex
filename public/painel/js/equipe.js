@@ -39,7 +39,7 @@ export function desenharEquipe(raiz) {
 
 function pessoa(u) {
   const voce = u.id === estado.usuario.id;
-  const comEla = ativos().filter(c => c.responsavel_id === u.id && c.etapa !== 'entregue').length;
+  const comEla = ativos().filter(c => c.responsavel_id === u.id && c.etapa !== 'entregue' && c.etapa !== 'concluido').length;
   const formNome = formularioDados(u);
   const editarNome = botao('', 'botao--icone botao--fantasma botao--pequeno', () => {
     formNome.hidden = !formNome.hidden;
@@ -171,15 +171,15 @@ function cargaDaEquipe() {
   const contatos = ativos();
   const linhas = estado.usuarios.map(u => {
     const dele = contatos.filter(c => c.responsavel_id === u.id);
-    const abertas = dele.filter(c => c.etapa && c.etapa !== 'entregue');
+    const abertas = dele.filter(c => c.etapa && c.etapa !== 'entregue' && c.etapa !== 'concluido');
     return {
       u,
       abertas: abertas.length,
       atrasadas: abertas.filter(c => c.prazo && c.prazo < dia).length,
-      entregues: dele.filter(c => c.etapa === 'entregue' && c.atualizado_em && diaDe(c.atualizado_em).startsWith(mes)).length,
+      entregues: dele.filter(c => (c.etapa === 'entregue' || c.etapa === 'concluido') && c.atualizado_em && diaDe(c.atualizado_em).startsWith(mes)).length,
     };
   }).sort((a, b) => b.abertas - a.abertas || a.u.nome.localeCompare(b.u.nome));
-  const semResponsavel = contatos.filter(c => c.etapa && c.etapa !== 'entregue' && !c.responsavel_id).length;
+  const semResponsavel = contatos.filter(c => c.etapa && c.etapa !== 'nota_emitida' && c.etapa !== 'entregue' && c.etapa !== 'concluido' && !c.responsavel_id).length;
   const maximo = Math.max(1, ...linhas.map(l => l.abertas));
 
   const tabela = el('table', 'carga',

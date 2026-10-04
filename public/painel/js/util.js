@@ -2,16 +2,20 @@
 // Os nomes e textos vêm de um formulário público: tudo vira textContent, nunca innerHTML.
 
 // As chaves vêm do banco; os nomes são os da versão resumida das etapas.
-// Andamento em 4 etapas: o pedido aceito começa em Notas e ordens (administrador) e passa para Pedido
-// quando alguém da equipe fica responsável.
+// Andamento: o pedido aceito começa em Notas e ordens (administrador), passa para Pedido quando alguém
+// da equipe fica responsável, vai para Revisão e, entregue pelo funcionário, para a Conclusão do administrador.
 export const ETAPAS = [
   ['nota_emitida', 'Notas e ordens'],
   ['pedido', 'Pedido'],
   ['revisado', 'Revisão'],
   ['entregue', 'Entregue'],
+  ['concluido', 'Concluído'],
 ];
+// Entregue: o funcionário entregou e a demanda voltou para o administrador concluir (coluna Conclusão).
+// Concluído: o administrador finalizou de verdade. Para o funcionário, as duas são trabalho fechado.
+export const fechada = etapa => etapa === 'entregue' || etapa === 'concluido';
 // Etapas antigas continuam com nome, para o histórico de quem já passou por elas.
-export const NOME_ETAPA = { ...Object.fromEntries(ETAPAS), processo_iniciado: 'Processo iniciado', pagamento_efetuado: 'Pagamento efetuado', concluido: 'Concluído' };
+export const NOME_ETAPA = { ...Object.fromEntries(ETAPAS), processo_iniciado: 'Processo iniciado', pagamento_efetuado: 'Pagamento efetuado' };
 export const RECUSADOS = 'Recusados';
 export const CAIXA = 'Caixa de entrada';
 export const indiceEtapa = etapa => ETAPAS.findIndex(([chave]) => chave === etapa);

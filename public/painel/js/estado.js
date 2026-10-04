@@ -14,6 +14,7 @@ export const acoes = {
   alterar: async () => {},
   mover: async () => {},
   recusar: async () => {},
+  confirmar: async () => false,
   recarregar: async () => {},
   navegar: () => {},
   avisar: () => {},

@@ -15,13 +15,10 @@
 /assets/css/style.rev115.css
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/css/login-rodape.rev1.css
-  Cache-Control: public, max-age=31536000, immutable
-
 /assets/css/simples.rev1.css
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/css/aparencia.rev3.css
+/assets/css/aparencia.rev4.css
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/js/aparencia.rev2.js

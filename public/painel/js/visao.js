@@ -22,9 +22,9 @@ export function desenharVisao(raiz) {
   const novosAntes = todos.filter(c => idade(c) >= 7 && idade(c) < 14).length;
   const naoLidos = lista.filter(c => !c.lido_em).length;
   const naCaixa = lista.filter(c => !c.etapa).length;
-  const emAndamento = lista.filter(c => c.etapa && c.etapa !== 'entregue');
+  const emAndamento = lista.filter(c => c.etapa && c.etapa !== 'concluido');
   const aReceber = emAndamento.filter(c => !c.pago_em).reduce((s, c) => s + (c.valor_centavos || 0), 0);
-  const diaEntrega = c => (c.etapa === 'entregue' && c.atualizado_em ? diaDe(c.atualizado_em) : null);
+  const diaEntrega = c => ((c.etapa === 'entregue' || c.etapa === 'concluido') && c.atualizado_em ? diaDe(c.atualizado_em) : null);
   const mesPagamentos = mesDeReferencia(todos.map(c => c.pago_em), mes);
   const mesEntregas = mesDeReferencia(todos.map(diaEntrega), mes);
   const pagosMes = todos.filter(c => c.pago_em?.startsWith(mesPagamentos));
@@ -34,7 +34,7 @@ export function desenharVisao(raiz) {
     ? Math.round(entreguesMes.reduce((s, c) => s + diasEntre(diaDe(c.criado_em), diaDe(c.atualizado_em)), 0) / entreguesMes.length)
     : null;
   const pendencias = calcularPendencias(lista, dia);
-  const prazosSemana = lista.filter(c => c.prazo && c.etapa !== 'entregue' && diasEntre(dia, c.prazo) >= 0 && diasEntre(dia, c.prazo) <= 7).length;
+  const prazosSemana = lista.filter(c => c.prazo && c.etapa !== 'entregue' && c.etapa !== 'concluido' && diasEntre(dia, c.prazo) >= 0 && diasEntre(dia, c.prazo) <= 7).length;
 
   // ---------- Saudação ----------
   const horaAgora = Number(hora(new Date().toISOString()).slice(0, 2));
@@ -268,7 +268,7 @@ function funilEtapas(contatos) {
     preenchimento.style.width = `${l.n ? Math.max(3, (l.n / maximo) * 100) : 0}%`;
     const item = el('button', 'funil-linha', el('span', 'funil-nome', l.nome), el('span', 'funil-trilho', preenchimento), el('strong', 'funil-valor', String(l.n)));
     item.type = 'button';
-    const destino = l.chave === 'entregue' ? 'concluidos' : l.chave ? 'andamento' : 'entrada';
+    const destino = l.chave === 'concluido' ? 'concluidos' : l.chave ? 'andamento' : 'entrada';
     item.title = destino === 'concluidos' ? 'Ver os concluídos' : l.chave ? `Ver ${l.nome} no andamento` : 'Ver a caixa de entrada';
     item.addEventListener('click', () => acoes.navegar(destino));
     return el('li', '', item);
@@ -282,7 +282,7 @@ const PESO = { critico: 0, alerta: 1, neutro: 2 };
 function calcularPendencias(contatos, dia) {
   const itens = [];
   for (const c of contatos) {
-    const prazo = c.etapa !== 'entregue' ? situacaoPrazo(c.prazo) : null;
+    const prazo = c.etapa !== 'entregue' && c.etapa !== 'concluido' ? situacaoPrazo(c.prazo) : null;
     if (prazo && prazo.classe !== 'neutro') {
       itens.push({ contato: c, nivel: prazo.classe, icone: prazo.classe === 'critico' ? 'alerta' : 'relogio', texto: `Prazo ${prazo.texto}`, ordem: prazo.dias });
     }
@@ -295,7 +295,12 @@ function calcularPendencias(contatos, dia) {
       const dias = diasEntre(diaDe(c.atualizado_em), dia);
       if (dias >= 5) itens.push({ contato: c, nivel: 'alerta', icone: 'dinheiro', texto: `Em Notas e ordens há ${dias} dias, sem pagamento registrado`, ordem: -dias });
     }
-    if (c.etapa && c.etapa !== 'entregue' && !(c.etapa === 'nota_emitida' && !c.pago_em) && c.atualizado_em) {
+    // Entregue pelo funcionário, esperando o administrador concluir com o cliente.
+    if (c.etapa === 'entregue' && c.atualizado_em) {
+      const dias = diasEntre(diaDe(c.atualizado_em), dia);
+      itens.push({ contato: c, nivel: dias >= 3 ? 'alerta' : 'neutro', icone: 'ok', texto: dias ? `Entregue há ${dias} ${dias === 1 ? 'dia' : 'dias'}, aguardando a sua conclusão` : 'Entregue hoje, aguardando a sua conclusão', ordem: -dias });
+    }
+    if (c.etapa && c.etapa !== 'entregue' && c.etapa !== 'concluido' && !(c.etapa === 'nota_emitida' && !c.pago_em) && c.atualizado_em) {
       const parado = diasEntre(diaDe(c.atualizado_em), dia);
       if (parado >= 7) itens.push({ contato: c, nivel: 'neutro', icone: 'relogio', texto: `Parado em ${NOME_ETAPA[c.etapa]} há ${parado} dias`, ordem: -parado });
     }

@@ -1177,3 +1177,22 @@ a.nav-item { text-decoration: none; }
 /* Confirmação ao passar para Pedido: escolher o responsável. */
 .confirmar-extra { margin-top: 4px; }
 .confirmar-extra .campo { color: var(--ink); font-size: 14px; font-weight: 600; }
+
+/* Trilha da ficha: 4 etapas alinhadas à esquerda, com o primeiro ponto embaixo do título "Andamento".
+   A linha liga o ponto anterior ao atual. */
+.trilha { grid-template-columns: repeat(4, minmax(96px, 1fr)); }
+.trilha-passo { justify-items: start; padding: 0; text-align: left; }
+.trilha-nome { text-align: left; }
+.trilha li + li::before { left: calc(-100% + 15px); right: auto; width: 100%; }
+
+/* Materiais: quem vê cada arquivo. */
+.materiais-envio-campos { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 10px; align-items: end; }
+.materiais-quem select { min-height: 40px; }
+.material-titulo { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.material-privado { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--critico-fundo); color: var(--critico); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.material-privado .icone { width: 12px; height: 12px; }
+.material-acoes .papel-select { width: auto; min-height: 32px; padding: 4px 28px 4px 10px; font-size: 13px; }
+@media (max-width: 640px) {
+  .materiais-envio-campos { grid-template-columns: minmax(0, 1fr); }
+  .material-acoes { flex-wrap: wrap; }
+}

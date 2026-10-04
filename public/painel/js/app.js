@@ -1,7 +1,7 @@
 // Central Plannex: login, navegação, busca, recarga automática e as ações compartilhadas.
 import { api, quandoExpirar } from './api.js';
 import { estado, acoes, contatoPorId, eAdmin } from './estado.js';
-import { el, botao, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, CAIXA, normalizar, textoBusca, relativo, primeiroNome, nomeExibicao } from './util.js';
+import { el, botao, icone, avatar, etiquetaServico, ETAPAS, NOME_ETAPA, CAIXA, fechada, normalizar, textoBusca, relativo, primeiroNome, nomeExibicao } from './util.js';
 import { desenharVisao } from './visao.js';
 import { desenharEntrada } from './entrada.js';
 import { desenharQuadro } from './quadro.js';
@@ -84,8 +84,8 @@ function atualizarContadores() {
   const naoLidos = ativos.filter(c => !c.lido_em).length;
   const contagens = {
     entrada: naoLidos || '',
-    andamento: ativos.filter(c => c.etapa && c.etapa !== 'entregue').length || '',
-    concluidos: ativos.filter(c => c.etapa === 'entregue').length || '',
+    andamento: ativos.filter(c => c.etapa && c.etapa !== 'concluido').length || '',
+    concluidos: ativos.filter(c => (eAdmin() ? c.etapa === 'concluido' : fechada(c.etapa))).length || '',
     recusados: estado.contatos.filter(c => c.recusado_em && !c.arquivado_em).length || '',
   };
   for (const [tela, valor] of Object.entries(contagens)) {
@@ -158,23 +158,27 @@ async function mover(id, etapa) {
   const nomeDe = anterior ? NOME_ETAPA[anterior] : CAIXA;
   const nomePara = etapa ? NOME_ETAPA[etapa] : CAIXA;
   const ordem = chave => (chave ? ETAPAS.findIndex(([k]) => k === chave) : -1);
-  const concluindo = etapa === 'entregue';
+  // Concluir (administrador) leva a Concluídos; entregar (funcionário) devolve ao administrador, na Conclusão.
+  const concluindo = etapa === 'concluido';
+  const entregando = etapa === 'entregue' && !(ordem(etapa) < ordem(anterior));
   const aceitando = !anterior && etapa;
   const voltando = ordem(etapa) < ordem(anterior);
   // Entrar em Pedido: o administrador escolhe quem da equipe vai cuidar (ele continua vendo tudo).
   const escolha = etapa === 'pedido' && eAdmin() ? seletorResponsavel(contato) : null;
   const ok = await confirmar({
-    titulo: concluindo ? 'Concluir a demanda?' : aceitando ? 'Aceitar o pedido?' : escolha ? 'Quem da equipe vai cuidar?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
+    titulo: concluindo ? 'Concluir a demanda?' : entregando ? 'Entregar a demanda?' : aceitando ? 'Aceitar o pedido?' : escolha ? 'Quem da equipe vai cuidar?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
     texto: concluindo
       ? `${contato.nome} sai do andamento e vai para Concluídos.`
+      : entregando
+        ? (eAdmin() ? `${contato.nome} vai para a Conclusão, onde você finaliza com o cliente.` : `${contato.nome} vai para os seus Concluídos e volta para o administrador finalizar com o cliente.`)
       : aceitando
         ? `${contato.nome} sai da caixa de entrada e vai para o Andamento, em ${nomePara}.`
         : escolha
           ? `${contato.nome} vai para Pedido com a pessoa escolhida como responsável.`
           : `${contato.nome} sai de ${nomeDe} e vai para ${nomePara}.`,
     de: contato.recusado_em && !anterior ? 'Recusados' : nomeDe,
-    para: nomePara,
-    botao: concluindo ? 'Concluir' : aceitando ? 'Aceitar' : voltando ? 'Voltar' : 'Enviar',
+    para: etapa === 'entregue' ? 'Conclusão' : nomePara,
+    botao: concluindo ? 'Concluir' : entregando ? 'Entregar' : aceitando ? 'Aceitar' : voltando ? 'Voltar' : 'Enviar',
     extra: escolha,
     validar: () => !escolha || Boolean(escolha.querySelector('select').value),
   });
@@ -184,6 +188,8 @@ async function mover(id, etapa) {
   const quem = escolha ? estado.usuarios.find(u => u.id === campos.responsavel_id) : null;
   const mensagem = concluindo
     ? `Demanda de ${primeiroNome(contato.nome)} concluída. Ela foi para Concluídos.`
+    : entregando
+      ? (eAdmin() ? `${primeiroNome(contato.nome)} → Conclusão` : `Demanda de ${primeiroNome(contato.nome)} entregue. Ela está nos seus Concluídos.`)
     : aceitando
       ? `Pedido de ${primeiroNome(contato.nome)} aceito. Está no Andamento, em ${nomePara}.`
       : quem ? `${primeiroNome(contato.nome)} → Pedido, com ${primeiroNome(quem.nome)}` : `${primeiroNome(contato.nome)} → ${nomePara}`;
@@ -261,7 +267,7 @@ function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, 
   });
 }
 
-Object.assign(acoes, { abrirFicha, alterar, mover, recusar, recarregar, navegar, avisar, novoContato: abrirNovo });
+Object.assign(acoes, { abrirFicha, alterar, mover, recusar, confirmar, recarregar, navegar, avisar, novoContato: abrirNovo });
 
 // ---------- Avisos ----------
 

@@ -79,7 +79,7 @@ function calendario(eventos, diaHoje) {
 }
 
 function chipEvento(e) {
-  const entregue = e.tipo === 'prazo' && e.contato.etapa === 'entregue';
+  const entregue = e.tipo === 'prazo' && (e.contato.etapa === 'entregue' || e.contato.etapa === 'concluido');
   const prazo = e.tipo === 'prazo' && !entregue ? situacaoPrazo(e.contato.prazo) : null;
   const chip = el('button', `evento evento--${e.tipo}${entregue ? ' is-feito' : ''}${prazo?.classe === 'critico' ? ' is-atrasado' : ''}`,
     el('i', `ponto-evento ponto-evento--${e.tipo}`), e.contato.nome);
@@ -93,8 +93,8 @@ function chipEvento(e) {
 
 function proximos(eventos, diaHoje) {
   const limite = somarDias(diaHoje, 14);
-  const atrasados = ativos().filter(c => c.prazo && c.etapa !== 'entregue' && c.prazo < diaHoje).sort((a, b) => a.prazo.localeCompare(b.prazo));
-  const proximos = eventos.filter(e => e.tipo === 'prazo' && e.contato.etapa !== 'entregue' && e.dia >= diaHoje && e.dia <= limite);
+  const atrasados = ativos().filter(c => c.prazo && c.etapa !== 'entregue' && c.etapa !== 'concluido' && c.prazo < diaHoje).sort((a, b) => a.prazo.localeCompare(b.prazo));
+  const proximos = eventos.filter(e => e.tipo === 'prazo' && e.contato.etapa !== 'entregue' && e.contato.etapa !== 'concluido' && e.dia >= diaHoje && e.dia <= limite);
 
   const item = (c, texto, classe) => {
     const b = el('button', `proximo proximo--${classe}`,

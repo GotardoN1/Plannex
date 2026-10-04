@@ -46,7 +46,7 @@ const ANOTACOES = [
 ];
 
 // Andamento: 1. Notas e ordens -> 2. Pedido -> 3. Revisão -> 4. Entregue.
-const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue'];
+const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue', 'concluido'];
 // O roteiro abaixo foi escrito com as etapas antigas; aqui elas viram as novas.
 const ETAPA_NOVA = { pedido: 'nota_emitida', nota_emitida: 'nota_emitida', processo_iniciado: 'pedido', revisado: 'revisado', entregue: 'entregue' };
 // Um pedido da caixa de entrada já recusado, para a aba Recusados ter exemplo.
@@ -107,7 +107,8 @@ export async function resetarDemo(env) {
   const arquivos = [];
 
   ROTEIRO.forEach(([etapaAntiga, diasChegada, diasNaEtapa, responsavelRoteiro, prazoDias], i) => {
-    const etapa = etapaAntiga ? ETAPA_NOVA[etapaAntiga] : null;
+    // Entregues antigas viram concluídas; as duas mais recentes ficam esperando a conclusão do administrador.
+    const etapa = etapaAntiga === 'entregue' ? (diasNaEtapa <= 1 ? 'entregue' : 'concluido') : etapaAntiga ? ETAPA_NOVA[etapaAntiga] : null;
     // Em Notas e ordens ainda não há responsável: ele é escolhido ao passar para Pedido.
     const responsavel = etapa === 'nota_emitida' ? null : responsavelRoteiro;
     // Quem estava em "Notas e ordens" no roteiro antigo já tem nota emitida (e quase todos, pagamento).
@@ -134,7 +135,7 @@ export async function resetarDemo(env) {
       arquivado_em: arquivado ? iso(agora - Math.floor(diasChegada / 2) * DIA) : null,
       recusado_em: i === RECUSADO ? iso(criado + DIA / 2) : null,
       valor_centavos: valor, nota_fiscal: indice >= 1 || comNota ? String(2400 + id) : null, pago_em: pago,
-      prazo: etapa === 'entregue' ? dia(atualizado) : prazoDias === null ? null : dia(agora + prazoDias * DIA),
+      prazo: indice >= 3 ? dia(atualizado) : prazoDias === null ? null : dia(agora + prazoDias * DIA),
       responsavel_id: responsavel, criado_por: i % 7 === 3 ? 2 : null,
     });
 
@@ -143,7 +144,7 @@ export async function resetarDemo(env) {
       let de = null;
       for (let k = 0; k <= indice; k++) {
         const quando = k === indice ? atualizado : criado + (atualizado - criado) * ((k + 1) / (indice + 2));
-        movimentacoes.push({ contato_id: id, de, para: ETAPAS[k], usuario_id: k === 0 ? 1 + (i % 2) : responsavel || 1, quando: iso(quando) });
+        movimentacoes.push({ contato_id: id, de, para: ETAPAS[k], usuario_id: k === 0 || ETAPAS[k] === 'concluido' ? 1 + (i % 2) : responsavel || 1, quando: iso(quando) });
         de = ETAPAS[k];
       }
       const anotar = (usuario, tipo, restrito, texto, quando, aba) => notas.push({ contato_id: id, usuario_id: usuario, tipo, restrito, texto, criado_em: iso(quando), etapa: aba });
@@ -153,12 +154,12 @@ export async function resetarDemo(env) {
       if ((indice >= 1 || comNota) && i % 5 === 1) anotar(2, 'nota', 1, 'Nota emitida e enviada ao cliente. Aguardando o pagamento.', criado + DIA, 'nota_emitida');
       if (indice >= 1 && i % 2 === 0) anotar(responsavel || 1, 'nota', 0, NO_PROCESSO[i % NO_PROCESSO.length], atualizado - 5 * 3600000, 'processo_iniciado');
       if (indice >= 2) anotar(1 + (i % 2), 'nota', 0, AJUSTES[i % AJUSTES.length], atualizado - 2 * 3600000, 'revisado');
-      if (indice === 3) anotar(responsavel || 1, 'nota', 0, NA_ENTREGA[i % NA_ENTREGA.length], atualizado - 60000, 'entregue');
+      if (indice >= 3) anotar(responsavel || 1, 'nota', 0, NA_ENTREGA[i % NA_ENTREGA.length], atualizado - 60000, 'entregue');
 
       // Arquivos de exemplo: OS (administrador), versão para revisão e arquivos finais.
       if ((indice >= 1 || comNota) && i % 4 === 0) arquivos.push({ contato_id: id, categoria: 'ordem', nome: `OS-${String(id).padStart(4, '0')}.pdf`, usuario_id: 2, criado_em: iso(criado + DIA), contato: nome });
       if (indice >= 2 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Relatorio-final.pdf', usuario_id: responsavel || 1, criado_em: iso(atualizado - 3 * 3600000), contato: nome });
-      if (indice === 3 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Memoria-de-calculo.csv', usuario_id: responsavel || 1, criado_em: iso(atualizado - 2 * 3600000), contato: nome });
+      if (indice >= 3 && i % 2 === 0) arquivos.push({ contato_id: id, categoria: 'entrega', nome: 'Memoria-de-calculo.csv', usuario_id: responsavel || 1, criado_em: iso(atualizado - 2 * 3600000), contato: nome });
     }
     // Documentos que a pessoa enviou pelo site.
     if (i % 3 === 0 && i < 30) arquivos.push({ contato_id: id, categoria: 'cliente', nome: servico === 'calculos' ? 'Sentenca-e-holerites.pdf' : 'Planilha-atual.csv', usuario_id: null, criado_em: iso(criado), contato: nome });
@@ -184,13 +185,13 @@ export async function resetarDemo(env) {
   const materiais = await Promise.all([
     { nome: 'Indices-de-correcao-exemplo.csv', descricao: 'Tabela de índices usada nos cálculos de exemplo', tipo: 'text/csv', conteudo: new TextEncoder().encode('﻿Mes;IPCA-E;SELIC\r\nJan/2026;0,42;0,95\r\nFev/2026;0,38;0,88\r\nMar/2026;0,31;0,91'), usuario_id: 1, dias: 20 },
     { nome: 'Apresentacao-Plannex.pdf', descricao: 'Apresentação curta para enviar a escritórios', tipo: 'application/pdf', conteudo: pdfDeExemplo('Plannex - apresentacao', 'Escritorios parceiros'), usuario_id: 2, dias: 9 },
-    { nome: 'Molde-ordem-de-servico.pdf', descricao: 'Molde em branco da ordem de serviço', tipo: 'application/pdf', conteudo: pdfDeExemplo('Ordem de servico (molde em branco)', '______________________________'), usuario_id: 1, dias: 30 },
+    { nome: 'Molde-ordem-de-servico.pdf', descricao: 'Molde em branco da ordem de serviço', visibilidade: 'admin', tipo: 'application/pdf', conteudo: pdfDeExemplo('Ordem de servico (molde em branco)', '______________________________'), usuario_id: 1, dias: 30 },
     { nome: 'Checklist-de-documentos.pdf', descricao: 'O que pedir ao cliente antes de começar um cálculo', tipo: 'application/pdf', conteudo: pdfDeExemplo('Checklist de documentos', 'Uso interno'), usuario_id: 1, dias: 3 },
   ].map(async m => {
     const chave = `demo/amostra/materiais/${m.nome}`;
     if (!(await env.ARQUIVOS.get(chave, { type: 'arrayBuffer' }))) await env.ARQUIVOS.put(chave, m.conteudo);
     const quando = iso(agora - m.dias * DIA);
-    return { nome: m.nome, descricao: m.descricao, tipo: m.tipo, tamanho: m.conteudo.byteLength, chave, usuario_id: m.usuario_id, criado_em: quando, atualizado_em: quando };
+    return { nome: m.nome, descricao: m.descricao, tipo: m.tipo, tamanho: m.conteudo.byteLength, chave, usuario_id: m.usuario_id, visibilidade: m.visibilidade || 'todos', criado_em: quando, atualizado_em: quando };
   }));
 
   const arquivosComChave = await Promise.all(arquivos.map(async a => {

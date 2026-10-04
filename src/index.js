@@ -11,7 +11,11 @@ import { PERFIS_DEMO, resetarDemo } from './demo.js';
 
 // Chaves mantidas do banco; os nomes mudaram na versão resumida das etapas.
 // Andamento em 4 etapas: Notas e ordens (administrador) -> Pedido (com responsável) -> Revisão -> Entregue.
-const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue'];
+// Entregue = o funcionário entregou e a demanda voltou para o administrador concluir (coluna Conclusão);
+// Concluído = o administrador finalizou de verdade.
+const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue', 'concluido'];
+// Para o funcionário, entregue ou concluída é trabalho fechado: só consulta.
+const fechada = etapa => etapa === 'entregue' || etapa === 'concluido';
 const SERVICOS = ['calculos', 'automacao'];
 const ORIGENS = ['site', 'whatsapp', 'indicacao', 'telefone', 'email', 'outro'];
 const PAPEIS = ['admin', 'funcionario'];
@@ -126,7 +130,7 @@ async function api(request, env, url) {
     if (!rota[2] && metodo === 'PATCH') return alterarContato(request, env, usuario, contato);
     if (!rota[2] && metodo === 'DELETE') return admin ? excluirContato(env, id) : negado();
     if (rota[2] === '/linha-do-tempo' && metodo === 'GET') return linhaDoTempo(env, usuario, id);
-    if (rota[2] === '/notas' && metodo === 'POST') return !admin && contato.etapa === 'entregue' ? concluida() : anotar(request, env, usuario, id);
+    if (rota[2] === '/notas' && metodo === 'POST') return !admin && fechada(contato.etapa) ? concluida() : anotar(request, env, usuario, id);
     if (rota[2] === '/arquivos' && metodo === 'GET') return listarArquivos(env, usuario, id);
     if (rota[2] === '/arquivos' && metodo === 'POST') return enviarArquivo(request, env, usuario, contato);
     if (rota[2] === '/etiquetas' && metodo === 'POST') return criarEtiqueta(request, env, usuario, id);
@@ -149,7 +153,7 @@ async function api(request, env, url) {
   rota = pathname.match(/^\/api\/materiais\/(\d+)$/);
   if (rota) {
     const id = Number(rota[1]);
-    if (metodo === 'GET') return baixarMaterial(env, id);
+    if (metodo === 'GET') return baixarMaterial(env, usuario, id);
     if (!admin) return negado();
     if (metodo === 'POST') return enviarMaterial(request, env, usuario, id);
     if (metodo === 'PATCH') return descreverMaterial(request, env, id);
@@ -178,7 +182,7 @@ async function contatoVisivel(env, usuario, id) {
   const contato = await env.DB.prepare('SELECT * FROM contatos WHERE id = ?').bind(id).first();
   if (!contato) return null;
   if (eAdmin(usuario)) return contato;
-  return contato.responsavel_id === usuario.id && !contato.arquivado_em && !contato.recusado_em && ETAPAS_FUNCIONARIO.includes(contato.etapa) ? contato : null;
+  return contato.responsavel_id === usuario.id && !contato.arquivado_em && !contato.recusado_em && (ETAPAS_FUNCIONARIO.includes(contato.etapa) || contato.etapa === 'concluido') ? contato : null;
 }
 
 // ---------- Formulário do site ----------
@@ -500,7 +504,7 @@ async function removerUsuario(env, autor, id) {
 // (e nunca as anotações restritas). Parâmetros: [id do funcionário], limite, deslocamento.
 function consultaAtividade(env, usuario, limite, deslocamento) {
   const admin = eAdmin(usuario);
-  const filtro = admin ? '' : `WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL AND c.recusado_em IS NULL AND c.etapa IN ('pedido', 'revisado', 'entregue')`;
+  const filtro = admin ? '' : `WHERE c.responsavel_id = ?1 AND c.arquivado_em IS NULL AND c.recusado_em IS NULL AND c.etapa IN ('pedido', 'revisado', 'entregue', 'concluido')`;
   const [pLimite, pDeslocamento] = admin ? ['?1', '?2'] : ['?2', '?3'];
   const consulta = env.DB.prepare(
     `SELECT * FROM (
@@ -526,7 +530,7 @@ async function atividade(env, usuario, parametros) {
 // Tudo que a Central precisa numa chamada só. O funcionário recebe só o que é dele.
 async function central(env, usuario) {
   const admin = eAdmin(usuario);
-  const filtroContatos = admin ? '' : `WHERE responsavel_id = ?1 AND arquivado_em IS NULL AND recusado_em IS NULL AND etapa IN ('pedido', 'revisado', 'entregue')`;
+  const filtroContatos = admin ? '' : `WHERE responsavel_id = ?1 AND arquivado_em IS NULL AND recusado_em IS NULL AND etapa IN ('pedido', 'revisado', 'entregue', 'concluido')`;
   const ligar = consulta => (admin ? consulta : consulta.bind(usuario.id));
 
   const [contatos, usuarios, recentes, etiquetas, moldes, materiais] = await env.DB.batch([
@@ -543,8 +547,9 @@ async function central(env, usuario) {
     env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
     env.DB.prepare(`SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id
       ${admin ? '' : "WHERE m.tipo = 'relatorio'"}`),
-    env.DB.prepare(`SELECT m.id, m.nome, m.descricao, m.tipo, m.tamanho, m.criado_em, m.atualizado_em, u.nome AS usuario
-      FROM materiais m LEFT JOIN usuarios u ON u.id = m.usuario_id ORDER BY m.atualizado_em DESC, m.id DESC`),
+    env.DB.prepare(`SELECT m.id, m.nome, m.descricao, m.tipo, m.tamanho, m.visibilidade, m.criado_em, m.atualizado_em, u.nome AS usuario
+      FROM materiais m LEFT JOIN usuarios u ON u.id = m.usuario_id ${admin ? '' : "WHERE m.visibilidade = 'todos'"}
+      ORDER BY m.atualizado_em DESC, m.id DESC`),
   ]);
 
   const lista = admin ? contatos.results : contatos.results.map(c => {
@@ -591,7 +596,7 @@ async function alterarContato(request, env, usuario, contato) {
   // Voltar para Pedido/Notas e ordens ou reabrir uma concluída, só desfazendo o próprio movimento em até 10 minutos.
   if (!admin && 'etapa' in dados && (dados.etapa ?? null) !== contato.etapa) {
     const desfazendo = await podeDesfazer(env, usuario, contato, dados.etapa ?? null);
-    if (contato.etapa === 'entregue' && !desfazendo) return concluida();
+    if (fechada(contato.etapa) && !desfazendo) return concluida();
     if (!ETAPAS_FUNCIONARIO.includes(dados.etapa) && !desfazendo) {
       return json({ erro: 'Notas e ordens e a caixa de entrada são do administrador.' }, 403);
     }
@@ -640,13 +645,12 @@ async function alterarContato(request, env, usuario, contato) {
   // Data da entrega (só administrador; a regra lá em cima já barra o funcionário): corrige o registro quando a
   // entrega foi marcada depois do dia em que aconteceu. Ajusta a demanda e a movimentação para Entregue.
   if ('entregue_em' in dados) {
-    if (contato.etapa !== 'entregue') return json({ erro: 'A demanda ainda não foi entregue.' }, 400);
+    if (!fechada(contato.etapa)) return json({ erro: 'A demanda ainda não foi entregue.' }, 400);
     const quando = new Date(String(dados.entregue_em || ''));
-    if (Number.isNaN(quando.getTime())) return json({ erro: 'Data de entrega inválida.' }, 400);
-    if (quando.getTime() > Date.now() + 5 * 60 * 1000) return json({ erro: 'A data de entrega não pode ser no futuro.' }, 400);
-    if (quando.getTime() < new Date(contato.criado_em).getTime()) return json({ erro: 'A entrega não pode ser antes de o contato chegar.' }, 400);
+    const ano = quando.getUTCFullYear();
+    if (Number.isNaN(quando.getTime()) || ano < 2000 || ano > 2100) return json({ erro: 'Data de entrega inválida.' }, 400);
     const iso = quando.toISOString().replace(/\.\d+Z$/, 'Z');
-    definir('atualizado_em', iso);
+    if (contato.etapa === 'entregue') definir('atualizado_em', iso);
     registros.push(env.DB.prepare(`UPDATE movimentacoes SET quando = ? WHERE id = (
       SELECT id FROM movimentacoes WHERE contato_id = ? AND para = 'entregue' ORDER BY quando DESC, id DESC LIMIT 1)`).bind(iso, id));
     registrar(`corrigiu a data da entrega para ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
@@ -719,9 +723,10 @@ async function alterarContato(request, env, usuario, contato) {
     if (alterados.length) registrar(`editou ${juntar(alterados)} do contato`);
   }
 
-  if (!sets.length) return json({ ok: true });
+  // Às vezes só há registros (ex.: a data da entrega de uma demanda já concluída): grava do mesmo jeito.
+  if (!sets.length && !registros.length) return json({ ok: true });
   await env.DB.batch([
-    env.DB.prepare(`UPDATE contatos SET ${sets.join(', ')} WHERE id = ?`).bind(...valores, id),
+    ...(sets.length ? [env.DB.prepare(`UPDATE contatos SET ${sets.join(', ')} WHERE id = ?`).bind(...valores, id)] : []),
     ...registros,
   ]);
   return json({ ok: true });
@@ -819,7 +824,7 @@ async function enviarArquivo(request, env, usuario, contato) {
   if (!(categoria in CATEGORIAS_ARQUIVO)) return json({ erro: 'Tipo de arquivo inválido.' }, 400);
   if (!podeVerCategoria(usuario, categoria)) return negado();
   // Funcionário não mexe mais numa demanda concluída.
-  if (!eAdmin(usuario) && contato.etapa === 'entregue') return concluida();
+  if (!eAdmin(usuario) && fechada(contato.etapa)) return concluida();
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
   if (emDemo(env)) {
@@ -941,9 +946,9 @@ async function excluirMolde(env, tipo) {
 
 // ---------- Materiais ----------
 
-async function baixarMaterial(env, id) {
-  const material = await env.DB.prepare('SELECT nome, tamanho, chave FROM materiais WHERE id = ?').bind(id).first();
-  if (!material) return json({ erro: 'Material não encontrado.' }, 404);
+async function baixarMaterial(env, usuario, id) {
+  const material = await env.DB.prepare('SELECT nome, tamanho, chave, visibilidade FROM materiais WHERE id = ?').bind(id).first();
+  if (!material || (material.visibilidade === 'admin' && !eAdmin(usuario))) return json({ erro: 'Material não encontrado.' }, 404);
   const conteudo = await env.ARQUIVOS.get(material.chave, { type: 'stream' });
   if (!conteudo) return json({ erro: 'O conteúdo do material não foi encontrado.' }, 404);
   return new Response(conteudo, {
@@ -980,6 +985,7 @@ async function enviarMaterial(request, env, usuario, id) {
   const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'material';
   const tipo = limparTexto(arquivo.type, 100) || 'application/octet-stream';
   const descricao = formulario.has('descricao') ? (limparTexto(formulario.get('descricao'), 160) || null) : undefined;
+  const visibilidade = formulario.get('visibilidade') === 'admin' ? 'admin' : 'todos';
   const chave = `materiais/${crypto.randomUUID()}`;
   await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
   try {
@@ -988,8 +994,8 @@ async function enviarMaterial(request, env, usuario, id) {
         atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')${descricao !== undefined ? ', descricao = ?' : ''} WHERE id = ?`)
         .bind(...[nome, tipo, arquivo.size, chave, usuario.id, ...(descricao !== undefined ? [descricao] : []), id]).run();
     } else {
-      await env.DB.prepare('INSERT INTO materiais (nome, descricao, tipo, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?, ?)')
-        .bind(nome, descricao ?? null, tipo, arquivo.size, chave, usuario.id).run();
+      await env.DB.prepare('INSERT INTO materiais (nome, descricao, tipo, tamanho, chave, usuario_id, visibilidade) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(nome, descricao ?? null, tipo, arquivo.size, chave, usuario.id, visibilidade).run();
     }
   } catch (erro) {
     await env.ARQUIVOS.delete(chave);
@@ -999,11 +1005,17 @@ async function enviarMaterial(request, env, usuario, id) {
   return json({ ok: true }, id ? 200 : 201);
 }
 
+// Descrição e/ou quem vê (todos ou só administradores).
 async function descreverMaterial(request, env, id) {
   const dados = await lerJson(request);
-  if (!dados || !('descricao' in dados)) return json({ erro: 'Dados inválidos.' }, 400);
-  const { meta } = await env.DB.prepare('UPDATE materiais SET descricao = ? WHERE id = ?').bind(limparTexto(dados.descricao, 160) || null, id).run();
-  if (!meta.changes) return json({ erro: 'Material não encontrado.' }, 404);
+  if (!dados || (!('descricao' in dados) && !('visibilidade' in dados))) return json({ erro: 'Dados inválidos.' }, 400);
+  if ('visibilidade' in dados && !['todos', 'admin'].includes(dados.visibilidade)) return json({ erro: 'Visibilidade inválida.' }, 400);
+  const existe = await env.DB.prepare('SELECT id FROM materiais WHERE id = ?').bind(id).first();
+  if (!existe) return json({ erro: 'Material não encontrado.' }, 404);
+  const escritas = [];
+  if ('descricao' in dados) escritas.push(env.DB.prepare('UPDATE materiais SET descricao = ? WHERE id = ?').bind(limparTexto(dados.descricao, 160) || null, id));
+  if ('visibilidade' in dados) escritas.push(env.DB.prepare('UPDATE materiais SET visibilidade = ? WHERE id = ?').bind(dados.visibilidade, id));
+  await env.DB.batch(escritas);
   return json({ ok: true });
 }
 
@@ -1022,7 +1034,7 @@ async function excluirArquivo(env, usuario, id) {
     // Funcionário só apaga o que ele mesmo enviou, e não depois de concluída.
     if (arquivo.usuario_id !== usuario.id) return negado();
     const contato = await env.DB.prepare('SELECT etapa FROM contatos WHERE id = ?').bind(arquivo.contato_id).first();
-    if (contato?.etapa === 'entregue') return concluida();
+    if (fechada(contato?.etapa)) return concluida();
   }
   await env.DB.batch([
     env.DB.prepare('DELETE FROM arquivos WHERE id = ?').bind(id),

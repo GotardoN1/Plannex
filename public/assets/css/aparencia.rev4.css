@@ -176,8 +176,9 @@
 /* "Cálculos que atendemos": cada item em uma linha, todos os grupos com o mesmo tamanho. */
 .grupos-calculos .grupo-calculos li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grupos-calculos { align-items: stretch; }
-.calculos-outros { margin: 16px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
-.calculos-outros .text-link { margin-left: 4px; color: var(--accent); font-weight: 700; text-decoration: none; }
+/* Mesma formatação de "Condição de lançamento…" (plan-availability-note), alinhada à esquerda; só o link em laranja. */
+.calculos-outros { text-align: left !important; font-size: 9.5px !important; }
+.calculos-outros .text-link { margin-left: 2px; color: var(--accent) !important; font-weight: 700; text-decoration: none; }
 .calculos-outros .text-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------- Visual Sofisticado (o original do site, sem o simples.rev1.css) ---------- */
@@ -221,7 +222,6 @@
 [data-tema="claro"] .grupo-calculos li { color: #45556b !important; }
 [data-tema="claro"] .grupo-calculos li::before { background: #d96f2e !important; box-shadow: none !important; }
 [data-tema="claro"] .fase-numero { background: #d96f2e !important; color: #101925 !important; box-shadow: none !important; }
-[data-tema="claro"] .calculos-outros { color: #45556b; }
 [data-tema="claro"] .calculos-outros .text-link { color: #b4551a !important; }
 
 /* Modo claro: bordas um pouco mais marcadas, para ver as divisórias e os recortes. */
@@ -249,3 +249,8 @@
   .site-footer { padding-bottom: 64px !important; }
   #automacao-chamada.is-mobile-open { display: block !important; margin-top: 12px; }
 }
+
+/* Rodapé: Login na coluna de navegação, em laranja. */
+.footer-column a.footer-login-link { color: var(--accent) !important; font-weight: 700; }
+.footer-column a.footer-login-link:hover { color: #f6b083 !important; }
+[data-tema="claro"] .footer-column a.footer-login-link { color: #b4551a !important; }

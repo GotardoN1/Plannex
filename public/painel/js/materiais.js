@@ -1,11 +1,26 @@
 // Materiais: arquivos de uso frequente da equipe (moldes, planilhas de demonstração, PDFs).
-// Todos veem e baixam; o administrador envia, troca o arquivo, descreve e exclui. Espaço pequeno (100 MB).
+// O administrador envia, troca o arquivo, descreve, exclui e escolhe quem vê: toda a equipe ou só
+// administradores. Funcionários veem e baixam só os da equipe toda. Espaço pequeno (100 MB).
 import { estado, acoes, eAdmin } from './estado.js';
 import { api } from './api.js';
 import { el, botao, icone, dataHora, relativo, tamanhoArquivo, tipoArquivo } from './util.js';
 
 const ESPACO = 100 * 1024 * 1024;
 let sequencia = 0;
+
+const VISIBILIDADE = { todos: 'Toda a equipe', admin: 'Só administradores' };
+
+function listaVisibilidade(atual, rotulo) {
+  const lista = el('select', 'papel-select');
+  lista.setAttribute('aria-label', rotulo);
+  for (const [chave, nome] of Object.entries(VISIBILIDADE)) {
+    const opcao = el('option', '', nome);
+    opcao.value = chave;
+    opcao.selected = chave === atual;
+    lista.append(opcao);
+  }
+  return lista;
+}
 
 function miniatura(nome) {
   const tipo = tipoArquivo(nome);
@@ -15,11 +30,12 @@ function miniatura(nome) {
 }
 
 // Envia um arquivo novo (sem id) ou troca o de um material (com id).
-async function enviar(arquivo, { id = null, descricao } = {}) {
+async function enviar(arquivo, { id = null, descricao, visibilidade } = {}) {
   if (arquivo.size > 10 * 1024 * 1024) throw new Error(`${arquivo.name} passa de 10 MB.`);
   const corpo = new FormData();
   corpo.append('arquivo', arquivo);
   if (descricao !== undefined) corpo.append('descricao', descricao);
+  if (visibilidade) corpo.append('visibilidade', visibilidade);
   const resposta = await fetch(id ? `/api/materiais/${id}` : '/api/materiais', { method: 'POST', body: corpo, credentials: 'same-origin' });
   const retorno = await resposta.json().catch(() => ({}));
   if (!resposta.ok) throw new Error(retorno.erro || 'Não foi possível enviar.');
@@ -58,6 +74,7 @@ function formularioEnvio(usado) {
   descricao.maxLength = 160;
   descricao.placeholder = 'Descrição (opcional): para que serve o arquivo';
   descricao.setAttribute('aria-label', 'Descrição do material');
+  const quemVe = listaVisibilidade('todos', 'Quem vê o material');
   const status = el('p', 'aviso');
   const zona = el('label', 'zona-envio', icone('enviar'),
     el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
@@ -70,7 +87,7 @@ function formularioEnvio(usado) {
     status.textContent = `Enviando ${arquivo.name}…`;
     zona.classList.add('is-enviando');
     try {
-      await enviar(arquivo, { descricao: descricao.value.trim() });
+      await enviar(arquivo, { descricao: descricao.value.trim(), visibilidade: quemVe.value });
       acoes.avisar(`${arquivo.name} salvo em Materiais.`);
       descricao.value = '';
       await acoes.recarregar({ silencioso: true });
@@ -88,7 +105,7 @@ function formularioEnvio(usado) {
 
   return el('section', 'bloco materiais-envio',
     el('div', 'bloco-topo', el('h2', '', 'Enviar material')),
-    descricao, entrada, zona, status);
+    el('div', 'materiais-envio-campos', descricao, el('label', 'campo materiais-quem', 'Quem vê', quemVe)), entrada, zona, status);
 }
 
 function linha(m) {
@@ -103,6 +120,9 @@ function linha(m) {
     el('span', '', m.usuario ? `por ${m.usuario}` : 'por usuário removido'));
   info.title = `${trocou ? `Enviado em ${dataHora(m.criado_em)} · atualizado` : 'Enviado'} em ${dataHora(m.atualizado_em)}`;
 
+  const privado = m.visibilidade === 'admin';
+  // Selo de privado na linha de informações, para o nome não quebrar.
+  if (privado) info.prepend(el('span', 'material-privado', icone('cadeado'), 'Só administradores'));
   const texto = el('div', 'material-texto', baixar, m.descricao ? el('p', 'material-descricao', m.descricao) : null, info);
   const download = el('a', 'botao botao--pequeno', icone('baixar'), el('span', '', 'Baixar'));
   download.href = baixar.href;
@@ -169,6 +189,20 @@ function linha(m) {
     }
   });
 
+  // Quem vê: muda na hora, como o tipo de acesso na Equipe.
+  const quemVe = listaVisibilidade(m.visibilidade || 'todos', `Quem vê ${m.nome}`);
+  quemVe.addEventListener('change', async () => {
+    try {
+      await api(`/api/materiais/${m.id}`, { method: 'PATCH', corpo: { visibilidade: quemVe.value } });
+      acoes.avisar(quemVe.value === 'admin' ? `${m.nome} agora é só dos administradores.` : `${m.nome} agora fica visível para toda a equipe.`);
+      acoes.recarregar({ silencioso: true });
+    } catch (e) {
+      quemVe.value = m.visibilidade || 'todos';
+      acoes.avisar(e.message, 'erro');
+    }
+  });
+
+  acoesLinha.prepend(quemVe);
   acoesLinha.append(
     botao('', 'botao--icone botao--fantasma botao--pequeno', () => { form.hidden = !form.hidden; if (!form.hidden) campo.focus(); }, { icone: 'editar', titulo: 'Editar a descrição' }),
     botao('', 'botao--icone botao--fantasma botao--pequeno', () => novo.click(), { icone: 'enviar', titulo: 'Trocar o arquivo (mantém a descrição)' }),
