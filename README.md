@@ -14,7 +14,7 @@ Site da **Plannex**, com duas frentes de serviço:
 | Início | Serviços de cálculo, fases do processo, a lista de cálculos que atendemos, formas de contratação (cálculo simples, pacote de 10 cálculos e personalizado) e o passo a passo do atendimento |
 | Laboratório Plannex | Demonstração animada de uma memória de cálculo indo dos documentos ao parecer, com dados fictícios |
 | Serviço de Automação | Planos de automação, a demonstração "da bagunça ao controle" e a lista do que pode ser automatizado |
-| Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta; planos de cálculo e de automação, inclusive os personalizados (sob orçamento) |
+| Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta; planos de cálculo e de automação, inclusive os personalizados (sob orçamento). Depois do envio, uma caixa confirma o pedido e avisa que o contato vem após a análise |
 | Aparência | Pílula no canto inferior esquerdo: modo noturno (claro/escuro) e visual Simples ou Sofisticado (o original do site). A escolha fica no navegador e vale também na Central |
 | Central (`/painel/`) | Só com login: contatos, pedidos, prazos e pagamentos da equipe |
 
@@ -27,12 +27,12 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | Tela | O que faz |
 | --- | --- |
 | **Visão geral** | Saudação (com o apelido), números (novos na semana, em andamento, recebido e entregues no mês; se o mês ainda não tem pagamento ou entrega, mostra o último mês que teve), contatos por mês (só os meses com contato ou venda), divisão por serviço com taxa de conversão, funil por etapa, o que precisa de atenção (prazos vencendo, contatos esperando resposta, pagamentos pendentes, pedidos parados) e atividade recente da equipe |
-| **Caixa de entrada** | Só os pedidos novos, agrupados por data, com prévia, etiquetas e os botões **Recusar** (vai para Recusados, guardando o lead) e **Aceitar** (vai para o Andamento, em Notas e ordens). Para o funcionário, "Minhas demandas": as dele em Pedido e Revisão |
+| **Caixa de entrada** | Só os pedidos novos, agrupados por data, com prévia, etiquetas e os botões **Recusar** (vai para Recusados, guardando o lead) e **Aceitar** (vai para o Andamento, em Notas e ordens). Para o funcionário, a caixa traz as dele em Pedido e Retificação, com um botão por vez: **Iniciar pedido** → **Entregar** (ou **Entregar nova versão**, se voltou da Retificação) |
 | **Concluídos** | Tudo o que chegou em Entregue, fora do quadro para ele não lotar; colunas fixas de conclusão, responsável e valor; filtros por responsável e serviço. O administrador pode **reabrir** (volta ao Andamento). Para o funcionário, só os dele, para consulta |
-| **Andamento** | Quadro com as etapas em trabalho: **1. Notas e ordens** (administrador: cobrança, nota, OS e assinatura) → **2. Pedido** (passa só escolhendo quem da equipe vai cuidar) → **3. Revisão** → **4. Conclusão** (o funcionário entregou; o administrador fala com o cliente e conclui de vez, ou volta as etapas e realoca). O concluído vai para Concluídos; para o funcionário, a demanda entra em Concluídos já ao entregar. Cartões na cor do serviço, filtros, arrastar ou setas |
+| **Andamento** | Quadro com as etapas em trabalho: **1. Notas e ordens** (administrador: cobrança, nota, OS, assinatura e prazo) → **2. Pedido** (passa só escolhendo quem da equipe vai cuidar; o cartão mostra se o funcionário já iniciou) → **4. Conclusão** (o funcionário entregou; o administrador fala com o cliente e **aprova**, indo para Concluídos, ou **reprova**). Reprovada, a demanda vai para **3. Retificação**, em vermelho, com o que o cliente pediu para ajustar, e volta ao funcionário, que sobe a nova versão e entrega de novo, quantas vezes precisar. O concluído vai para Concluídos; para o funcionário, a demanda entra em Concluídos já ao entregar. Cartões na cor do serviço, filtros, arrastar ou setas |
 | **Recusados** | Pedidos recusados, guardados com o contato para retomar: Devolver para a caixa ou Aceitar |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
-| **Arquivo** | Contatos que não seguiram adiante, sem apagar nada |
+| **Arquivados** | Contatos que não seguiram adiante, sem apagar nada |
 | **Materiais** | Arquivos de uso frequente da equipe (moldes, planilhas de demonstração, PDFs), com tamanho, data de envio/atualização, quem enviou e descrição. O administrador envia, troca, exclui e escolhe quem vê cada arquivo (toda a equipe ou só administradores). Espaço de 100 MB |
 | **Equipe** | Quem acessa, nome completo, usuário de login e equipe/área (T.I., economista, advogado...) — só o administrador altera —, tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
 | **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta), visual Simples ou Sofisticado (neste navegador) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
@@ -42,12 +42,12 @@ A **ficha do contato** abre de qualquer tela e é organizada em **abas, uma por 
 | Aba | Conteúdo |
 | --- | --- |
 | Pedido recebido (antes de aceitar) | Contato, **Solicitação** e comentários, com Aceitar e Recusar no topo |
-| 1. Notas e ordens | Só administrador (trancada para o funcionário): contato, valor, nota fiscal, pagamento (com o botão **Hoje**) e um envio único para notas fiscais e ordens de serviço. O **Gerar OS** fica no topo da ficha |
-| 2. Pedido | Responsável e prazo, **Solicitação** (com envio de mais documentos do cliente) e anotações. O contato do cliente só aparece para o administrador |
-| 3. Revisão | O que o cliente pediu para ajustar |
+| 1. Notas e ordens | Só administrador (trancada para o funcionário): contato, valor, nota fiscal, pagamento (com o botão **Hoje**), **prazo de entrega** e um envio único para notas fiscais e ordens de serviço. O **Gerar OS** fica no topo da ficha. Ao aceitar, o prazo já vem preenchido: 3 dias úteis para cálculos e 5 para automações |
+| 2. Pedido | Responsável e prazo (o funcionário vê o prazo aqui), **Solicitação** (com envio de mais documentos do cliente) e anotações. O contato do cliente só aparece para o administrador |
+| 3. Retificação | Desabilitada até a primeira reprovação. O que o cliente pediu para ajustar e, logo abaixo, o envio da nova versão |
 | 4. Entregue | Excel e relatório finais, molde em branco do relatório, comentário da entrega e o registro de quando e quem entregou (o administrador pode corrigir o dia) |
 
-Para concluir, o funcionário sobe os arquivos finais na aba Entregue e clica em "Concluir e registrar entrega"; o dia e a hora ficam registrados. No fim da ficha fica o histórico completo (movimentações, anexos e alterações).
+Para entregar, o funcionário clica em **Iniciar pedido**, sobe o arquivo final na aba Entregue (qualquer tipo, menos programas, com mais de 1 KB) e clica em **Entregar**; o dia e a hora ficam registrados. Na Retificação, só entrega de novo com um arquivo enviado depois da reprovação. A API confere as mesmas regras. No fim da ficha fica o histórico completo (movimentações, anexos e alterações).
 
 A **Solicitação** repete o formulário do site, na mesma ordem: serviço, plano de interesse, necessidade, atividade manual, o que deve permanecer inalterado, anexo do cliente (a resposta e os arquivos) e observações adicionais. Campos vazios não aparecem. Os arquivos aparecem com uma miniatura do tipo (PDF, DOC, XLS, IMG).
 
@@ -61,16 +61,16 @@ Toda mudança de etapa pede confirmação (de qual etapa para qual), seja pela s
 
 | | Administrador | Funcionário |
 | --- | --- | --- |
-| Telas | Todas | Minhas demandas, Agenda e Concluídos |
+| Telas | Todas | Caixa de entrada, Concluídos, Agenda e Materiais |
 | Contatos | Todos | Só os que tem como responsável |
 | Valor, nota fiscal, pagamento | Vê e edita | Não vê (nem na linha do tempo) |
 | Notas fiscais e ordens de serviço | Vê e anexa | Não vê (mostram quanto a casa cobra) |
 | Documentos do cliente e arquivos da entrega | Vê e anexa | Vê e anexa |
-| Etapas | Todas, para frente e para trás ("Mover para…", "Voltar para…", "Reabrir") | Avança pelo botão azul: Iniciar processo → Enviar para revisão → Entregar; não entra em Pedido nem Notas e ordens |
+| Etapas | Todas, para frente e para trás ("Mover para…", "Voltar para…", "Reabrir") | Um botão por vez: Iniciar pedido → Entregar → (se reprovada) Entregar nova versão; não entra em Pedido nem Notas e ordens nem reprova |
 | Anotações | Sim | Sim, até concluir |
 | Arquivar, excluir, cadastrar, equipe | Sim | Não |
 
-Quando o funcionário conclui (chega em Entregue), a demanda sai de "Minhas demandas" e vai para **Concluídos**, só para consulta. Ele pode desfazer o próprio movimento por 10 minutos (inclusive um "Iniciar processo" feito por engano); depois, só um administrador reabre ou volta etapas.
+Quando o funcionário conclui (chega em Entregue), a demanda sai da caixa de entrada dele e vai para **Concluídos**, só para consulta. Ele pode desfazer o próprio movimento por 10 minutos (inclusive uma entrega feita por engano); depois, só um administrador reabre ou volta etapas.
 
 A regra vale na API: um funcionário não consegue buscar o que não vê na tela.
 
@@ -78,7 +78,7 @@ A regra vale na API: um funcionário não consegue buscar o que não vê na tela
 
 - **Login:** usuário e senha. Senhas guardadas com PBKDF2 (100 mil iterações, sal próprio). Sessão por cookie `HttpOnly`, `Secure` e `SameSite=Strict`, válida por 7 dias. Depois de 5 erros em 15 minutos, o login trava.
 - **Formulário:** no máximo 5 envios a cada 10 minutos por visitante, com o campo anti-robô do site. O IP não é guardado, só um hash dele para contar tentativas.
-- **Dados guardados:** os campos do formulário (nome, WhatsApp, e-mail, plano, descrição e observações) e os documentos anexados (até 10 arquivos e 10 MB; só PDF, imagem, Excel, Word, CSV e texto). Se o armazenamento passar de 800 MB, os documentos novos ficam só no e-mail e a ficha avisa. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
+- **Dados guardados:** os campos do formulário (nome, WhatsApp, e-mail, plano, descrição e observações) e os documentos anexados (até 10 arquivos e 10 MB; documentos, planilhas, imagens e afins, nunca programas, scripts ou atalhos como .exe e .bat). Se o armazenamento passar de 800 MB, os documentos novos ficam só no e-mail e a ficha avisa. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
 - **Equipe:** só administradores dão, mudam e removem acessos. Ninguém muda ou remove o próprio acesso, então sempre sobra um administrador.
 - **Anexos:** sempre baixados como arquivo, nunca abertos como página do site.
 

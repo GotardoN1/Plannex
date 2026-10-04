@@ -132,6 +132,8 @@ export async function resetarDemo(env) {
       origem: i % 7 === 3 ? 'whatsapp' : i % 11 === 5 ? 'indicacao' : 'site', criado_em: iso(criado), etapa,
       atualizado_em: atualizado ? iso(atualizado) : null,
       lido_em: diasChegada === 0 && i < 2 ? null : iso(criado + 1800000),
+      // Em Pedido, alguns ainda não foram iniciados pelo funcionário.
+      iniciado_em: indice >= 1 && !(etapa === 'pedido' && i % 3 === 0) ? iso(atualizado - 3600000) : null,
       arquivado_em: arquivado ? iso(agora - Math.floor(diasChegada / 2) * DIA) : null,
       recusado_em: i === RECUSADO ? iso(criado + DIA / 2) : null,
       valor_centavos: valor, nota_fiscal: indice >= 1 || comNota ? String(2400 + id) : null, pago_em: pago,
@@ -139,13 +141,18 @@ export async function resetarDemo(env) {
       responsavel_id: responsavel, criado_por: i % 7 === 3 ? 2 : null,
     });
 
-    // Histórico: uma movimentação por etapa até a atual, espalhadas entre a chegada e hoje.
+    // Histórico: o caminho real até a etapa atual, espalhado entre a chegada e hoje. Pedido entrega direto;
+    // a Retificação só aparece quando o administrador reprovou (as que estão nela e algumas concluídas).
     if (etapa) {
+      const comRetificacao = etapa === 'revisado' || ((etapa === 'entregue' || etapa === 'concluido') && i % 4 === 0);
+      const caminho = ['nota_emitida', 'pedido', 'entregue', ...(comRetificacao ? ['revisado', 'entregue'] : []), 'concluido'];
+      const ate = caminho.lastIndexOf(etapa);
       let de = null;
-      for (let k = 0; k <= indice; k++) {
-        const quando = k === indice ? atualizado : criado + (atualizado - criado) * ((k + 1) / (indice + 2));
-        movimentacoes.push({ contato_id: id, de, para: ETAPAS[k], usuario_id: k === 0 || ETAPAS[k] === 'concluido' ? 1 + (i % 2) : responsavel || 1, quando: iso(quando) });
-        de = ETAPAS[k];
+      for (let k = 0; k <= ate; k++) {
+        const quando = k === ate ? atualizado : criado + (atualizado - criado) * ((k + 1) / (ate + 2));
+        const doAdmin = k === 0 || caminho[k] === 'concluido' || caminho[k] === 'revisado' || caminho[k] === 'pedido';
+        movimentacoes.push({ contato_id: id, de, para: caminho[k], usuario_id: doAdmin ? 1 + (i % 2) : responsavel || 1, quando: iso(quando) });
+        de = caminho[k];
       }
       const anotar = (usuario, tipo, restrito, texto, quando, aba) => notas.push({ contato_id: id, usuario_id: usuario, tipo, restrito, texto, criado_em: iso(quando), etapa: aba });
       if (responsavel) anotar(1 + (i % 2), 'sistema', 0, `definiu ${PERFIS_DEMO[responsavel - 1].nome} como responsável`, criado + DIA / 2, null);
@@ -153,7 +160,7 @@ export async function resetarDemo(env) {
       if (i % 3 === 0) anotar(responsavel || 1, 'nota', 0, ANOTACOES[i % ANOTACOES.length], criado + DIA / 3, 'entrada');
       if ((indice >= 1 || comNota) && i % 5 === 1) anotar(2, 'nota', 1, 'Nota emitida e enviada ao cliente. Aguardando o pagamento.', criado + DIA, 'nota_emitida');
       if (indice >= 1 && i % 2 === 0) anotar(responsavel || 1, 'nota', 0, NO_PROCESSO[i % NO_PROCESSO.length], atualizado - 5 * 3600000, 'processo_iniciado');
-      if (indice >= 2) anotar(1 + (i % 2), 'nota', 0, AJUSTES[i % AJUSTES.length], atualizado - 2 * 3600000, 'revisado');
+      if (etapa === 'revisado' || (indice >= 3 && i % 4 === 0)) anotar(1 + (i % 2), 'nota', 0, AJUSTES[i % AJUSTES.length], atualizado - 2 * 3600000, 'revisado');
       if (indice >= 3) anotar(responsavel || 1, 'nota', 0, NA_ENTREGA[i % NA_ENTREGA.length], atualizado - 60000, 'entregue');
 
       // Arquivos de exemplo: OS (administrador), versão para revisão e arquivos finais.

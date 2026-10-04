@@ -254,3 +254,39 @@
 .footer-column a.footer-login-link { color: var(--accent) !important; font-weight: 700; }
 .footer-column a.footer-login-link:hover { color: #f6b083 !important; }
 [data-tema="claro"] .footer-column a.footer-login-link { color: #b4551a !important; }
+
+/* "Conte a demanda…" no mesmo tamanho de "Não encontrou o seu?". */
+.calculos-outros .text-link { font-size: inherit !important; }
+
+/* Contato: caixa de confirmação depois do envio. */
+.contact-success { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: #050a12b3; }
+.contact-success-card { width: min(100%, 400px); padding: 28px 24px 24px; border: 1px solid var(--line, #2a3a52); border-radius: 16px; background: var(--surface, #111c2c); box-shadow: 0 24px 60px #0008; text-align: left; }
+.contact-success-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #2fa36b26; color: #4cc38a; font-size: 20px; font-weight: 800; }
+.contact-success-card h3 { margin: 14px 0 6px; font-size: 20px; color: var(--ink, #f3f6fa); }
+.contact-success-card p { margin: 0 0 20px; color: var(--muted, #a9b6c8); line-height: 1.5; }
+.contact-success-card .button { width: 100%; justify-content: center; }
+[data-tema="claro"] .contact-success { background: #1420328c; }
+[data-tema="claro"] .contact-success-card { background: #ffffff !important; border-color: #c3cdda !important; box-shadow: 0 24px 60px #1b2a4033; }
+[data-tema="claro"] .contact-success-card h3 { color: #142032 !important; }
+[data-tema="claro"] .contact-success-card p { color: #45556b !important; }
+[data-tema="claro"] .contact-success-icon { background: #e3f5ec; color: #1d7a4c; }
+
+/* Celular: valores, textos e etiquetas dentro dos cartões alinhados à esquerda, como o resto do site. */
+@media (max-width: 760px) {
+  #calculos .calc-price-card > .eyebrow, .calc-price-card > p.eyebrow {
+    align-self: flex-start !important; justify-self: start !important; text-align: left !important; margin-left: 0 !important;
+  }
+  #calculos .calc-price, .calc-price {
+    grid-template-columns: auto minmax(0, 1fr) !important; justify-content: flex-start !important; justify-items: start !important; column-gap: 6px !important;
+  }
+  .calc-price > strong { text-align: left !important; justify-self: start !important; }
+  .automation-preview-price {
+    display: flex !important; flex-direction: column !important; align-items: flex-start !important; text-align: left !important; justify-self: start !important;
+  }
+  .automation-preview-price del { margin-left: 0 !important; align-self: flex-start !important; }
+  .automation-page .actions, #automacao .hero .actions, #inicio .hero .actions { justify-content: flex-start !important; align-items: stretch !important; text-align: left !important; }
+  .actions .text-link { align-self: flex-start !important; justify-content: flex-start !important; text-align: left !important; margin-left: 0 !important; }
+  .plan-response { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; text-align: left !important; }
+  .contact-help-card { align-items: stretch !important; text-align: left !important; }
+  .contact-help-card > :is(.report-label, h3, p) { text-align: left !important; align-self: stretch !important; margin-left: 0 !important; }
+}

@@ -11,9 +11,23 @@ import { PERFIS_DEMO, resetarDemo } from './demo.js';
 
 // Chaves mantidas do banco; os nomes mudaram na versão resumida das etapas.
 // Andamento em 4 etapas: Notas e ordens (administrador) -> Pedido (com responsável) -> Revisão -> Entregue.
-// Entregue = o funcionário entregou e a demanda voltou para o administrador concluir (coluna Conclusão);
-// Concluído = o administrador finalizou de verdade.
+// Pedido: o funcionário inicia e entrega. Entregue = voltou para o administrador (coluna Conclusão), que
+// aprova (Concluído) ou reprova; reprovada, vai para "revisado" (Retificação) e volta ao funcionário,
+// que sobe a nova versão e entrega de novo.
 const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue', 'concluido'];
+// Prazo padrão de entrega, em dias úteis, contado a partir do aceite.
+const PRAZO_PADRAO = { calculos: 3, automacao: 5 };
+function diasUteisAPartirDeHoje(dias) {
+  // Data no horário de Brasília (UTC-3), pulando sábados e domingos.
+  const d = new Date(Date.now() - 3 * 3600000);
+  let faltam = dias;
+  while (faltam > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const semana = d.getUTCDay();
+    if (semana !== 0 && semana !== 6) faltam--;
+  }
+  return d.toISOString().slice(0, 10);
+}
 // Para o funcionário, entregue ou concluída é trabalho fechado: só consulta.
 const fechada = etapa => etapa === 'entregue' || etapa === 'concluido';
 const SERVICOS = ['calculos', 'automacao'];
@@ -60,8 +74,7 @@ const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do r
 const EXTENSOES_MOLDE = /\.(pdf|docx?)$/i;
 // Materiais: armazenamento pequeno da equipe (moldes, planilhas de demonstração, PDFs).
 const MATERIAIS_TOTAL_MAXIMO = 100 * 1024 * 1024;
-const EXTENSOES_DO_SITE = /\.(pdf|xlsx|xlsm|xls|csv|docx?|jpe?g|png|webp|heic)$/i;
-const EXTENSOES_PROIBIDAS = /\.(exe|com|bat|cmd|msi|scr|pif|cpl|dll|jar|js|mjs|vbs|vbe|wsf|ps1|psm1|sh|hta|html?|svg|xht(ml)?|lnk|iso|img|apk|app|reg)$/i;
+const EXTENSOES_PROIBIDAS = /\.(exe|com|bat|cmd|msi|msp|msc|scr|pif|cpl|dll|sys|jar|js|jse|mjs|vbs|vbe|wsf|wsh|ws|sct|ps1|psm1|psd1|sh|bash|hta|inf|scf|url|gadget|html?|svg|xht(ml)?|lnk|iso|img|vhdx?|apk|app|reg)$/i;
 const arquivoProibido = nome => EXTENSOES_PROIBIDAS.test(String(nome || '').trim());
 const DEMO_LIMITE_ENVIOS = [40, 24 * 60];
 
@@ -235,7 +248,7 @@ async function registrarContato(request, env) {
 
   // Documentos que a pessoa anexou: mesmas regras do formulário (até 10 arquivos, 10 MB no total),
   // só tipos de documento e só enquanto houver espaço no armazenamento grátis.
-  arquivos = arquivos.filter(a => a.size > 0 && EXTENSOES_DO_SITE.test(a.name || '')).slice(0, 10);
+  arquivos = arquivos.filter(a => a.size > 0 && !arquivoProibido(a.name)).slice(0, 10);
   const total = arquivos.reduce((soma, a) => soma + a.size, 0);
   if (arquivos.length && total <= CLIENTE_TOTAL_MAXIMO) {
     const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM arquivos').first();
@@ -537,7 +550,8 @@ async function central(env, usuario) {
     ligar(env.DB.prepare(
       `SELECT id, servico, nome, telefone, email, plano, descricao, atividade_manual, manter_inalterado,
               envio_documentos, observacoes, chamada, origem, criado_por, criado_em, etapa, atualizado_em,
-              lido_em, arquivado_em, recusado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
+              lido_em, arquivado_em, recusado_em, iniciado_em, valor_centavos, nota_fiscal, pago_em, prazo, responsavel_id,
+              (SELECT COUNT(*) FROM movimentacoes m WHERE m.contato_id = contatos.id AND m.para = 'revisado') AS retificacoes,
               (SELECT COUNT(*) FROM notas n WHERE n.contato_id = contatos.id AND n.tipo = 'nota') AS total_notas,
               (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${admin ? '' : "AND a.categoria IN ('cliente', 'entrega')"}) AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
@@ -573,10 +587,11 @@ async function cadastrarContato(request, env, usuario) {
 
   // Cadastro manual já entra lido e, se já aceito, direto em Notas e ordens (etapa 1 do andamento).
   const etapa = dados?.direto_para_pedido ? 'nota_emitida' : null;
+  const prazo = etapa ? diasUteisAPartirDeHoje(PRAZO_PADRAO[servico] || 3) : null;
   const resultado = await env.DB.prepare(
-    `INSERT INTO contatos (servico, nome, telefone, email, descricao, observacoes, origem, criado_por, lido_em, etapa, atualizado_em)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${AGORA_SQL}, ?, ${etapa ? AGORA_SQL : 'NULL'}) RETURNING id`
-  ).bind(servico, campos.nome, campos.telefone, campos.email, campos.descricao, campos.observacoes, origem, usuario.id, etapa).first();
+    `INSERT INTO contatos (servico, nome, telefone, email, descricao, observacoes, origem, criado_por, lido_em, etapa, atualizado_em, prazo)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${AGORA_SQL}, ?, ${etapa ? AGORA_SQL : 'NULL'}, ?) RETURNING id`
+  ).bind(servico, campos.nome, campos.telefone, campos.email, campos.descricao, campos.observacoes, origem, usuario.id, etapa, prazo).first();
   if (etapa) {
     await env.DB.prepare('INSERT INTO movimentacoes (contato_id, de, para, usuario_id) VALUES (?, NULL, ?, ?)')
       .bind(resultado.id, etapa, usuario.id).run();
@@ -591,7 +606,7 @@ async function alterarContato(request, env, usuario, contato) {
   const admin = eAdmin(usuario);
 
   // Funcionário só move a etapa e marca como lido.
-  if (!admin && Object.keys(dados).some(chave => !['etapa', 'lido'].includes(chave))) return negado();
+  if (!admin && Object.keys(dados).some(chave => !['etapa', 'lido', 'iniciado'].includes(chave))) return negado();
   // Funcionário: de qualquer etapa, leva a demanda entre Pedido, Revisão e Entregue.
   // Voltar para Pedido/Notas e ordens ou reabrir uma concluída, só desfazendo o próprio movimento em até 10 minutos.
   if (!admin && 'etapa' in dados && (dados.etapa ?? null) !== contato.etapa) {
@@ -599,6 +614,11 @@ async function alterarContato(request, env, usuario, contato) {
     if (fechada(contato.etapa) && !desfazendo) return concluida();
     if (!ETAPAS_FUNCIONARIO.includes(dados.etapa) && !desfazendo) {
       return json({ erro: 'Notas e ordens e a caixa de entrada são do administrador.' }, 403);
+    }
+    // Ele só entrega; mandar para Retificação é o administrador que reprova.
+    if (dados.etapa !== 'entregue' && !desfazendo) return json({ erro: 'Daqui você só pode entregar a demanda.' }, 403);
+    if (dados.etapa === 'entregue' && contato.etapa === 'pedido' && !contato.iniciado_em) {
+      return json({ erro: 'Clique em "Iniciar pedido" antes de entregar.' }, 400);
     }
   }
 
@@ -629,6 +649,25 @@ async function alterarContato(request, env, usuario, contato) {
     if (etapa === 'pedido' && etapa !== contato.etapa && !responsavelFinal) {
       return json({ erro: 'Escolha quem da equipe vai cuidar do pedido.' }, 400);
     }
+    if (etapa === 'entregue' && etapa !== contato.etapa && !admin) {
+      const desde = contato.etapa === 'revisado'
+        ? (await env.DB.prepare("SELECT MAX(quando) AS quando FROM movimentacoes WHERE contato_id = ? AND para = 'revisado'").bind(id).first())?.quando
+        : null;
+      const arquivoFinal = await env.DB.prepare(
+        `SELECT id FROM arquivos WHERE contato_id = ? AND categoria = 'entrega' AND tamanho > 1024 ${desde ? 'AND criado_em > ?' : ''} LIMIT 1`
+      ).bind(...(desde ? [id, desde] : [id])).first();
+      if (!arquivoFinal) {
+        return json({ erro: desde ? 'Envie a nova versão (um arquivo de mais de 1 KB) antes de entregar de novo.' : 'Envie o arquivo da entrega (mais de 1 KB) antes de entregar.' }, 400);
+      }
+    }
+    // Aceitar: prazo padrão (3 dias úteis para cálculo, 5 para automação), se ainda não tem prazo.
+    if (etapa === 'nota_emitida' && !contato.etapa && !contato.prazo && !('prazo' in dados)) {
+      const prazo = diasUteisAPartirDeHoje(PRAZO_PADRAO[contato.servico] || 3);
+      definir('prazo', prazo);
+      registrar(`prazo de entrega definido em ${dataBr(prazo)} (padrão de ${PRAZO_PADRAO[contato.servico] || 3} dias úteis)`);
+    }
+    // Entrar em Pedido zera o "iniciado": o funcionário inicia de novo.
+    if (etapa === 'pedido' && etapa !== contato.etapa) definir('iniciado_em', null);
     // Aceitar um recusado tira ele de Recusados.
     if (etapa && contato.recusado_em && !('recusado' in dados)) {
       definir('recusado_em', null);
@@ -654,6 +693,15 @@ async function alterarContato(request, env, usuario, contato) {
     registros.push(env.DB.prepare(`UPDATE movimentacoes SET quando = ? WHERE id = (
       SELECT id FROM movimentacoes WHERE contato_id = ? AND para = 'entregue' ORDER BY quando DESC, id DESC LIMIT 1)`).bind(iso, id));
     registrar(`corrigiu a data da entrega para ${quando.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+  }
+
+  // "Iniciar pedido": o funcionário avisa que começou a trabalhar.
+  if ('iniciado' in dados) {
+    if (contato.etapa !== 'pedido') return json({ erro: 'Só dá para iniciar uma demanda em Pedido.' }, 400);
+    if (dados.iniciado && !contato.iniciado_em) {
+      sets.push(`iniciado_em = ${AGORA_SQL}`);
+      registrar('iniciou o pedido');
+    }
   }
 
   if ('lido' in dados) definir('lido_em', dados.lido ? (contato.lido_em || new Date().toISOString().replace(/\.\d+Z$/, 'Z')) : null);

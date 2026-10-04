@@ -1,4 +1,4 @@
-// Caixa de entrada (ou Minhas demandas), Recusados, Arquivo e Concluídos.
+// Caixa de entrada, Recusados, Arquivados e Concluídos.
 // A caixa de entrada do administrador tem só os pedidos novos, com Aceitar (vai para o Andamento, em
 // Notas e ordens) e Recusar (vai para Recusados, guardando o lead).
 import { estado, acoes, ativos, usuarioPorId, eAdmin } from './estado.js';
@@ -10,7 +10,7 @@ import {
 
 const filtro = { modo: 'todos', servico: '', texto: '', responsavel: '' };
 
-// Três listas na mesma tela: caixa de entrada (para o funcionário, "Minhas demandas"),
+// Listas na mesma tela: caixa de entrada (para o funcionário, as demandas dele em aberto),
 // arquivo e concluídos (as demandas do funcionário que já chegaram em Entregue).
 const TIPOS = {
   entrada: { data: 'criado_em', icone: 'entrada' },
@@ -38,7 +38,7 @@ export function desenharEntrada(raiz, { arquivo = false, concluidos = false, rec
   };
   const redesenhar = () => desenharEntrada(raiz, { arquivo, concluidos, recusados });
 
-  const titulo = { arquivo: 'Arquivo', concluidos: 'Concluídos', recusados: 'Recusados' }[tipo] || (admin ? 'Caixa de entrada' : 'Minhas demandas');
+  const titulo = { arquivo: 'Arquivados', concluidos: 'Concluídos', recusados: 'Recusados' }[tipo] || 'Caixa de entrada';
   const cabecalho = el('header', 'tela-topo',
     el('div', '', el('h1', '', titulo)),
     admin ? botao('Exportar planilha', 'botao--fantasma', () => exportar(filtrar(), arquivo), { icone: 'baixar', titulo: 'Baixar os contatos desta lista em CSV (abre no Excel)' }) : null);
@@ -121,8 +121,10 @@ function linha(c, tipo) {
       ? el('span', 'etapa-pill etapa-pill--ok', icone('ok'), 'Concluída')
       : tipo === 'recusados'
         ? el('span', 'etapa-pill etapa-pill--recusado', 'Recusado')
-        : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
-          c.etapa ? NOME_ETAPA[c.etapa] : 'Novo pedido'));
+        : c.etapa === 'revisado'
+          ? el('span', 'etapa-pill etapa-pill--retificacao', icone('alerta'), 'Retificação')
+          : el('span', `etapa-pill${c.etapa ? '' : ' etapa-pill--caixa'}${c.etapa === 'entregue' ? ' etapa-pill--ok' : ''}`,
+            c.etapa === 'pedido' ? (c.iniciado_em ? 'Em andamento' : 'Novo pedido') : c.etapa ? NOME_ETAPA[c.etapa] : 'Novo pedido'));
   situacao.addEventListener('click', abrir);
 
   const whatsapp = linkWhatsApp(c);
@@ -177,22 +179,20 @@ function linha(c, tipo) {
   return item;
 }
 
-// Funcionário: botão que avança um passo, com o nome da próxima ação. "Entregar" abre a aba de entrega
-// da ficha, onde se sobem os arquivos finais e se conclui.
-const PROXIMO_FUNCIONARIO = {
-  pedido: ['revisado', 'Enviar para revisão'],
-  revisado: ['entregue', 'Entregar'],
-};
-
+// Funcionário: um botão por vez, para ele saber em que ponto está.
+//   Pedido novo -> "Iniciar pedido"; em andamento -> "Entregar" (abre a aba Entregue para subir o arquivo);
+//   Retificação -> "Entregar nova versão" (abre a Retificação).
 function botaoAvancar(c) {
-  const proximo = PROXIMO_FUNCIONARIO[c.etapa];
-  if (!proximo) return null;
-  const [destino, rotulo] = proximo;
-  const entregar = destino === 'entregue';
-  return botao(rotulo, 'botao--primario botao--pequeno botao--avancar', () => {
-    if (entregar) acoes.abrirFicha(c.id, 'entregue');
-    else acoes.mover(c.id, destino);
-  }, { icone: entregar ? 'ok' : 'seta_dir', titulo: entregar ? 'Abre a aba Entregue para enviar os arquivos finais e concluir' : `Avançar para ${NOME_ETAPA[destino]}` });
+  if (c.etapa === 'pedido' && !c.iniciado_em) {
+    return botao('Iniciar pedido', 'botao--primario botao--pequeno botao--avancar', () => acoes.iniciar(c.id), { icone: 'seta_dir', titulo: 'Avise que começou a trabalhar nesta demanda' });
+  }
+  if (c.etapa === 'pedido') {
+    return botao('Entregar', 'botao--primario botao--pequeno botao--avancar', () => acoes.abrirFicha(c.id, 'entregue'), { icone: 'ok', titulo: 'Abre a aba Entregue para enviar o arquivo final e entregar' });
+  }
+  if (c.etapa === 'revisado') {
+    return botao('Entregar nova versão', 'botao--primario botao--pequeno botao--avancar', () => acoes.abrirFicha(c.id, 'revisado'), { icone: 'ok', titulo: 'Abre a Retificação: veja o que ajustar e envie a nova versão' });
+  }
+  return null;
 }
 
 function vazio(tipo, totalBase) {

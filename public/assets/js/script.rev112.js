@@ -598,9 +598,45 @@ if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
 if (contactFileField) contactFileField.hidden = true;
 if (contactFiles) contactFiles.disabled = true;
 
-// Tipos aceitos nos anexos: documentos, planilhas e fotos. Programas, páginas e compactados ficam de fora.
-const CONTACT_ALLOWED_FILES = /\.(pdf|xlsx|xlsm|xls|csv|docx?|jpe?g|png|webp|heic)$/i;
-const contactBlockedFiles = files => files.filter(file => !CONTACT_ALLOWED_FILES.test(file.name || ''));
+// Anexos: aceita documentos, planilhas, imagens e afins. Ficam de fora só programas, scripts e atalhos
+// (o que pode executar e trazer vírus). O servidor repete a mesma checagem.
+const CONTACT_BLOCKED_FILES = /\.(exe|com|bat|cmd|msi|msp|msc|scr|pif|cpl|dll|sys|jar|js|jse|mjs|vbs|vbe|wsf|wsh|ws|sct|ps1|psm1|psd1|sh|bash|hta|inf|scf|url|gadget|html?|svg|xht(ml)?|lnk|iso|img|vhdx?|apk|app|reg)$/i;
+const contactBlockedFiles = files => files.filter(file => CONTACT_BLOCKED_FILES.test((file.name || '').trim()));
+
+// Caixa de confirmação depois do envio.
+function contactShowSuccess(repeated) {
+  document.querySelector('.contact-success')?.remove();
+  const box = document.createElement('div');
+  box.className = 'contact-success';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-labelledby', 'contact-success-title');
+  const card = document.createElement('div');
+  card.className = 'contact-success-card';
+  const icon = document.createElement('span');
+  icon.className = 'contact-success-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = '✓';
+  const title = document.createElement('h3');
+  title.id = 'contact-success-title';
+  title.textContent = repeated ? 'Pedido já recebido!' : 'Pedido efetuado com sucesso!';
+  const text = document.createElement('p');
+  text.textContent = 'Entraremos em contato após a análise da solicitação.';
+  const ok = document.createElement('button');
+  ok.type = 'button';
+  ok.className = 'button';
+  ok.textContent = 'Entendi';
+  const previous = document.activeElement;
+  const close = () => { box.remove(); document.removeEventListener('keydown', onKey); previous?.focus?.(); };
+  const onKey = event => { if (event.key === 'Escape') close(); };
+  ok.addEventListener('click', close);
+  box.addEventListener('click', event => { if (event.target === box) close(); });
+  document.addEventListener('keydown', onKey);
+  card.append(icon, title, text, ok);
+  box.append(card);
+  document.body.append(box);
+  ok.focus();
+}
 
 // Evita o mesmo pedido em sequência (clique duplo, robô): espera entre envios e o mesmo conteúdo
 // não sai de novo em pouco tempo. O servidor também ignora pedidos repetidos.
@@ -614,7 +650,7 @@ contactFiles?.addEventListener('change', () => {
   const blocked = contactBlockedFiles([...contactFiles.files]);
   if (blocked.length) {
     contactFiles.value = '';
-    if (contactFileSummary) contactFileSummary.textContent = `Não aceitamos ${blocked.map(file => file.name).slice(0, 2).join(', ')}. Envie PDF, Excel, Word ou foto (JPG, PNG).`;
+    if (contactFileSummary) contactFileSummary.textContent = `Não aceitamos ${blocked.map(file => file.name).slice(0, 2).join(', ')}: programas e scripts ficam de fora. Envie documentos, planilhas ou imagens.`;
     return;
   }
   const files = [...contactFiles.files];
@@ -658,7 +694,7 @@ $('#contact-form')?.addEventListener('submit', async event => {
   const files = contactFiles && !contactFiles.disabled ? [...contactFiles.files] : [];
   if (contactBlockedFiles(files).length) {
     if (status) {
-      status.textContent = 'Há anexos de um tipo que não aceitamos. Envie PDF, Excel, Word ou foto (JPG, PNG).';
+      status.textContent = 'Há anexos de um tipo que não aceitamos (programas ou scripts). Envie documentos, planilhas ou imagens.';
       status.classList.add('is-error');
     }
     contactFiles?.focus();
@@ -737,9 +773,10 @@ $('#contact-form')?.addEventListener('submit', async event => {
     if (status) {
       status.textContent = central.repetido
         ? 'Recebemos sua solicitação (ela já tinha chegado). Retornaremos em breve.'
-        : 'Solicitação enviada. Analisaremos e retornaremos em breve.';
+        : 'Pedido efetuado com sucesso. Entraremos em contato após a análise da solicitação.';
       status.classList.add('is-success');
     }
+    contactShowSuccess(central.repetido);
     if (submit) {
       submit.classList.remove('is-loading');
       submit.classList.add('is-sent');

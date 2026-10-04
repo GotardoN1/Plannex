@@ -41,6 +41,9 @@ function filtrados() {
 // Quatro colunas: Notas e ordens, Pedido, Revisão e Conclusão (o que o funcionário entregou e o
 // administrador ainda vai concluir de verdade). O concluído vai para Concluídos.
 const ETAPAS_QUADRO = ETAPAS.filter(([chave]) => chave !== 'concluido').map(([chave, nome]) => [chave, chave === 'entregue' ? 'Conclusão' : nome]);
+// Setas de cada etapa: Pedido entrega direto para a Conclusão; a Retificação só nasce da reprovação.
+const ANTERIOR = { nota_emitida: [null, 'Caixa de entrada'], pedido: ['nota_emitida', 'Notas e ordens'], revisado: ['entregue', 'Conclusão'], entregue: ['pedido', 'Pedido'] };
+const PROXIMA = { nota_emitida: ['pedido', 'Pedido'], pedido: ['entregue', 'Conclusão'], revisado: ['entregue', 'Conclusão'] };
 
 function colunas() {
   const contatos = filtrados();
@@ -84,8 +87,8 @@ function cartao(c, indice) {
   artigo.addEventListener('keydown', evento => {
     if (evento.target !== artigo) return;
     if (evento.key === 'Enter') acoes.abrirFicha(c.id);
-    if (evento.key === 'ArrowRight' && ETAPAS[indice + 1]) acoes.mover(c.id, ETAPAS[indice + 1][0]);
-    if (evento.key === 'ArrowLeft') acoes.mover(c.id, indice > 0 ? ETAPAS[indice - 1][0] : null);
+    if (evento.key === 'ArrowRight' && PROXIMA[c.etapa]) acoes.mover(c.id, PROXIMA[c.etapa][0]);
+    if (evento.key === 'ArrowLeft' && ANTERIOR[c.etapa]) acoes.mover(c.id, ANTERIOR[c.etapa][0]);
   });
 
   const prazo = c.etapa !== 'entregue' ? situacaoPrazo(c.prazo) : null;
@@ -97,25 +100,29 @@ function cartao(c, indice) {
     : null;
   if (valor && c.pago_em) valor.title = 'Pago';
 
-  const anterior = indice > 0 ? ETAPAS[indice - 1] : null;
-  const proxima = ETAPAS[indice + 1];
-  const concluir = proxima?.[0] === 'concluido';
+  const anterior = ANTERIOR[c.etapa] || null;
+  const proxima = PROXIMA[c.etapa] || null;
+  const concluir = c.etapa === 'entregue';
   // Três linhas curtas: nome e valor · serviço, nota e prazo · responsável, contadores e setas.
   artigo.append(...[
     el('div', 'cartao-linha1', el('strong', 'cartao-nome', c.nome), valor),
     el('div', 'cartao-meta',
       el('span', `servico-mini servico-mini--${c.servico}`, SERVICOS[c.servico]?.nome || c.servico),
       c.nota_fiscal ? el('span', 'cartao-nf', `NF ${c.nota_fiscal}`) : null,
-      prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null),
+      prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, icone(prazo.classe === 'critico' ? 'alerta' : 'relogio'), prazo.texto) : null,
+      // Em Pedido, o administrador vê se o funcionário já iniciou; na Retificação, quantas vezes voltou.
+      c.etapa === 'pedido' ? el('span', `cartao-estado${c.iniciado_em ? ' is-iniciado' : ''}`, c.iniciado_em ? 'Iniciado' : 'A iniciar') : null,
+      c.etapa === 'revisado' ? el('span', 'cartao-estado is-retificacao', `Retificação ${c.retificacoes > 1 ? `${c.retificacoes}ª` : ''}`.trim()) : null),
     el('div', 'cartao-rodape',
       responsavel ? avatar(responsavel.nome, 'avatar--pequeno') : el('span', 'sem-responsavel', icone('usuario'), el('span', 'sr', 'Sem responsável')),
       c.total_notas ? el('span', 'cartao-notas', icone('nota'), String(c.total_notas)) : null,
       c.total_arquivos ? el('span', 'cartao-notas', icone('anexo'), String(c.total_arquivos)) : null,
       el('time', 'cartao-tempo', c.atualizado_em ? relativo(c.atualizado_em) : ''),
       el('span', 'cartao-setas',
-        botao('', 'botao--icone botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior ? anterior[0] : null), { icone: 'seta_esq', titulo: `Voltar para ${anterior ? anterior[1] : CAIXA}` }),
+        anterior ? botao('', 'botao--icone botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior[0]), { icone: 'seta_esq', titulo: `Voltar para ${anterior[1]}` }) : null,
+        concluir ? botao('', 'botao--icone botao--fantasma botao--pequeno botao--recusar', () => acoes.reprovar(c.id), { icone: 'recusar', titulo: 'Reprovar: volta ao responsável, em Retificação' }) : null,
         concluir
-          ? botao('Concluir', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: naConclusao ? 'Concluir de vez (vai para Concluídos)' : 'Concluir a demanda' })
+          ? botao('Aprovar', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: naConclusao ? 'O cliente aprovou: vai para Concluídos' : 'Concluir a demanda' })
           : proxima ? botao('', 'botao--icone botao--primario botao--pequeno', () => acoes.mover(c.id, proxima[0]), { icone: 'seta_dir', titulo: `Avançar para ${proxima[1]}` }) : null)),
   ].filter(Boolean));
   return artigo;

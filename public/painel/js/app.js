@@ -22,7 +22,7 @@ const TELAS = {
   entrada: { titulo: 'Caixa de entrada', desenhar: desenharEntrada },
   andamento: { titulo: 'Andamento', desenhar: desenharQuadro, admin: true },
   agenda: { titulo: 'Agenda', desenhar: desenharAgenda },
-  arquivo: { titulo: 'Arquivo', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
+  arquivo: { titulo: 'Arquivados', desenhar: raiz => desenharEntrada(raiz, { arquivo: true }), admin: true },
   concluidos: { titulo: 'Concluídos', desenhar: raiz => desenharEntrada(raiz, { concluidos: true }) },
   recusados: { titulo: 'Recusados', desenhar: raiz => desenharEntrada(raiz, { recusados: true }), admin: true },
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
@@ -133,6 +133,9 @@ async function alterar(id, campos, mensagem, desfazer) {
     if ('arquivado' in local) { local.arquivado_em = local.arquivado ? new Date().toISOString() : null; delete local.arquivado; }
     if ('recusado' in local) { local.recusado_em = local.recusado ? new Date().toISOString() : null; delete local.recusado; }
     if (local.etapa) local.recusado_em = null;
+    if ('iniciado' in local) { local.iniciado_em = local.iniciado ? (contato.iniciado_em || new Date().toISOString()) : null; delete local.iniciado; }
+    if (local.etapa === 'pedido' && contato.etapa !== 'pedido') local.iniciado_em = null;
+    if (local.etapa === 'revisado' && contato.etapa !== 'revisado') local.retificacoes = (contato.retificacoes || 0) + 1;
     if ('etapa' in local) local.atualizado_em = new Date().toISOString();
     if (local.dados) { Object.assign(local, local.dados); delete local.dados; }
     Object.assign(contato, local);
@@ -154,19 +157,20 @@ async function alterar(id, campos, mensagem, desfazer) {
 async function mover(id, etapa) {
   const contato = contatoPorId(id);
   if (!contato || (contato.etapa || null) === etapa) return;
+  if (etapa === 'revisado' && contato.etapa === 'entregue' && eAdmin()) return reprovar(id);
   const anterior = contato.etapa || null;
   const nomeDe = anterior ? NOME_ETAPA[anterior] : CAIXA;
   const nomePara = etapa ? NOME_ETAPA[etapa] : CAIXA;
   const ordem = chave => (chave ? ETAPAS.findIndex(([k]) => k === chave) : -1);
   // Concluir (administrador) leva a Concluídos; entregar (funcionário) devolve ao administrador, na Conclusão.
   const concluindo = etapa === 'concluido';
-  const entregando = etapa === 'entregue' && !(ordem(etapa) < ordem(anterior));
+  const entregando = etapa === 'entregue' && (anterior === 'pedido' || anterior === 'revisado');
   const aceitando = !anterior && etapa;
   const voltando = ordem(etapa) < ordem(anterior);
   // Entrar em Pedido: o administrador escolhe quem da equipe vai cuidar (ele continua vendo tudo).
   const escolha = etapa === 'pedido' && eAdmin() ? seletorResponsavel(contato) : null;
   const ok = await confirmar({
-    titulo: concluindo ? 'Concluir a demanda?' : entregando ? 'Entregar a demanda?' : aceitando ? 'Aceitar o pedido?' : escolha ? 'Quem da equipe vai cuidar?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
+    titulo: concluindo ? 'Aprovar e concluir a demanda?' : entregando ? (anterior === 'revisado' ? 'Entregar a nova versão?' : 'Entregar a demanda?') : aceitando ? 'Aceitar o pedido?' : escolha ? 'Quem da equipe vai cuidar?' : voltando ? `Voltar para ${nomePara}?` : `Enviar para ${nomePara}?`,
     texto: concluindo
       ? `${contato.nome} sai do andamento e vai para Concluídos.`
       : entregando
@@ -178,9 +182,9 @@ async function mover(id, etapa) {
           : `${contato.nome} sai de ${nomeDe} e vai para ${nomePara}.`,
     de: contato.recusado_em && !anterior ? 'Recusados' : nomeDe,
     para: etapa === 'entregue' ? 'Conclusão' : nomePara,
-    botao: concluindo ? 'Concluir' : entregando ? 'Entregar' : aceitando ? 'Aceitar' : voltando ? 'Voltar' : 'Enviar',
+    botao: concluindo ? 'Aprovar e concluir' : entregando ? 'Entregar' : aceitando ? 'Aceitar' : voltando ? 'Voltar' : 'Enviar',
     extra: escolha,
-    validar: () => !escolha || Boolean(escolha.querySelector('select').value),
+    validar: () => (!escolha || escolha.querySelector('select').value ? '' : 'Escolha quem da equipe vai cuidar do pedido.'),
   });
   if (!ok) return;
   const campos = { etapa };
@@ -214,6 +218,44 @@ function seletorResponsavel(contato) {
   return el('label', 'campo', 'Responsável pelo pedido', lista);
 }
 
+// Reprovar (administrador): o cliente pediu ajuste. A demanda vai para Retificação e volta ao funcionário,
+// com o comentário do que ajustar; ele sobe a nova versão e entrega de novo.
+async function reprovar(id) {
+  const contato = contatoPorId(id);
+  if (!contato) return;
+  const texto = el('textarea');
+  texto.rows = 4;
+  texto.maxLength = 2000;
+  texto.placeholder = 'Ex.: incluir as horas extras de março e refazer o relatório…';
+  const campo = el('label', 'campo', 'O que o cliente pediu para ajustar', texto);
+  const ok = await confirmar({
+    titulo: 'Reprovar e pedir retificação?',
+    texto: `${contato.nome} volta para ${primeiroNome(usuarioNome(contato.responsavel_id)) || 'o responsável'}, em Retificação, para entregar uma nova versão.`,
+    de: 'Conclusão',
+    para: 'Retificação',
+    botao: 'Reprovar',
+    extra: campo,
+    validar: () => (texto.value.trim() ? '' : 'Escreva o que o cliente pediu para ajustar.'),
+  });
+  if (!ok) return;
+  try {
+    await api(`/api/contatos/${id}/notas`, { method: 'POST', corpo: { texto: texto.value.trim(), aba: 'revisado' } });
+  } catch (e) {
+    avisar(e.message, 'erro');
+    return;
+  }
+  return alterar(id, { etapa: 'revisado' }, `${primeiroNome(contato.nome)} → Retificação. O responsável recebe o pedido de ajuste.`);
+}
+
+const usuarioNome = id => estado.usuarios.find(u => u.id === id)?.nome || '';
+
+// Iniciar pedido (funcionário): avisa que começou; depois aparece "Entregar".
+async function iniciar(id) {
+  const contato = contatoPorId(id);
+  if (!contato) return;
+  return alterar(id, { iniciado: true }, `Pedido de ${primeiroNome(contato.nome)} iniciado. Quando terminar, entregue pela ficha.`);
+}
+
 // Recusar: o pedido sai da caixa de entrada e fica guardado em Recusados.
 async function recusar(id) {
   const contato = contatoPorId(id);
@@ -230,7 +272,7 @@ async function recusar(id) {
     { rotulo: 'Desfazer', aoClicar: () => alterar(id, { recusado: false }, 'Desfeito.') });
 }
 
-function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, validar = () => true }) {
+function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, validar = () => '' }) {
   const janela = $('#janela-confirmar');
   $('#confirmar-titulo').textContent = titulo;
   $('#confirmar-texto').textContent = texto;
@@ -252,7 +294,8 @@ function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, 
       resolver(resposta);
     };
     const sim = () => {
-      if (!validar()) { extra?.querySelector('select')?.focus(); avisar('Escolha quem da equipe vai cuidar do pedido.', 'erro'); return; }
+      const erro = validar();
+      if (erro) { extra?.querySelector('select, textarea')?.focus(); avisar(erro, 'erro'); return; }
       terminar(true);
     };
     const nao = () => terminar(false);
@@ -267,7 +310,7 @@ function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, 
   });
 }
 
-Object.assign(acoes, { abrirFicha, alterar, mover, recusar, confirmar, recarregar, navegar, avisar, novoContato: abrirNovo });
+Object.assign(acoes, { abrirFicha, alterar, mover, recusar, reprovar, iniciar, confirmar, recarregar, navegar, avisar, novoContato: abrirNovo });
 
 // ---------- Avisos ----------
 
@@ -318,7 +361,6 @@ function mostrarUsuario() {
   // Menu conforme o acesso.
   for (const b of $$('[data-tela]')) b.hidden = !podeVer(b.dataset.tela);
   for (const grupo of $$('.nav-grupo')) grupo.hidden = ![...grupo.querySelectorAll('[data-tela]')].some(b => !b.hidden);
-  $('[data-tela="entrada"] .nav-rotulo').textContent = admin ? 'Caixa de entrada' : 'Minhas demandas';
   $('#novo-contato').hidden = !admin;
   $('#ir-para-site').hidden = estado.demo;
   $('.marca').href = `#/${telaInicial()}`;

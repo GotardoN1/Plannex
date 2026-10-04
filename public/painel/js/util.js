@@ -3,11 +3,12 @@
 
 // As chaves vêm do banco; os nomes são os da versão resumida das etapas.
 // Andamento: o pedido aceito começa em Notas e ordens (administrador), passa para Pedido quando alguém
-// da equipe fica responsável, vai para Revisão e, entregue pelo funcionário, para a Conclusão do administrador.
+// da equipe fica responsável e, entregue pelo funcionário, vai para a Conclusão do administrador, que aprova
+// (Concluído) ou reprova (Retificação: volta ao funcionário para uma nova versão).
 export const ETAPAS = [
   ['nota_emitida', 'Notas e ordens'],
   ['pedido', 'Pedido'],
-  ['revisado', 'Revisão'],
+  ['revisado', 'Retificação'],
   ['entregue', 'Entregue'],
   ['concluido', 'Concluído'],
 ];

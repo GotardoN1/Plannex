@@ -1196,3 +1196,19 @@ a.nav-item { text-decoration: none; }
   .materiais-envio-campos { grid-template-columns: minmax(0, 1fr); }
   .material-acoes { flex-wrap: wrap; }
 }
+
+/* Retificação (o administrador reprovou): selo vermelho para o funcionário. */
+.etapa-pill--retificacao { display: inline-flex; align-items: center; gap: 4px; background: var(--critico-fundo); color: var(--critico); font-weight: 700; }
+.etapa-pill--retificacao .icone { width: 12px; height: 12px; }
+/* Cartões do Andamento: se o pedido já foi iniciado e quantas retificações. */
+.cartao-estado { padding: 1px 7px; border-radius: 999px; background: var(--surface-3); color: var(--muted); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.cartao-estado.is-iniciado { background: var(--ok-fundo); color: var(--ok); }
+.cartao-estado.is-retificacao { background: var(--critico-fundo); color: var(--critico); }
+.coluna--revisado .cartao { box-shadow: inset 3px 0 0 var(--critico); }
+
+/* Materiais: espaço entre "quem vê" e os botões. */
+.material-acoes { gap: 10px; }
+.material-acoes .papel-select { margin-right: 6px; }
+
+/* Lateral: sem divisória acima de "Início" (o grupo do fim fica junto da linha do usuário). */
+.nav .nav-grupo.nav-grupo--fim:not([hidden]) { padding-top: 0; border-top: 0 !important; }

@@ -2,8 +2,9 @@
 // Depois de aceito, uma aba por etapa do andamento:
 //   1. Notas e ordens (só administrador): contato, valores, pagamento, notas fiscais e ordens de serviço.
 //   2. Pedido: responsável e prazo, a solicitação (com os documentos do cliente) e anotações.
-//   3. Revisão: o que o cliente pediu para ajustar.
-//   4. Entregue: arquivos finais, molde do relatório, comentário e o registro do dia da entrega.
+//   3. Retificação (só se o administrador reprovar a entrega): o que ajustar e a nova versão.
+//   4. Entregue: arquivos finais, molde do relatório, comentário e o registro do dia da entrega; o
+//      administrador aprova (Concluído) ou reprova (volta para Retificação).
 // Clicar numa aba só mostra o conteúdo; mudar de etapa é pelo botão de ação, com confirmação.
 import { estado, acoes, contatoPorId, usuarioPorId, eAdmin } from './estado.js';
 import { api } from './api.js';
@@ -23,7 +24,7 @@ const ETAPAS_FUNCIONARIO = ['pedido', 'revisado', 'entregue'];
 const ABAS = [
   { chave: 'nota_emitida', nome: 'Notas e ordens', etapas: ['nota_emitida'], admin: true },
   { chave: 'pedido', nome: 'Pedido', etapas: ['pedido', 'processo_iniciado'] },
-  { chave: 'revisado', nome: 'Revisão', etapas: ['revisado'] },
+  { chave: 'revisado', nome: 'Retificação', etapas: ['revisado'], opcional: true },
   { chave: 'entregue', nome: 'Entregue', etapas: ['entregue', 'concluido'] },
 ];
 // Pedido novo ou recusado ainda não tem etapa: a ficha mostra a "entrada" (fora da trilha).
@@ -140,18 +141,20 @@ function andamento(c) {
   trilha.setAttribute('role', 'tablist');
   ABAS.forEach((aba, i) => {
     const bloqueada = !podeVerAba(aba);
-    const situacao = i < atual ? 'feito' : i === atual ? 'atual' : 'futuro';
+    // Retificação só existe se o administrador reprovou a entrega alguma vez.
+    const travada = aba.opcional && c.etapa !== 'revisado' && !c.retificacoes;
+    const situacao = travada ? 'futuro' : i < atual ? 'feito' : i === atual ? 'atual' : 'futuro';
     const ponto = bloqueada ? icone('cadeado') : situacao === 'feito' ? icone('ok') : String(i + 1);
-    const b = el('button', `trilha-passo trilha-passo--${situacao}${bloqueada ? ' is-bloqueado' : ''}${aba.chave === abaAberta ? ' is-aberta' : ''}`,
+    const b = el('button', `trilha-passo trilha-passo--${situacao}${bloqueada ? ' is-bloqueado' : ''}${travada ? ' is-travado' : ''}${aba.chave === abaAberta ? ' is-aberta' : ''}`,
       el('span', 'trilha-ponto', ponto), el('span', 'trilha-nome', aba.nome));
     b.type = 'button';
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', String(aba.chave === abaAberta));
     b.setAttribute('aria-controls', 'ficha-painel');
     if (i === atual) b.setAttribute('aria-current', 'step');
-    if (bloqueada) {
+    if (bloqueada || travada) {
       b.disabled = true;
-      b.title = 'Só administradores: tem os valores e pagamentos';
+      b.title = bloqueada ? 'Só administradores: tem os valores e pagamentos' : 'Só é usada se o administrador reprovar a entrega e pedir ajuste';
     } else {
       b.title = `Ver ${aba.nome}${i === atual ? ' (etapa atual)' : ''}`;
       b.addEventListener('click', () => {
@@ -180,29 +183,42 @@ function acaoPrincipal(c) {
     return el('div', 'acoes-etapa', outra, aceitar);
   }
   if (!eAdmin()) return acaoAvancar(c);
-  const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
-  const [anterior, nomeAnterior] = indice > 0 ? ETAPAS[indice - 1] : [null, CAIXA];
+  const [anterior, nomeAnterior] = VOLTAR[c.etapa] || [null, CAIXA];
   const voltar = c.etapa === 'concluido'
     ? botao('Reabrir: voltar para a Conclusão', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'restaurar', titulo: 'Tira a demanda de Concluídos e devolve ao Andamento' })
     : botao(`Voltar para ${nomeAnterior}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, anterior), { icone: 'seta_esq' });
   return el('div', 'acoes-etapa', voltar, acaoAvancar(c));
 }
 
+// Para onde o administrador volta a demanda, de cada etapa.
+const VOLTAR = {
+  nota_emitida: [null, CAIXA],
+  pedido: ['nota_emitida', 'Notas e ordens'],
+  revisado: ['entregue', 'Conclusão'],
+  entregue: ['pedido', 'Pedido'],
+  concluido: ['entregue', 'Conclusão'],
+};
+
 function acaoAvancar(c) {
   const admin = eAdmin();
   if (c.etapa === 'concluido') return el('span', 'concluido', icone('ok'), 'Concluída');
   if (c.etapa === 'entregue') {
-    // Volta para o administrador finalizar com o cliente; para o funcionário, já está concluída.
-    return admin
-      ? botao('Concluir de vez', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'Finalizar com o cliente: vai para Concluídos' })
-      : el('span', 'concluido', icone('ok'), 'Entregue');
+    // Volta para o administrador falar com o cliente: aprova (concluída) ou reprova (retificação).
+    if (!admin) return el('span', 'concluido', icone('ok'), 'Entregue');
+    return el('span', 'acoes-etapa',
+      botao('Reprovar', 'botao--fantasma botao--pequeno botao--recusar', () => acoes.reprovar(c.id), { icone: 'recusar', titulo: 'O cliente pediu ajuste: volta ao responsável, em Retificação' }),
+      botao('Aprovar e concluir', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'O cliente aprovou: vai para Concluídos' }));
   }
-  const indice = ETAPAS.findIndex(([k]) => k === c.etapa);
-  const [proxima, nome] = ETAPAS[indice + 1] || [];
-  if (!proxima) return null;
-  if (proxima === 'entregue') return botao('Entregar', 'botao--primario botao--pequeno', () => { abrirAba('entregue'); }, { icone: 'ok', titulo: 'Abre a aba Entregue para enviar os arquivos finais e entregar' });
-  const rotulo = proxima === 'pedido' ? 'Passar para Pedido' : proxima === 'revisado' ? 'Enviar para revisão' : `Avançar para ${nome}`;
-  return botao(rotulo, 'botao--primario botao--pequeno', () => acoes.mover(c.id, proxima), { icone: 'seta_dir', titulo: proxima === 'pedido' ? 'Escolha quem da equipe vai cuidar' : '' });
+  if (c.etapa === 'nota_emitida') {
+    return botao('Passar para Pedido', 'botao--primario botao--pequeno', () => acoes.mover(c.id, 'pedido'), { icone: 'seta_dir', titulo: 'Escolha quem da equipe vai cuidar' });
+  }
+  // Pedido: primeiro "Iniciar pedido" (para o funcionário saber onde está), depois "Entregar".
+  if (c.etapa === 'pedido' && !c.iniciado_em) {
+    return botao('Iniciar pedido', 'botao--primario botao--pequeno', () => acoes.iniciar(c.id), { icone: 'seta_dir', titulo: 'Avise que começou a trabalhar nesta demanda' });
+  }
+  if (c.etapa === 'pedido') return botao('Entregar', 'botao--primario botao--pequeno', () => { abrirAba('entregue'); }, { icone: 'ok', titulo: 'Abre a aba Entregue para enviar os arquivos finais e entregar' });
+  if (c.etapa === 'revisado') return botao('Entregar nova versão', 'botao--primario botao--pequeno', () => { abrirAba('revisado'); }, { icone: 'ok', titulo: 'Abre a Retificação para enviar a nova versão e entregar de novo' });
+  return null;
 }
 
 function abrirAba(chave) {
@@ -250,7 +266,7 @@ function topoDoPainel(c, aba) {
 function rodapeDoPainel(c, aba) {
   if (abaDaEtapa(c.etapa) === aba.chave || aba.chave === 'entrada' || !c.etapa) return null;
   const destino = aba.chave;
-  if (!podeMoverPara(c, destino) || destino === 'entregue') return null;
+  if (!podeMoverPara(c, destino) || destino === 'entregue' || destino === 'revisado') return null;
   return el('div', 'painel-rodape', botao(`Mover a demanda para ${aba.nome}`, 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, destino), { icone: 'etapa' }));
 }
 
@@ -268,7 +284,7 @@ function painelNotas(c) {
   return [
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoContato(c), blocoNegocio(c)),
-      el('div', 'ficha-coluna', blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
+      el('div', 'ficha-coluna', blocoPrazo(c), blocoArquivos(c, ['nota', 'ordem', 'outro'], { titulo: 'Notas e ordens de serviço', icone: 'anexo', envio: 'outro' }))),
     comentarios(c, 'nota_emitida', 'Comentários internos', 'Só administradores veem estes comentários…'),
   ];
 }
@@ -286,9 +302,26 @@ function painelPedido(c) {
 }
 
 function painelRevisado(c) {
-  return [
+  const partes = [
     comentarios(c, 'revisado', 'O que o cliente pediu para ajustar', 'Ex.: incluir as horas extras de março e refazer o relatório…', { destaque: true }),
+    blocoArquivos(c, ['entrega'], { titulo: 'Nova versão', icone: 'documento', envio: 'entrega' }),
   ];
+  if (c.etapa === 'revisado' && podeMoverPara(c, 'entregue')) {
+    partes.push(el('div', 'painel-rodape painel-rodape--destaque',
+      botao('Entregar nova versão', 'botao--primario', () => concluir(c), { icone: 'ok', titulo: 'Volta para o administrador aprovar com o cliente' })));
+  }
+  return partes;
+}
+
+// Prazo de entrega (administrador, em Notas e ordens). Ao aceitar, já vem 3 dias úteis (cálculo) ou 5 (automação).
+function blocoPrazo(c) {
+  const salvo = indicadorSalvo();
+  const salvar = salvarCampos(c, salvo);
+  const prazo = !fechada(c.etapa) ? situacaoPrazo(c.prazo) : null;
+  return el('section', 'bloco',
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('agenda'), 'Prazo de entrega'), salvo),
+    el('label', 'campo', el('span', '', 'Entregar até', prazo ? el('span', `chip-prazo chip-prazo--${prazo.classe}`, prazo.texto) : null),
+      campoData(c.prazo, valor => salvar({ prazo: valor }), { comHoje: false })));
 }
 
 function painelEntregue(c) {
@@ -301,14 +334,17 @@ function painelEntregue(c) {
       el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c) })),
       el('div', 'ficha-coluna', blocoMoldes(['relatorio']))),
     comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'));
-  if (!entregue && podeMoverPara(c, 'entregue')) {
+  if (c.etapa === 'pedido' && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
-      botao('Entregar e registrar entrega', 'botao--primario', () => concluir(c), { icone: 'ok' })));
+      !c.iniciado_em && !eAdmin()
+        ? botao('Iniciar pedido primeiro', 'botao--primario', () => acoes.iniciar(c.id), { icone: 'seta_dir' })
+        : botao('Entregar e registrar entrega', 'botao--primario', () => concluir(c), { icone: 'ok' })));
   }
   // Na Conclusão, o administrador finaliza com o cliente (ou volta as etapas e realoca).
   if (c.etapa === 'entregue' && eAdmin()) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
-      botao('Concluir de vez', 'botao--primario', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'Depois de falar com o cliente: vai para Concluídos' })));
+      botao('Reprovar e pedir ajuste', 'botao--fantasma botao--recusar', () => acoes.reprovar(c.id), { icone: 'recusar', titulo: 'Volta ao responsável, em Retificação' }),
+      botao('Aprovar e concluir', 'botao--primario', () => acoes.mover(c.id, 'concluido'), { icone: 'ok', titulo: 'O cliente aprovou: vai para Concluídos' })));
   }
   return partes;
 }
@@ -362,9 +398,11 @@ function perguntarSeConclui(c) {
 }
 
 function concluir(c) {
-  const finais = dados.arquivos.filter(a => a.categoria === 'entrega').length;
+  const reprovada = [...dados.itens].reverse().find(i => i.tipo === 'etapa' && i.para === 'revisado');
+  const desde = c.etapa === 'revisado' && reprovada ? String(reprovada.quando) : '';
+  const finais = dados.arquivos.filter(a => a.categoria === 'entrega' && a.tamanho > 1024 && (!desde || String(a.criado_em) > desde)).length;
   if (!finais && !eAdmin()) {
-    acoes.avisar('Envie pelo menos um arquivo da entrega (o Excel ou o relatório) antes de concluir.', 'erro');
+    acoes.avisar(desde ? 'Envie a nova versão (um arquivo de mais de 1 KB) antes de entregar.' : 'Envie o arquivo da entrega (qualquer tipo, com mais de 1 KB) antes de entregar.', 'erro');
     return;
   }
   acoes.mover(c.id, 'entregue');
@@ -661,7 +699,6 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
   const id = `envio-${++sequencia}`;
   const entrada = el('input');
   entrada.type = 'file';
-  entrada.accept = '.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.xlsm,.csv,.doc,.docx,.xml,.txt,.zip';
   entrada.multiple = true;
   entrada.className = 'sr';
   entrada.id = id;
@@ -669,7 +706,7 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
   const status = el('p', 'aviso');
   const zona = el('label', 'zona-envio', icone('enviar'),
     el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
-    el('small', '', 'PDF, Word, Excel ou imagem · até 10 MB'));
+    el('small', '', 'Qualquer tipo de arquivo, menos programas · até 10 MB'));
   zona.htmlFor = id;
 
   const enviarUm = async arquivo => {
