@@ -28,8 +28,8 @@ const ENTREGAVEIS = {
 const EMPRESA = /(^|[\s(])(ltda|s\/?a|eireli|me|epp|construtora|distribuidora|escrit[óo]rio|com[ée]rcio|ind[úu]stria|associa[çc][ãa]o|cl[íi]nica|mercado|padaria|loja|hotel|academia|gr[áa]fica|contabilidade|farm[áa]cia|transportadora|auto pe[çc]as|advogados|advocacia|grupo|empresa)($|[\s.,)])/i;
 const nomeDe = c => (EMPRESA.test(c.nome || '') ? c.nome : primeiroNome(c.nome));
 const servicoTexto = c => (c.servico === 'automacao' ? 'automação de planilha' : 'cálculo');
-// A assinatura vem logo depois do último parágrafo, numa linha só.
-const assinatura = '\nAtenciosamente, Equipe Plannex.';
+// A assinatura vem numa linha só, separada do texto por uma linha em branco.
+const assinatura = '\n\nAtenciosamente, Equipe Plannex.';
 
 // Em que momento a demanda está, para escolher a mensagem.
 export function momento(c) {
