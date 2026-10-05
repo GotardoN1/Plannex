@@ -1296,6 +1296,105 @@ a.nav-item { text-decoration: none; }
 .ficha .ficha-painel .ficha-grade--larga { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
 @media (max-width: 900px) { .ficha .ficha-painel .ficha-grade--larga { grid-template-columns: minmax(0, 1fr); } }
 
+/* ---------- Entrega: requisitos e versões ---------- */
+.requisitos-entrega { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid #f2c46b66; border-radius: var(--radius-sm); background: var(--alerta-fundo); }
+.requisitos-entrega.is-pronto { border-color: #1d6b45; background: var(--ok-fundo); }
+.requisitos-titulo { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--alerta); font-size: 14px; }
+.requisitos-entrega.is-pronto .requisitos-titulo { color: var(--ok); }
+.requisitos-titulo .icone { width: 16px; height: 16px; }
+.requisitos-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.requisitos-lista li { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; }
+.requisitos-lista li .icone { width: 14px; height: 14px; color: var(--alerta); }
+.requisitos-lista li.is-ok { color: var(--ok); }
+.requisitos-lista li.is-ok .icone { color: var(--ok); }
+.requisitos-nota { color: var(--muted); font-size: 12px; }
+.documento--antigo { position: relative; opacity: .5; }
+.documento--antigo .documento-nome span { text-decoration: line-through; }
+.documento--antigo::after { content: ""; position: absolute; left: 10px; right: 10px; top: 50%; border-top: 2px solid var(--critico); opacity: .7; pointer-events: none; }
+.documento--antigo:hover { opacity: .8; }
+.documento--nova { border-color: #1d6b45; }
+.versao-arquivo { padding: 0 7px; border-radius: 999px; background: var(--ok-fundo); color: var(--ok); font-size: 11px; font-weight: 700; }
+.versao-arquivo.is-antiga { background: var(--surface-3); color: var(--muted); }
+
+/* ---------- Financeiro e Empresa ---------- */
+.aviso-flutuante--atencao { border-color: #f2c46b88 !important; }
+.aviso-flutuante--atencao .icone { color: var(--alerta); }
+.alertas-financeiro { display: grid; gap: 6px; margin-bottom: 14px; }
+.alerta-despesa { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 14px; }
+.alerta-despesa .icone { flex: none; width: 16px; height: 16px; }
+.alerta-despesa--atencao { background: var(--alerta-fundo); color: var(--alerta); }
+.alerta-despesa--urgente, .alerta-despesa--vencida { background: var(--critico-fundo); color: var(--critico); }
+.grade-financeiro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+.numeros--financeiro .tile { cursor: default; }
+.numeros--financeiro .tile-valor { font-size: 24px; }
+.saude-selo { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.saude-selo .icone { width: 14px; height: 14px; }
+.saude-selo--boa { background: var(--ok-fundo); color: var(--ok); }
+.saude-selo--atencao { background: var(--alerta-fundo); color: var(--alerta); }
+.saude-selo--critica { background: var(--critico-fundo); color: var(--critico); }
+.saude--critica { border-color: #f0707088; }
+.saude--atencao { border-color: #f2c46b66; }
+.saude-motivos { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.saude-motivo { padding-left: 12px; border-left: 3px solid var(--alerta); font-size: 14px; line-height: 1.45; }
+.saude-motivo--critica { border-left-color: var(--critico); }
+.saude-ok { color: var(--ok); font-size: 14px; }
+.bloco-dica-topo { color: var(--subtle); font-size: 12px; }
+.pagamento-socios { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.pagamento-data { display: grid; text-align: center; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--destaque-fundo); }
+.pagamento-data strong { color: var(--destaque-claro); font-size: 15px; }
+.pagamento-data small { color: var(--muted); font-size: 11px; }
+.pagamento-valores { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.pagamento-valores span { display: grid; }
+.pagamento-valores small { color: var(--subtle); font-size: 12px; }
+.pagamento-valores strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.pagamento-nota { grid-column: 1 / -1; color: var(--subtle); font-size: 12px; }
+.tabela-rolagem { overflow-x: auto; }
+.tabela-financeiro { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.tabela-financeiro th { text-align: left; color: var(--subtle); font-size: 12px; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--line-forte); white-space: nowrap; }
+.tabela-financeiro td { padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tabela-financeiro td.is-negativo { color: var(--critico); }
+.bloco--despesas { margin-top: 14px; }
+.nova-despesa { border: 1px dashed var(--line-forte); border-radius: var(--radius-sm); padding: 8px 12px; }
+.nova-despesa summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; color: var(--destaque-claro); }
+.nova-despesa[open] summary { margin-bottom: 10px; }
+.form-despesa { display: grid; gap: 10px; }
+.despesas-grupos { display: grid; gap: 8px; }
+.despesas-ano { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); }
+.despesas-ano > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.despesas-ano > summary span { color: var(--subtle); font-size: 13px; }
+.despesas-ano[open] > summary { border-bottom: 1px solid var(--line); }
+.ponto-alerta { width: 8px; height: 8px; border-radius: 50%; background: var(--alerta); }
+.despesas-mes { padding: 8px 12px; }
+.despesas-mes h4 { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.despesas { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.despesa { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius-sm); background: var(--surface); }
+.despesa--atencao { border-left-color: var(--alerta); }
+.despesa--urgente, .despesa--vencida { border-left-color: var(--critico); }
+.despesa--encerrada { opacity: .65; }
+.despesa-texto { display: grid; gap: 2px; min-width: 0; }
+.despesa-texto strong { font-size: 14px; }
+.despesa-texto small { color: var(--subtle); font-size: 12px; }
+.despesa-lado { display: grid; justify-items: end; gap: 2px; }
+.despesa-valor { font-weight: 700; font-variant-numeric: tabular-nums; }
+.situacao-despesa { font-size: 12px; font-weight: 600; color: var(--muted); }
+.situacao-despesa--atencao { color: var(--alerta); }
+.situacao-despesa--urgente, .situacao-despesa--vencida { color: var(--critico); }
+.despesa-acoes { display: flex; gap: 4px; }
+.grade-empresa { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+.divisao-previa { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--ok-fundo); color: var(--ok); font-size: 14px; }
+.divisao-previa .icone { flex: none; }
+#janela-confirmar .form-despesa .campos-lado, #janela-confirmar .form-despesa .campos-lado--3 { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .grade-financeiro, .grade-empresa { grid-template-columns: minmax(0, 1fr); }
+  .despesa { grid-template-columns: minmax(0, 1fr) auto; }
+  .despesa-acoes { grid-column: 1 / -1; }
+}
+
 /* Entregue: o molde em branco do relatório acompanha a altura de "Arquivos da entrega", lado a lado. */
 .ficha-grade > .ficha-coluna > .bloco--moldes:only-child { flex: 1 1 auto; }
 .ficha-grade > .ficha-coluna > .bloco--moldes:not(:only-child) { flex: 0 0 auto; }
+/* Menu lateral: com Financeiro e Empresa, em telas baixas o menu rola em vez de ficar por baixo do rodapé. */
+@media (min-width: 721px) {
+  .lateral .nav { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .lateral .lateral-rodape { flex: none; background: inherit; }
+}

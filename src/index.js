@@ -16,6 +16,18 @@ import { validarArquivo, fluxoDaCategoria } from './arquivos.js';
 // aprova (Concluído) ou reprova; reprovada, vai para "revisado" (Retificação) e volta ao funcionário,
 // que sobe a nova versão e entrega de novo.
 const ETAPAS = ['nota_emitida', 'pedido', 'revisado', 'entregue', 'concluido'];
+// O que a entrega precisa ter: automação, a planilha; cálculos, a planilha de cálculos e o relatório
+// (parecer técnico em PDF ou Word). Devolve o que falta, ou null.
+const EH_PLANILHA = /\.(xlsx|xlsm|xls|ods|csv)$/i;
+const EH_RELATORIO = /\.(pdf|docx?|odt|rtf)$/i;
+function faltaNaEntrega(servico, nomes) {
+  const planilha = nomes.some(n => EH_PLANILHA.test(n));
+  const relatorio = nomes.some(n => EH_RELATORIO.test(n));
+  if (servico === 'automacao') return planilha ? null : 'a planilha';
+  const falta = [!relatorio && 'o relatório do parecer técnico (PDF ou Word)', !planilha && 'a planilha de cálculos'].filter(Boolean);
+  return falta.length ? falta.join(' e ') : null;
+}
+
 // Prazo padrão de entrega, em dias úteis, contado a partir do aceite.
 const PRAZO_PADRAO = { calculos: 3, automacao: 5 };
 function diasUteisAPartirDeHoje(dias) {
@@ -103,7 +115,7 @@ async function recursosDaDemo(env) {
 }
 const DEMO_ARQUIVO_MAXIMO = 1024 * 1024;
 // Moldes em branco (só administrador): a ordem de serviço e o relatório. Aceitam PDF ou Word.
-const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do relatório' };
+const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do relatório', guia: 'o guia de uso' };
 const EXTENSOES_MOLDE = /\.(pdf|docx?)$/i;
 // Materiais: armazenamento pequeno da equipe (moldes, planilhas de demonstração, PDFs).
 const MATERIAIS_TOTAL_MAXIMO = 100 * 1024 * 1024;
@@ -124,7 +136,10 @@ export default {
     if (emDemo(env) && url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
-      return await api(request, env, url);
+      const resposta = await api(request, env, url);
+      // Toda escrita que deu certo sobe a versão: as Centrais abertas veem e recarregam sozinhas.
+      if (request.method !== 'GET' && resposta.status < 400) await subirVersao(env);
+      return resposta;
     } catch (erro) {
       console.error(erro);
       return json({ erro: 'Erro interno. Tente novamente.' }, 500);
@@ -135,7 +150,7 @@ export default {
   async scheduled(_evento, envOriginal) {
     const env = await prepararAmbiente(envOriginal);
     // A demonstração volta aos dados de exemplo toda madrugada.
-    if (emDemo(env)) await resetarDemo(env);
+    if (emDemo(env)) { await resetarDemo(env); await subirVersao(env); }
     await env.DB.batch([
       env.DB.prepare(`DELETE FROM sessoes WHERE expira_em < ${AGORA_SQL}`),
       env.DB.prepare(`DELETE FROM tentativas WHERE quando < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day')`),
@@ -154,6 +169,11 @@ function prepararAmbienteSePreciso(env, url) {
 }
 
 const negado = () => json({ erro: 'Seu acesso não permite isso.' }, 403);
+
+// Versão dos dados (uma linha só): a Central compara e recarrega quando muda.
+async function subirVersao(env) {
+  try { await env.DB.prepare('UPDATE versao SET n = n + 1 WHERE id = 1').run(); } catch (erro) { console.error('versão', erro); }
+}
 const eAdmin = usuario => usuario.papel === 'admin';
 
 async function api(request, env, url) {
@@ -177,6 +197,23 @@ async function api(request, env, url) {
   const admin = eAdmin(usuario);
 
   if (pathname === '/api/sessao' && metodo === 'GET') return json({ usuario, demo: emDemo(env) });
+  if (pathname === '/api/versao' && metodo === 'GET') {
+    const linha = await env.DB.prepare('SELECT n FROM versao WHERE id = 1').first();
+    return json({ versao: linha?.n ?? 0 }, 200, { 'Cache-Control': 'no-store' });
+  }
+
+  // Financeiro e Empresa: só administradores.
+  if (pathname === '/api/financeiro' && metodo === 'GET') return admin ? financeiro(env) : negado();
+  if (pathname === '/api/empresa' && metodo === 'PATCH') return admin ? alterarEmpresa(request, env) : negado();
+  if (pathname === '/api/despesas' && metodo === 'POST') return admin ? salvarDespesa(request, env, usuario, null) : negado();
+  let rotaDespesa = pathname.match(/^\/api\/despesas\/(\d+)(\/renovar)?$/);
+  if (rotaDespesa) {
+    if (!admin) return negado();
+    const id = Number(rotaDespesa[1]);
+    if (rotaDespesa[2] && metodo === 'POST') return renovarDespesa(request, env, usuario, id);
+    if (!rotaDespesa[2] && metodo === 'PATCH') return salvarDespesa(request, env, usuario, id);
+    if (!rotaDespesa[2] && metodo === 'DELETE') return excluirDespesa(env, id);
+  }
   if (pathname === '/api/central' && metodo === 'GET') return central(env, usuario);
   if (pathname === '/api/atividade' && metodo === 'GET') return atividade(env, usuario, new URL(request.url).searchParams);
   if (pathname === '/api/senha' && metodo === 'POST') return trocarSenha(request, env, usuario);
@@ -203,10 +240,10 @@ async function api(request, env, url) {
   if (rota && metodo === 'GET') return baixarArquivo(env, usuario, Number(rota[1]));
   if (rota && metodo === 'DELETE') return excluirArquivo(env, usuario, Number(rota[1]));
 
-  rota = pathname.match(/^\/api\/moldes\/(ordem|relatorio)$/);
+  rota = pathname.match(/^\/api\/moldes\/(ordem|relatorio|guia)$/);
   if (rota) {
     // O molde do relatório fica na aba Entregue, que o funcionário também usa; a ordem de serviço é só do administrador.
-    if (metodo === 'GET' && (admin || rota[1] === 'relatorio')) return baixarMolde(env, rota[1]);
+    if (metodo === 'GET' && (admin || rota[1] !== 'ordem')) return baixarMolde(env, rota[1]);
     if (!admin) return negado();
     if (metodo === 'POST') return enviarMolde(request, env, usuario, rota[1]);
     if (metodo === 'DELETE') return excluirMolde(env, rota[1]);
@@ -368,6 +405,121 @@ function camposDoContato(dados) {
   campos.cpf = cpfOuCnpj(campos.cpf);
   if (campos.telefone) campos.telefone = telefoneBr(campos.telefone);
   return campos;
+}
+
+// ---------- Financeiro (administradores) ----------
+// Os números (faturamento, divisão, saúde) são calculados na tela com os valores das demandas, que a
+// Central já recebe; aqui ficam os dados da empresa e as despesas com os seus pagamentos.
+
+async function financeiro(env) {
+  const [empresa, despesas, pagamentos] = await env.DB.batch([
+    env.DB.prepare('SELECT nome_fantasia, razao_social, cnpj, socio1, socio2, pct_casa, pct_socio1, atualizado_em FROM empresa WHERE id = 1'),
+    env.DB.prepare('SELECT * FROM despesas ORDER BY COALESCE(vencimento, inicio, criado_em), id'),
+    env.DB.prepare('SELECT id, despesa_id, valor_centavos, pago_em FROM despesas_pagamentos ORDER BY pago_em, id'),
+  ]);
+  return json({ empresa: empresa.results[0] || {}, despesas: despesas.results, pagamentos: pagamentos.results });
+}
+
+function cnpjValido(texto) {
+  const d = String(texto || '').replace(/\D/g, '');
+  return d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : null;
+}
+
+async function alterarEmpresa(request, env) {
+  const dados = await lerJson(request);
+  if (!dados) return json({ erro: 'Dados inválidos.' }, 400);
+  const sets = [];
+  const valores = [];
+  const definir = (coluna, valor) => { sets.push(`${coluna} = ?`); valores.push(valor); };
+  for (const campo of ['nome_fantasia', 'razao_social']) if (campo in dados) definir(campo, limparTexto(dados[campo], 160) || null);
+  for (const campo of ['socio1', 'socio2']) if (campo in dados) definir(campo, limparTexto(dados[campo], 80) || (campo === 'socio1' ? 'Sócio 1' : 'Sócio 2'));
+  if ('cnpj' in dados) {
+    const cnpj = dados.cnpj ? cnpjValido(dados.cnpj) : null;
+    if (dados.cnpj && !cnpj) return json({ erro: 'CNPJ inválido: são 14 números.' }, 400);
+    definir('cnpj', cnpj);
+  }
+  for (const campo of ['pct_casa', 'pct_socio1']) {
+    if (!(campo in dados)) continue;
+    const pct = Number(dados[campo]);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) return json({ erro: 'O percentual vai de 0 a 100.' }, 400);
+    definir(campo, Math.round(pct * 100) / 100);
+  }
+  if (!sets.length) return json({ ok: true });
+  sets.push(`atualizado_em = ${AGORA_SQL}`);
+  await env.DB.prepare(`UPDATE empresa SET ${sets.join(', ')} WHERE id = 1`).bind(...valores).run();
+  return json({ ok: true });
+}
+
+const RECORRENCIAS = ['unica', 'mensal', 'anual', 'personalizada'];
+async function salvarDespesa(request, env, usuario, id) {
+  const dados = await lerJson(request);
+  if (!dados) return json({ erro: 'Dados inválidos.' }, 400);
+  const atual = id ? await env.DB.prepare('SELECT * FROM despesas WHERE id = ?').bind(id).first() : null;
+  if (id && !atual) return json({ erro: 'Despesa não encontrada.' }, 404);
+  const campo = (nome, padrao = null) => (nome in dados ? dados[nome] : atual ? atual[nome] : padrao);
+  const nome = limparTexto(campo('nome'), 120);
+  if (!nome) return json({ erro: 'Dê um nome à despesa (ex.: domínio, CORECON).' }, 400);
+  const valor = campo('valor_centavos');
+  const valorCentavos = valor === null || valor === '' || valor === undefined ? null : Math.round(Number(valor));
+  if (valorCentavos !== null && (!Number.isFinite(valorCentavos) || valorCentavos < 0 || valorCentavos > 1e11)) return json({ erro: 'Valor inválido.' }, 400);
+  const inicio = campo('inicio') || null;
+  const vencimento = campo('vencimento') || null;
+  for (const data of [inicio, vencimento]) if (data && !dataValida(data)) return json({ erro: 'Data inválida. Use um ano entre 2000 e 2100.' }, 400);
+  const recorrencia = RECORRENCIAS.includes(campo('recorrencia', 'unica')) ? campo('recorrencia', 'unica') : 'unica';
+  const meses = recorrencia === 'personalizada' ? Math.round(Number(campo('meses'))) : null;
+  if (recorrencia === 'personalizada' && (!Number.isFinite(meses) || meses < 1 || meses > 600)) return json({ erro: 'Informe de quantos em quantos meses ela renova.' }, 400);
+  const linha = {
+    nome, categoria: limparTexto(campo('categoria'), 60) || null, valor_centavos: valorCentavos, inicio, vencimento,
+    recorrencia, meses, observacao: limparTextoLongo(campo('observacao'), 600) || null,
+    encerrada_em: 'encerrada' in dados ? (dados.encerrada ? (atual?.encerrada_em || new Date().toISOString().slice(0, 10)) : null) : (atual?.encerrada_em ?? null),
+  };
+  if (id) {
+    await env.DB.prepare(`UPDATE despesas SET ${Object.keys(linha).map(k => `${k} = ?`).join(', ')} WHERE id = ?`).bind(...Object.values(linha), id).run();
+    return json({ ok: true, id });
+  }
+  const nova = await env.DB.prepare(`INSERT INTO despesas (${Object.keys(linha).join(', ')}, criado_por) VALUES (${Object.keys(linha).map(() => '?').join(', ')}, ?) RETURNING id`)
+    .bind(...Object.values(linha), usuario.id).first();
+  // "Já paga": registra o pagamento da compra (entra no resultado do mês).
+  if (dados.ja_paga && valorCentavos) {
+    await env.DB.prepare('INSERT INTO despesas_pagamentos (despesa_id, valor_centavos, pago_em, usuario_id) VALUES (?, ?, ?, ?)')
+      .bind(nova.id, valorCentavos, inicio || new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), usuario.id).run();
+  }
+  return json({ ok: true, id: nova.id }, 201);
+}
+
+// Renovar: registra o pagamento e empurra o vencimento para o próximo ciclo (mensal, anual ou a cada N meses).
+function somarMeses(data, meses) {
+  const [a, m, d] = data.split('-').map(Number);
+  const alvo = new Date(Date.UTC(a, m - 1 + meses, 1));
+  const ultimoDia = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(d, ultimoDia));
+  return alvo.toISOString().slice(0, 10);
+}
+async function renovarDespesa(request, env, usuario, id) {
+  const dados = (await lerJson(request)) || {};
+  const despesa = await env.DB.prepare('SELECT * FROM despesas WHERE id = ?').bind(id).first();
+  if (!despesa) return json({ erro: 'Despesa não encontrada.' }, 404);
+  const pagoEm = dados.pago_em || new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  if (!dataValida(pagoEm)) return json({ erro: 'Data inválida.' }, 400);
+  const valor = dados.valor_centavos === undefined || dados.valor_centavos === null || dados.valor_centavos === '' ? despesa.valor_centavos : Math.round(Number(dados.valor_centavos));
+  if (valor === null || !Number.isFinite(valor) || valor < 0) return json({ erro: 'Informe o valor pago.' }, 400);
+  const passo = { mensal: 1, anual: 12, personalizada: despesa.meses }[despesa.recorrencia] || null;
+  const proximo = passo ? somarMeses(despesa.vencimento || pagoEm, passo) : despesa.vencimento;
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO despesas_pagamentos (despesa_id, valor_centavos, pago_em, usuario_id) VALUES (?, ?, ?, ?)').bind(id, valor, pagoEm, usuario.id),
+    env.DB.prepare('UPDATE despesas SET vencimento = ?, valor_centavos = COALESCE(valor_centavos, ?) WHERE id = ?').bind(proximo, valor, id),
+  ]);
+  return json({ ok: true, vencimento: proximo });
+}
+
+async function excluirDespesa(env, id) {
+  const despesa = await env.DB.prepare('SELECT id FROM despesas WHERE id = ?').bind(id).first();
+  if (!despesa) return json({ erro: 'Despesa não encontrada.' }, 404);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM despesas_pagamentos WHERE despesa_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM despesas WHERE id = ?').bind(id),
+  ]);
+  return json({ ok: true });
 }
 
 // ---------- Login e sessão ----------
@@ -655,7 +807,7 @@ async function central(env, usuario) {
     consultaAtividade(env, usuario, 30, 0),
     env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
     env.DB.prepare(`SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id
-      ${admin ? '' : "WHERE m.tipo = 'relatorio'"}`),
+      ${admin ? '' : "WHERE m.tipo IN ('relatorio', 'guia')"}`),
     env.DB.prepare(`SELECT m.id, m.nome, m.descricao, m.tipo, m.tamanho, m.visibilidade, m.criado_em, m.atualizado_em, u.nome AS usuario
       FROM materiais m LEFT JOIN usuarios u ON u.id = m.usuario_id ${admin ? '' : "WHERE m.visibilidade = 'todos'"}
       ORDER BY m.atualizado_em DESC, m.id DESC`),
@@ -750,11 +902,12 @@ async function alterarContato(request, env, usuario, contato) {
       const desde = contato.etapa === 'revisado'
         ? (await env.DB.prepare("SELECT MAX(quando) AS quando FROM movimentacoes WHERE contato_id = ? AND para = 'revisado'").bind(id).first())?.quando
         : null;
-      const arquivoFinal = await env.DB.prepare(
-        `SELECT id FROM arquivos WHERE contato_id = ? AND categoria = 'entrega' AND tamanho > 1024 ${desde ? 'AND criado_em > ?' : ''} LIMIT 1`
-      ).bind(...(desde ? [id, desde] : [id])).first();
-      if (!arquivoFinal) {
-        return json({ erro: desde ? 'Envie a nova versão (um arquivo de mais de 1 KB) antes de entregar de novo.' : 'Envie o arquivo da entrega (mais de 1 KB) antes de entregar.' }, 400);
+      const { results: finais } = await env.DB.prepare(
+        `SELECT nome FROM arquivos WHERE contato_id = ? AND categoria = 'entrega' AND tamanho > 1024 ${desde ? 'AND criado_em > ?' : ''}`
+      ).bind(...(desde ? [id, desde] : [id])).all();
+      const falta = faltaNaEntrega(contato.servico, finais.map(a => a.nome));
+      if (falta) {
+        return json({ erro: `${desde ? 'Para entregar a nova versão' : 'Para entregar'}, envie ${falta} (arquivos de mais de 1 KB).` }, 400);
       }
     }
     // Aceitar: prazo padrão (3 dias úteis para cálculo, 5 para automação), se ainda não tem prazo.

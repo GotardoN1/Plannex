@@ -382,3 +382,5 @@ html body #automacao .automation-path-step small { font-size: 11px !important; }
 html body #automacao .automation-snapshot li span { font-size: 11.5px !important; }
 html body #automacao .automation-snapshot li strong { font-size: 12px !important; }
 html body #automacao .sheet-caption small { font-size: 10.5px !important; }
+/* "Não encontrou o seu? Conte a demanda…" e "Condição de lançamento…": um pouco maiores. */
+html body .calculos-outros, html body .calculos-outros .text-link, html body .calc-availability-note { font-size: 11px !important; }

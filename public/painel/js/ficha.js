@@ -358,10 +358,11 @@ function painelPedido(c) {
 
 function painelRevisado(c) {
   const partes = [
+    c.etapa === 'revisado' && !somenteLeitura(c) ? blocoRequisitos(c) : null,
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', comentarios(c, 'revisado', 'O que o cliente pediu para ajustar', 'Ex.: incluir as horas extras de março e refazer o relatório…', { destaque: true })),
-      el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: 'Nova versão', icone: 'documento', envio: 'entrega' }))),
-  ];
+      el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: `Nova versão (Versão ${versaoDaEntrega(c)})`, icone: 'documento', envio: 'entrega' }))),
+  ].filter(Boolean);
   if (c.etapa === 'revisado' && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
       botao('Entregar nova versão', 'botao--primario', () => concluir(c), { icone: 'ok', titulo: 'Volta para o administrador aprovar com o cliente' })));
@@ -385,13 +386,14 @@ function painelEntregue(c) {
   const registro = entregue ? ultimaEntrega() : null;
   const partes = [];
   if (entregue) partes.push(registroDaEntrega(c, registro));
+  if (!entregue && !somenteLeitura(c)) partes.push(blocoRequisitos(c));
   partes.push(
     el('div', 'ficha-grade',
       el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], {
         titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c),
         acaoTopo: entregue && eAdmin() ? acaoZip(c) : null,
       })),
-      el('div', 'ficha-coluna', blocoMoldes(['relatorio']),
+      el('div', 'ficha-coluna', blocoMoldes([c.servico === 'automacao' ? 'guia' : 'relatorio']),
         comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'))));
   if (c.etapa === 'pedido' && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
@@ -529,12 +531,45 @@ function perguntarSeConclui(c) {
   acoes.avisar('Arquivo da entrega anexado.', 'ok', { rotulo: 'Concluir agora', aoClicar: () => concluir(c) });
 }
 
-function concluir(c) {
+// O que a entrega precisa ter (o servidor confere a mesma regra): automação, a planilha; cálculos, o
+// relatório do parecer técnico (PDF ou Word) e a planilha de cálculos. Só contam os arquivos da versão atual.
+const EH_PLANILHA = /\.(xlsx|xlsm|xls|ods|csv)$/i;
+const EH_RELATORIO = /\.(pdf|docx?|odt|rtf)$/i;
+function requisitosEntrega(c) {
   const reprovada = [...dados.itens].reverse().find(i => i.tipo === 'etapa' && i.para === 'revisado');
   const desde = c.etapa === 'revisado' && reprovada ? String(reprovada.quando) : '';
-  const finais = dados.arquivos.filter(a => a.categoria === 'entrega' && a.tamanho > 1024 && (!desde || String(a.criado_em) > desde)).length;
-  if (!finais && !eAdmin()) {
-    acoes.avisar(desde ? 'Envie a nova versão (um arquivo de mais de 1 KB) antes de entregar.' : 'Envie o arquivo da entrega (com mais de 1 KB) antes de entregar.', 'erro');
+  const nomes = dados.arquivos.filter(a => a.categoria === 'entrega' && a.tamanho > 1024 && (!desde || String(a.criado_em) > desde)).map(a => a.nome);
+  const planilha = nomes.some(n => EH_PLANILHA.test(n));
+  return c.servico === 'automacao'
+    ? [{ rotulo: 'A planilha (Excel)', ok: planilha }]
+    : [{ rotulo: 'O relatório do parecer técnico (PDF ou Word)', ok: nomes.some(n => EH_RELATORIO.test(n)) }, { rotulo: 'A planilha de cálculos (Excel)', ok: planilha }];
+}
+
+// Aviso na aba de entrega: o que falta anexar para poder finalizar (preenchido quando os arquivos chegam).
+function blocoRequisitos(c) {
+  const caixa = el('div', 'requisitos-entrega', el('p', 'vazio-mini', 'Conferindo os arquivos…'));
+  caixa.dataset.requisitos = '';
+  return caixa;
+}
+function preencherRequisitos() {
+  const caixa = janela().querySelector('[data-requisitos]');
+  if (!caixa || !dados.carregado) return;
+  const c = contatoPorId(atualId);
+  const itens = requisitosEntrega(c);
+  const pronto = itens.every(i => i.ok);
+  const versao = versaoDaEntrega(c);
+  caixa.classList.toggle('is-pronto', pronto);
+  caixa.replaceChildren(
+    el('p', 'requisitos-titulo', icone(pronto ? 'ok' : 'alerta'),
+      pronto ? 'Tudo pronto para entregar.' : `Para finalizar a entrega${versao > 1 ? ` da Versão ${versao}` : ''}, anexe:`),
+    el('ul', 'requisitos-lista', itens.map(i => el('li', i.ok ? 'is-ok' : '', icone(i.ok ? 'ok' : 'anexo'), i.rotulo))),
+    pronto ? null : el('p', 'requisitos-nota', 'Sem esses arquivos (com mais de 1 KB), não é possível finalizar a demanda.'));
+}
+
+function concluir(c) {
+  const faltam = requisitosEntrega(c).filter(i => !i.ok);
+  if (faltam.length && !eAdmin()) {
+    acoes.avisar(`Para entregar, anexe: ${faltam.map(i => i.rotulo.charAt(0).toLowerCase() + i.rotulo.slice(1)).join(' e ')}.`, 'erro');
     return;
   }
   acoes.mover(c.id, 'entregue');
@@ -929,11 +964,13 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
 const MOLDES = [
   { tipo: 'ordem', nome: 'Ordem de serviço' },
   { tipo: 'relatorio', nome: 'Relatório' },
+  { tipo: 'guia', nome: 'Guia de uso' },
 ];
 
 function blocoMoldes(tipos) {
   const lista = MOLDES.filter(m => tipos.includes(m.tipo));
-  const titulo = lista.length === 1 ? `Molde em branco: ${lista[0].nome.toLowerCase()}` : 'Moldes em branco';
+  // O guia de uso (automação) não é um molde em branco: é o guia que o administrador sobe para a equipe.
+  const titulo = lista.length === 1 ? (lista[0].tipo === 'guia' ? 'Guia de uso' : `Molde em branco: ${lista[0].nome.toLowerCase()}`) : 'Moldes em branco';
   return el('section', 'bloco bloco--moldes',
     el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('baixar'), titulo)),
     el('ul', 'moldes', lista.map(linhaMolde)));
@@ -1002,27 +1039,41 @@ function preencherArquivos() {
       continue;
     }
     const c = contatoPorId(atualId);
+    // Depois de uma retificação, cada arquivo da entrega mostra a versão; os de versões anteriores ficam
+    // apagados e riscados (ainda dá para baixar), e os da versão atual aparecem como "nova".
+    const reprovacoes = dados.itens.filter(i => i.tipo === 'etapa' && i.para === 'revisado').map(i => String(i.quando));
+    const versaoAtual = reprovacoes.length + 1;
+    const versaoDe = a => reprovacoes.filter(q => q < String(a.criado_em)).length + 1;
     lista.replaceChildren(...arquivos.map(a => {
       const baixar = el('a', 'documento-nome', miniatura(a.nome), el('span', '', a.nome));
       baixar.href = `/api/arquivos/${a.id}`;
       baixar.download = a.nome;
       baixar.title = `Baixar ${a.nome}`;
       const autor = a.usuario || (a.usuario_id ? 'usuário removido' : 'enviado pelo cliente no site');
-      const li = el('li', `documento documento--${a.categoria}`,
+      const versao = a.categoria === 'entrega' && versaoAtual > 1 ? versaoDe(a) : null;
+      const antiga = versao !== null && versao < versaoAtual;
+      const li = el('li', `documento documento--${a.categoria}${antiga ? ' documento--antigo' : versao ? ' documento--nova' : ''}`,
         baixar,
         el('span', 'documento-info', `${tamanhoArquivo(a.tamanho)} · ${autor} · ${dataHora(a.criado_em)}`,
-          a.aviso ? el('span', 'aviso-macro', icone('alerta'), a.aviso === 'macro' ? 'Contém macros: abra só se esperava por elas' : 'Formato antigo do Office: pode conter macros') : null));
+          a.aviso ? el('span', 'aviso-macro', icone('alerta'), a.aviso === 'macro' ? 'Contém macros: abra só se esperava por elas' : 'Formato antigo do Office: pode conter macros') : null,
+          versao ? el('span', `versao-arquivo${antiga ? ' is-antiga' : ''}`, antiga ? `Versão ${versao} · substituída` : `Versão ${versao} · nova`) : null));
       const podeRemover = eAdmin() || (a.usuario_id === estado.usuario.id && !somenteLeitura(c));
       if (podeRemover) {
-        li.append(botaoDoisCliques('', '', 'botao--icone botao--fantasma botao--pequeno', 'lixo', async () => {
+        li.append(botao('', 'botao--icone botao--fantasma botao--pequeno', async () => {
+          const confirmado = await acoes.confirmar({
+            titulo: `Excluir ${a.nome}?`,
+            texto: 'O arquivo sai da demanda e não dá para desfazer. Fica registrado no histórico.',
+            botao: 'Excluir arquivo',
+          });
+          if (!confirmado) return;
           try {
             await api(`/api/arquivos/${a.id}`, { method: 'DELETE' });
+            acoes.avisar(`${a.nome} excluído.`);
             await depoisDeMudar();
           } catch (e) {
             acoes.avisar(e.message, 'erro');
           }
-        }));
-        li.lastChild.title = `Remover ${a.nome} (clique duas vezes)`;
+        }, { icone: 'lixo', titulo: `Excluir ${a.nome}` }));
       }
       return li;
     }));
@@ -1138,6 +1189,7 @@ function itemHistorico(i, c) {
 }
 
 function preencher() {
+  preencherRequisitos();
   if (!dados.carregado) return;
   preencherArquivos();
   preencherComentarios();

@@ -35,6 +35,8 @@ Cada envio do formulário continua indo por e-mail, com os anexos, e também cai
 | **Recusados** | Pedidos recusados, guardados com o contato para retomar: Devolver para a caixa ou Aceitar |
 | **Agenda** | Calendário do mês com prazos de entrega e pagamentos recebidos, e a lista dos próximos 14 dias |
 | **Arquivados** | Contatos que não seguiram adiante, sem apagar nada |
+| **Financeiro** | Só administradores. Saúde da empresa (saudável, atenção ou crítica, com os motivos), recebido no mês, quanto fica para a Plannex, caixa da Plannex acumulado e a receber; divisão do faturamento entre a casa e os dois sócios e a sugestão de pagamento a eles no 5º dia útil do mês seguinte; mês a mês. Despesas da empresa (domínio, CORECON, contabilidade…) com data de compra, vencimento e renovação (única, mensal, anual ou a cada X meses), agrupadas por ano e mês; "Renovar" registra o pagamento e passa o vencimento para o próximo ciclo. O que vence em até 30 dias aparece em amarelo, em até 7 dias ou vencido em vermelho, e o administrador recebe o aviso ao entrar |
+| **Empresa** | Nome fantasia, razão social, CNPJ, os dois sócios e a divisão (percentual da Plannex e de cada sócio) usada no Financeiro |
 | **Materiais** | Arquivos de uso frequente da equipe (moldes, planilhas de demonstração, PDFs), com tamanho, data de envio/atualização, quem enviou e descrição. O administrador envia, troca, exclui e escolhe quem vê cada arquivo (toda a equipe ou só administradores). Espaço de 100 MB |
 | **Equipe** | Quem acessa, nome completo, usuário de login e equipe/área (T.I., economista, advogado...) — só o administrador altera —, tipo de acesso, novos acessos, senha provisória e a carga da equipe (em andamento, atrasadas e entregues no mês por pessoa) |
 | **Preferências** | Apelido, modo noturno (claro ou escuro, salvo na conta), visual Simples ou Sofisticado (neste navegador) e redefinição da própria senha. O botão de tema também fica fixo ao lado da busca |
@@ -63,7 +65,7 @@ O administrador tem o botão **Gerar OS** no topo da ficha: baixa a Ordem de Ser
 
 Contatos que chegam por WhatsApp, telefone ou indicação entram pelo botão **Novo contato** (atalho `N`). A busca no topo (atalho `/`) acha qualquer contato pelo nome, e-mail, telefone ou texto.
 
-Toda mudança de etapa pede confirmação (de qual etapa para qual), seja pela seta, pela ficha, pela trilha ou arrastando. A Central se atualiza sozinha a cada 45 segundos, avisa quando chega contato novo e mostra no título da aba quantos ainda não foram lidos. Mover um contato de etapa pode ser desfeito pelo aviso que aparece.
+Toda mudança de etapa pede confirmação (de qual etapa para qual), seja pela seta, pela ficha, pela trilha ou arrastando. A Central se atualiza sozinha: a cada 5 segundos ela confere um número de versão dos dados (uma linha no banco, que sobe a cada mudança) e, se mudou, recarrega na hora para todos — contato novo, mudança de etapa, arquivo, sem F5. Além disso recarrega a cada 45 segundos, avisa quando chega contato novo e mostra no título da aba quantos ainda não foram lidos. Mover um contato de etapa pode ser desfeito pelo aviso que aparece.
 
 ### Acessos
 

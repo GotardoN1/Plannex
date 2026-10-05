@@ -8,6 +8,8 @@ import { desenharQuadro } from './quadro.js';
 import { desenharAgenda } from './agenda.js';
 import { desenharEquipe } from './equipe.js';
 import { desenharMateriais } from './materiais.js';
+import { desenharFinanceiro, carregarFinanceiro, alertasFinanceiros } from './financeiro.js';
+import { desenharEmpresa } from './empresa.js';
 import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema, aplicarVisual, visualGuardado } from './preferencias.js';
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
@@ -29,6 +31,8 @@ const TELAS = {
   recusados: { titulo: 'Recusados', desenhar: raiz => desenharEntrada(raiz, { recusados: true }), admin: true },
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
   materiais: { titulo: 'Materiais', desenhar: desenharMateriais },
+  financeiro: { titulo: 'Financeiro', desenhar: desenharFinanceiro, admin: true },
+  empresa: { titulo: 'Empresa', desenhar: desenharEmpresa, admin: true },
   preferencias: { titulo: 'Preferências', desenhar: desenharPreferencias },
 };
 const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin());
@@ -389,7 +393,7 @@ Object.assign(acoes, { abrirFicha, alterar, mover, recusar, reprovar, iniciar, c
 
 function avisar(texto, tipo = 'ok', acao) {
   const aviso = el('div', `aviso-flutuante aviso-flutuante--${tipo}`,
-    icone(tipo === 'erro' ? 'alerta' : tipo === 'novo' ? 'chegada' : 'ok'), el('span', '', texto));
+    icone(tipo === 'erro' || tipo === 'atencao' ? 'alerta' : tipo === 'novo' ? 'chegada' : 'ok'), el('span', '', texto));
   if (acao) {
     aviso.append(botao(acao.rotulo, 'botao--fantasma botao--pequeno', () => { aviso.remove(); acao.aoClicar(); }));
   }
@@ -397,7 +401,7 @@ function avisar(texto, tipo = 'ok', acao) {
   aviso.append(fechar);
   $('#avisos').append(aviso);
   while ($('#avisos').children.length > 4) $('#avisos').firstElementChild.remove();
-  setTimeout(() => aviso.remove(), tipo === 'novo' ? 12000 : tipo === 'erro' ? 8000 : 5000);
+  setTimeout(() => aviso.remove(), tipo === 'novo' || tipo === 'atencao' ? 12000 : tipo === 'erro' ? 8000 : 5000);
 }
 
 // ---------- Login ----------
@@ -460,6 +464,25 @@ async function entrar() {
     });
   }
   mostrarTela(telaDoEndereco());
+  avisarVencimentos();
+}
+
+async function avisarVencimentos() {
+  if (!eAdmin()) return;
+  try {
+    await carregarFinanceiro();
+  } catch { return; }
+  const alertas = alertasFinanceiros();
+  for (const b of $$('[data-tela="financeiro"] .nav-contagem')) {
+    b.textContent = alertas.length ? String(alertas.length) : '';
+    b.classList.toggle('is-novo', alertas.some(a => a.s.classe !== 'atencao'));
+  }
+  const vermelhos = alertas.filter(a => a.s.classe !== 'atencao');
+  const amarelos = alertas.filter(a => a.s.classe === 'atencao');
+  const lista = itens => itens.slice(0, 3).map(a => `${a.d.nome} (${a.s.texto.toLowerCase()})`).join(', ') + (itens.length > 3 ? ` e mais ${itens.length - 3}` : '');
+  const abrir = { rotulo: 'Ver', aoClicar: () => navegar('financeiro') };
+  if (vermelhos.length) avisar(`Financeiro: ${lista(vermelhos)}.`, 'erro', abrir);
+  if (amarelos.length) avisar(`Financeiro: ${lista(amarelos)}.`, 'atencao', abrir);
 }
 
 quandoExpirar(mostrarLogin);
@@ -581,6 +604,16 @@ setInterval(() => {
   recarregar({ silencioso: true });
 }, RECARGA_MS);
 setInterval(atualizarContadores, 30000);
+let versaoConhecida = null;
+async function conferirVersao() {
+  if (document.hidden || $('#tela-app').hidden) return;
+  try {
+    const { versao } = await api('/api/versao');
+    if (versaoConhecida !== null && versao !== versaoConhecida) await recarregar({ silencioso: true });
+    versaoConhecida = versao;
+  } catch { /* tenta de novo na próxima */ }
+}
+setInterval(conferirVersao, 5000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && !$('#tela-app').hidden) recarregar({ silencioso: true });
 });

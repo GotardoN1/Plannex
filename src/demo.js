@@ -198,6 +198,7 @@ export async function resetarDemo(env) {
   // Moldes em branco de exemplo (ordem de serviço em PDF e relatório que abre no Word).
   const moldes = await Promise.all([
     { tipo: 'relatorio', nome: 'Molde-relatorio.doc', conteudo: relatorioDeExemplo() },
+    { tipo: 'guia', nome: 'Guia-de-uso.pdf', conteudo: pdfDeExemplo('Guia de uso da planilha', 'Modelo de exemplo') },
   ].map(async m => {
     const chave = `demo/amostra/moldes/${m.nome}`;
     if (!(await env.ARQUIVOS.get(chave, { type: 'arrayBuffer' }))) await env.ARQUIVOS.put(chave, m.conteudo);
@@ -248,6 +249,15 @@ export async function resetarDemo(env) {
     env.DB.prepare('DELETE FROM materiais'),
     env.DB.prepare(inserir('materiais', materiais)),
     env.DB.prepare(inserir('moldes', moldes)),
+    // Financeiro de exemplo: empresa fictícia e despesas com vencimentos próximos, para os avisos aparecerem.
+    env.DB.prepare('DELETE FROM despesas_pagamentos'),
+    env.DB.prepare('DELETE FROM despesas'),
+    env.DB.prepare(`INSERT INTO empresa (id, nome_fantasia, razao_social, cnpj, socio1, socio2, pct_casa, pct_socio1)
+      VALUES (1, 'Plannex (demonstração)', 'Plannex Exemplo Ltda.', '12.345.678/0001-90', 'Carla Mendes', 'Paulo Andrade', 30, 50)
+      ON CONFLICT (id) DO UPDATE SET nome_fantasia = excluded.nome_fantasia, razao_social = excluded.razao_social, cnpj = excluded.cnpj,
+        socio1 = excluded.socio1, socio2 = excluded.socio2, pct_casa = excluded.pct_casa, pct_socio1 = excluded.pct_socio1`),
+    env.DB.prepare(inserir('despesas', despesasDeExemplo(agora))),
+    env.DB.prepare(inserir('despesas_pagamentos', pagamentosDeExemplo(agora))),
     env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: a.categoria, nome: a.nome, tipo: a.nome.endsWith('.csv') ? 'text/csv' : 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),
   ]);
 }
@@ -293,6 +303,30 @@ function relatorioDeExemplo() {
 }
 
 // PDF de uma página, só com texto, para os arquivos de exemplo poderem ser abertos.
+// Despesas fictícias da demonstração (datas relativas a hoje): uma vencida, uma vencendo em dias, uma em
+// semanas e outras mais longe, para a aba Financeiro mostrar os avisos em vermelho e amarelo.
+function despesasDeExemplo(agora) {
+  const dia = dias => new Date(agora + dias * 86400000 - 3 * 3600000).toISOString().slice(0, 10);
+  return [
+    { id: 1, nome: 'Domínio plannex', categoria: 'Site', valor_centavos: 4990, inicio: dia(-1090), vencimento: dia(5), recorrencia: 'personalizada', meses: 36, observacao: 'Registro por 3 anos', criado_por: 1 },
+    { id: 2, nome: 'CORECON (anuidade)', categoria: 'Conselho', valor_centavos: 62000, inicio: dia(-345), vencimento: dia(20), recorrencia: 'anual', meses: null, observacao: 'Entrada no mês 1; renova todo ano', criado_por: 1 },
+    { id: 3, nome: 'Contabilidade', categoria: 'Serviços', valor_centavos: 35000, inicio: dia(-60), vencimento: dia(-2), recorrencia: 'mensal', meses: null, observacao: null, criado_por: 2 },
+    { id: 4, nome: 'E-mail profissional', categoria: 'Site', valor_centavos: 2490, inicio: dia(-20), vencimento: dia(10), recorrencia: 'mensal', meses: null, observacao: null, criado_por: 2 },
+    { id: 5, nome: 'Certificado digital e-CNPJ', categoria: 'Documentos', valor_centavos: 21900, inicio: dia(-200), vencimento: dia(165), recorrencia: 'anual', meses: null, observacao: null, criado_por: 1 },
+  ];
+}
+function pagamentosDeExemplo(agora) {
+  const dia = dias => new Date(agora + dias * 86400000 - 3 * 3600000).toISOString().slice(0, 10);
+  return [
+    { despesa_id: 1, valor_centavos: 4990, pago_em: dia(-1090), usuario_id: 1 },
+    { despesa_id: 2, valor_centavos: 62000, pago_em: dia(-345), usuario_id: 1 },
+    { despesa_id: 3, valor_centavos: 35000, pago_em: dia(-60), usuario_id: 2 },
+    { despesa_id: 3, valor_centavos: 35000, pago_em: dia(-32), usuario_id: 2 },
+    { despesa_id: 4, valor_centavos: 2490, pago_em: dia(-20), usuario_id: 2 },
+    { despesa_id: 5, valor_centavos: 21900, pago_em: dia(-200), usuario_id: 1 },
+  ];
+}
+
 function pdfDeExemplo(titulo, cliente) {
   const texto = s => s.normalize('NFD').replace(/[^\x20-\x7e]/g, '').replace(/[()\\]/g, '');
   const linhas = [
