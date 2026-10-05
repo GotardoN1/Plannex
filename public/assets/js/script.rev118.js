@@ -457,7 +457,7 @@ dialog?.addEventListener('click', event => {
 
 // REV91 — formulário inteligente: serviço + plano + dados essenciais + campos extras apenas em automação.
 let contactOrigin = '';
-const FORM_SUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/contato.robson333@gmail.com';
+const FORM_SUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/contato@plannex.online';
 const contactFiles = $('#contact-files');
 const contactFileSummary = $('#contact-file-summary');
 const contactFileField = $('#contact-file-field');
