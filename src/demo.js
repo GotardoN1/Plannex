@@ -252,10 +252,10 @@ export async function resetarDemo(env) {
     // Financeiro de exemplo: empresa fictícia e despesas com vencimentos próximos, para os avisos aparecerem.
     env.DB.prepare('DELETE FROM despesas_pagamentos'),
     env.DB.prepare('DELETE FROM despesas'),
-    env.DB.prepare(`INSERT INTO empresa (id, nome_fantasia, razao_social, cnpj, socio1, socio2, pct_casa, pct_socio1)
-      VALUES (1, 'Plannex (demonstração)', 'Plannex Exemplo Ltda.', '12.345.678/0001-90', 'Carla Mendes', 'Paulo Andrade', 30, 50)
+    env.DB.prepare(`INSERT INTO empresa (id, nome_fantasia, razao_social, cnpj, socio1, socio2, pct_casa, pct_socio1, pct_equipe)
+      VALUES (1, 'Plannex (demonstração)', 'Plannex Exemplo Ltda.', '12.345.678/0001-90', 'Carla Mendes', 'Paulo Andrade', 30, 50, 50)
       ON CONFLICT (id) DO UPDATE SET nome_fantasia = excluded.nome_fantasia, razao_social = excluded.razao_social, cnpj = excluded.cnpj,
-        socio1 = excluded.socio1, socio2 = excluded.socio2, pct_casa = excluded.pct_casa, pct_socio1 = excluded.pct_socio1`),
+        socio1 = excluded.socio1, socio2 = excluded.socio2, pct_casa = excluded.pct_casa, pct_socio1 = excluded.pct_socio1, pct_equipe = excluded.pct_equipe`),
     env.DB.prepare(inserir('despesas', despesasDeExemplo(agora))),
     env.DB.prepare(inserir('despesas_pagamentos', pagamentosDeExemplo(agora))),
     env.DB.prepare(inserir('arquivos', arquivosComChave.map(a => ({ contato_id: a.contato_id, categoria: a.categoria, nome: a.nome, tipo: a.nome.endsWith('.csv') ? 'text/csv' : 'application/pdf', tamanho: a.tamanho, chave: a.chave, usuario_id: a.usuario_id, criado_em: a.criado_em })))),

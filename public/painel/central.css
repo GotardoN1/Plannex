@@ -1449,3 +1449,12 @@ a.nav-item { text-decoration: none; }
 .barras-meses strong { font-size: 14px; font-variant-numeric: tabular-nums; }
 .numeros--financeiro .tile-detalhe { font-size: 12px; }
 @media (max-width: 900px) { .empresa-resumo { grid-template-columns: minmax(0, 1fr); } }
+/* Financeiro: pagamento da equipe. */
+.bloco--equipe { margin-top: 14px; }
+.pagamento-pessoa--equipe .pagamento-inicial { background: #b38cf0; }
+.demandas-equipe { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.demandas-equipe li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.demanda-equipe-nome { display: grid; min-width: 0; }
+.demanda-equipe-nome small { color: var(--subtle); font-size: 12px; }
+.demanda-equipe-valor { color: var(--muted); font-variant-numeric: tabular-nums; }
+.demanda-equipe-parte { font-variant-numeric: tabular-nums; }

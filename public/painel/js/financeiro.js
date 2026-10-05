@@ -41,7 +41,7 @@ export function alertasFinanceiros(fin = estado.financeiro) {
     .sort((a, b) => String(a.d.vencimento).localeCompare(String(b.d.vencimento)));
 }
 
-// 5º dia útil do mês (segunda a sexta; feriados não entram na conta).
+// 5º dia útil do mês para pagamento: conta de segunda a sábado (só no pagamento); feriados não entram na conta.
 export function quintoDiaUtil(chaveMes) {
   const [a, m] = chaveMes.split('-').map(Number);
   let uteis = 0;
@@ -49,32 +49,39 @@ export function quintoDiaUtil(chaveMes) {
     const data = new Date(Date.UTC(a, m - 1, dia));
     if (data.getUTCMonth() !== m - 1) break;
     const semana = data.getUTCDay();
-    if (semana !== 0 && semana !== 6 && ++uteis === 5) return data.toISOString().slice(0, 10);
+    if (semana !== 0 && ++uteis === 5) return data.toISOString().slice(0, 10);
   }
   return null;
 }
 
 // Números por mês: recebido (demandas pagas), divisão e despesas pagas.
+// Funcionário (não sócio) responsável pela demanda: recebe a parte da equipe.
+const funcionario = id => estado.usuarios.find(u => u.id === id && u.papel === 'funcionario') || null;
+const parteEquipe = (c, empresa) => (c.valor_centavos && funcionario(c.responsavel_id) ? Math.round(c.valor_centavos * (Number(empresa.pct_equipe ?? 50) / 100)) : 0);
+
 function porMes(fin) {
   const empresa = fin.empresa || {};
   const pctCasa = Number(empresa.pct_casa ?? 30) / 100;
   const pctSocio1 = Number(empresa.pct_socio1 ?? 50) / 100;
   const meses = new Map();
   const mes = chave => {
-    if (!meses.has(chave)) meses.set(chave, { mes: chave, recebido: 0, calculos: 0, automacao: 0, pagamentos: 0, despesas: 0 });
+    if (!meses.has(chave)) meses.set(chave, { mes: chave, recebido: 0, equipe: 0, calculos: 0, automacao: 0, pagamentos: 0, despesas: 0 });
     return meses.get(chave);
   };
   for (const c of estado.contatos) {
     if (!c.pago_em || !c.valor_centavos) continue;
     const m = mes(mesDe(c.pago_em));
     m.recebido += c.valor_centavos;
+    m.equipe += parteEquipe(c, empresa);
     m.pagamentos += 1;
     m[c.servico === 'automacao' ? 'automacao' : 'calculos'] += c.valor_centavos;
   }
   for (const p of fin.pagamentos || []) mes(mesDe(p.pago_em)).despesas += p.valor_centavos;
   for (const m of meses.values()) {
-    m.casa = Math.round(m.recebido * pctCasa);
-    const socios = m.recebido - m.casa;
+    // Primeiro sai a parte da equipe; o restante se divide entre a Plannex e os sócios.
+    const base = m.recebido - m.equipe;
+    m.casa = Math.round(base * pctCasa);
+    const socios = base - m.casa;
     m.socio1 = Math.round(socios * pctSocio1);
     m.socio2 = socios - m.socio1;
     m.saldoCasa = m.casa - m.despesas;
@@ -113,7 +120,7 @@ function desenharTudo(raiz) {
   const meses = porMes(fin);
   const atual = hoje().slice(0, 7);
   const anterior = somarMes(atual, -1);
-  const vazio = chave => ({ mes: chave, recebido: 0, calculos: 0, automacao: 0, pagamentos: 0, despesas: 0, casa: 0, socio1: 0, socio2: 0, saldoCasa: 0 });
+  const vazio = chave => ({ mes: chave, recebido: 0, equipe: 0, calculos: 0, automacao: 0, pagamentos: 0, despesas: 0, casa: 0, socio1: 0, socio2: 0, saldoCasa: 0 });
   const mesAtual = meses.get(atual) || vazio(atual);
   const mesAnterior = meses.get(anterior) || vazio(anterior);
   const caixaCasa = [...meses.values()].reduce((s, m) => s + m.saldoCasa, 0);
@@ -139,11 +146,16 @@ function desenharTudo(raiz) {
       ? el('ul', 'saude-motivos', motivos.map(([tipo, texto]) => el('li', `saude-motivo saude-motivo--${tipo}`, texto)))
       : el('p', 'saude-ok', 'Tudo em ordem: caixa positivo, sem despesas vencidas e com recebimentos recentes.'));
 
-  // Resumo do mês: quatro números, sem detalhes demais.
-  const variacao = mesAnterior.recebido ? Math.round(((mesAtual.recebido - mesAnterior.recebido) / mesAnterior.recebido) * 100) : null;
+  // Resumo: o mês atual ou, se ainda não houve recebimento nele, o último mês que teve faturamento.
+  const comFaturamento = [...meses.values()].filter(m => m.recebido > 0).sort((a, b) => b.mes.localeCompare(a.mes));
+  const mesRef = mesAtual.recebido > 0 ? mesAtual : comFaturamento[0] || mesAtual;
+  const refAnterior = meses.get(somarMes(mesRef.mes, -1));
+  const variacao = refAnterior?.recebido ? Math.round(((mesRef.recebido - refAnterior.recebido) / refAnterior.recebido) * 100) : null;
+  const nomeRef = MESES[Number(mesRef.mes.slice(5)) - 1];
   const numeros = el('section', 'numeros numeros--financeiro', [
-    tile('Recebido no mês', reais(mesAtual.recebido), variacao === null ? maiuscula(nomeMes(atual)) : `${variacao >= 0 ? '↑' : '↓'} ${Math.abs(variacao)}% em relação ao mês anterior`),
-    tile('Parte da Plannex', reais(mesAtual.casa), `${divisao.casa}% do recebido no mês`),
+    tile(mesRef.mes === atual ? 'Recebido no mês' : `Recebido em ${nomeRef}`, reais(mesRef.recebido),
+      variacao === null ? maiuscula(nomeMes(mesRef.mes)) : `${variacao >= 0 ? '↑' : '↓'} ${Math.abs(variacao)}% em relação ao mês anterior`),
+    tile('Parte da Plannex', reais(mesRef.casa), `${divisao.casa}% do recebido${mesRef.mes === atual ? ' no mês' : ` em ${nomeRef}`}${mesRef.equipe ? ', depois da equipe' : ''}`),
     tile('Caixa da Plannex', reais(caixaCasa), 'Parte da Plannex menos as despesas pagas'),
     tile('A receber', reais(aReceber), 'Demandas aceitas ainda sem pagamento'),
   ]);
@@ -164,7 +176,8 @@ function desenharTudo(raiz) {
     el('ul', 'pagamento-pessoas',
       pessoa(divisao.socio1, referencia.socio1, 'socio1'),
       pessoa(divisao.socio2, referencia.socio2, 'socio2'),
-      pessoa('Parte da Plannex', referencia.casa, 'casa')));
+      pessoa('Parte da Plannex', referencia.casa, 'casa'),
+      referencia.equipe ? pessoa('Equipe', referencia.equipe, 'equipe') : null));
 
   // Recebido por mês, em barras: a Parte da Plannex e a parte dos sócios em cores diferentes.
   const ultimos = [...meses.values()].filter(m => m.recebido > 0).sort((a, b) => b.mes.localeCompare(a.mes)).slice(0, 6);
@@ -192,7 +205,59 @@ function desenharTudo(raiz) {
     numeros,
     el('div', 'grade-financeiro', saude, pagamento),
     grafico,
-    blocoDespesas(raiz));
+    blocoDespesas(raiz),
+    blocoEquipe(raiz, empresa));
+}
+
+// Pagamento da equipe: escolhe o funcionário e o mês de faturamento e vê as demandas concluídas dele,
+// quanto ele recebe e quanto fica para a Plannex.
+const escolhaEquipe = { usuario: null, mes: null };
+function blocoEquipe(raiz, empresa) {
+  const equipe = estado.usuarios.filter(u => u.papel === 'funcionario');
+  const titulo = el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('equipe'), 'Pagamento da equipe'),
+    el('span', 'bloco-dica-topo', `${Number(empresa.pct_equipe ?? 50)}% de cada demanda concluída`));
+  if (!equipe.length) {
+    return el('section', 'bloco bloco--equipe', titulo, el('p', 'vazio-mini', 'Quando houver funcionários na equipe (aba Equipe), o pagamento de cada um aparece aqui, pelas demandas concluídas no mês.'));
+  }
+  const pct = Number(empresa.pct_equipe ?? 50) / 100;
+  // Demandas concluídas (ou entregues) e pagas de cada funcionário, por mês de faturamento.
+  const doFuncionario = id => estado.contatos.filter(c => c.responsavel_id === id && c.pago_em && c.valor_centavos && (c.etapa === 'concluido' || c.etapa === 'entregue'));
+  if (!equipe.some(u => u.id === escolhaEquipe.usuario)) escolhaEquipe.usuario = equipe[0].id;
+  const demandas = doFuncionario(escolhaEquipe.usuario);
+  const meses = [...new Set(demandas.map(c => mesDe(c.pago_em)))].sort().reverse();
+  if (!meses.includes(escolhaEquipe.mes)) escolhaEquipe.mes = meses[0] || null;
+
+  const pessoa = el('select');
+  for (const u of equipe) { const o = el('option', '', u.nome); o.value = String(u.id); pessoa.append(o); }
+  pessoa.value = String(escolhaEquipe.usuario);
+  pessoa.addEventListener('change', () => { escolhaEquipe.usuario = Number(pessoa.value); escolhaEquipe.mes = null; desenhar(raiz); });
+  const mes = el('select');
+  for (const m of meses) { const o = el('option', '', maiuscula(nomeMes(m))); o.value = m; mes.append(o); }
+  if (!meses.length) { const o = el('option', '', 'Sem demandas pagas'); o.value = ''; mes.append(o); }
+  mes.value = escolhaEquipe.mes || '';
+  mes.disabled = !meses.length;
+  mes.addEventListener('change', () => { escolhaEquipe.mes = mes.value; desenhar(raiz); });
+
+  const nome = equipe.find(u => u.id === escolhaEquipe.usuario)?.nome || 'Funcionário';
+  const doMes = demandas.filter(c => mesDe(c.pago_em) === escolhaEquipe.mes).sort((a, b) => String(a.pago_em).localeCompare(String(b.pago_em)));
+  const total = doMes.reduce((s, c) => s + c.valor_centavos, 0);
+  const recebe = doMes.reduce((s, c) => s + Math.round(c.valor_centavos * pct), 0);
+  const corpo = doMes.length
+    ? [
+      el('ul', 'pagamento-pessoas',
+        el('li', 'pagamento-pessoa pagamento-pessoa--equipe', el('span', 'pagamento-inicial', nome.charAt(0).toUpperCase()), el('span', 'pagamento-nome', `${nome} recebe`), el('strong', '', reais(recebe))),
+        el('li', 'pagamento-pessoa pagamento-pessoa--casa', el('span', 'pagamento-inicial', 'P'), el('span', 'pagamento-nome', 'Para a Plannex (antes da divisão)'), el('strong', '', reais(total - recebe)))),
+      el('ul', 'demandas-equipe', doMes.map(c => el('li', '',
+        el('span', 'demanda-equipe-nome', el('strong', '', c.nome), el('small', '', [c.protocolo, c.plano || (c.servico === 'automacao' ? 'Automação' : 'Cálculo'), `pago em ${diaBr(c.pago_em)}`].filter(Boolean).join(' · '))),
+        el('span', 'demanda-equipe-valor', reais(c.valor_centavos)),
+        el('strong', 'demanda-equipe-parte', reais(Math.round(c.valor_centavos * pct)))))),
+      el('p', 'bloco-dica', `${doMes.length} ${doMes.length === 1 ? 'demanda concluída' : 'demandas concluídas'} em ${nomeMes(escolhaEquipe.mes)}, somando ${reais(total)}. Pagamento sugerido no 5º dia útil: ${diaBr(quintoDiaUtil(somarMes(escolhaEquipe.mes, 1)))}.`),
+    ]
+    : [el('p', 'vazio-mini', `${nome} ainda não tem demandas concluídas e pagas.`)];
+
+  return el('section', 'bloco bloco--equipe', titulo,
+    el('div', 'campos-lado', el('label', 'campo', 'Funcionário', pessoa), el('label', 'campo', 'Mês de faturamento', mes)),
+    ...corpo);
 }
 
 // Percentuais: a Plannex fica com "casa"; o resto se divide entre os sócios.
@@ -228,6 +293,7 @@ function blocoEmpresa(raiz, e, divisao) {
   const socio2 = entrada('socio2', divisao.socio2, { maxLength: 80 });
   const pctCasa = entrada('pct_casa', divisao.casa, { type: 'number', min: 0, max: 100, step: '0.5' });
   const pctSocio1 = entrada('pct_socio1', e.pct_socio1 ?? 50, { type: 'number', min: 0, max: 100, step: '0.5' });
+  const pctEquipe = entrada('pct_equipe', e.pct_equipe ?? 50, { type: 'number', min: 0, max: 100, step: '0.5' });
   cnpj.addEventListener('input', () => {
     const d = cnpj.value.replace(/\D/g, '').slice(0, 14);
     cnpj.value = d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
@@ -239,6 +305,8 @@ function blocoEmpresa(raiz, e, divisao) {
     el('div', 'campos-lado campos-lado--3', el('label', 'campo', 'Nome fantasia', fantasia), el('label', 'campo', 'Razão social', razao), el('label', 'campo', 'CNPJ', cnpj)),
     el('div', 'campos-lado campos-lado--4', el('label', 'campo', 'Sócio 1', socio1), el('label', 'campo', 'Sócio 2', socio2),
       el('label', 'campo', 'Parte da Plannex (%)', pctCasa), el('label', 'campo', 'Do restante, para o sócio 1 (%)', pctSocio1)),
+    el('div', 'campos-lado', el('label', 'campo', 'Parte da equipe por demanda concluída (%)', pctEquipe),
+      el('p', 'bloco-dica', 'Quando um funcionário é o responsável, ele recebe essa parte do valor da demanda; o restante segue a divisão acima.')),
     previa);
   for (const i of form.querySelectorAll('input')) i.addEventListener('input', () => { form.classList.add('is-sujo'); atualizarPrevia(); });
   atualizarPrevia();
@@ -250,7 +318,7 @@ function blocoEmpresa(raiz, e, divisao) {
     try {
       await api('/api/empresa', {
         method: 'PATCH',
-        corpo: { nome_fantasia: fantasia.value, razao_social: razao.value, cnpj: cnpj.value, socio1: socio1.value, socio2: socio2.value, pct_casa: Number(pctCasa.value), pct_socio1: Number(pctSocio1.value) },
+        corpo: { nome_fantasia: fantasia.value, razao_social: razao.value, cnpj: cnpj.value, socio1: socio1.value, socio2: socio2.value, pct_casa: Number(pctCasa.value), pct_socio1: Number(pctSocio1.value), pct_equipe: Number(pctEquipe.value) },
       });
       acoes.avisar('Dados da empresa salvos.');
       form.classList.remove('is-sujo');

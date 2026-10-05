@@ -22,10 +22,12 @@ test('Empresa: salva dados, confere CNPJ e percentuais', async () => {
   const ana = await entrar(env, 'ana');
   assert.equal((await chamar(env, 'PATCH', '/api/empresa', { cookie: ana, corpo: { cnpj: '123' } })).status, 400);
   assert.equal((await chamar(env, 'PATCH', '/api/empresa', { cookie: ana, corpo: { pct_casa: 120 } })).status, 400);
-  assert.equal((await chamar(env, 'PATCH', '/api/empresa', { cookie: ana, corpo: { nome_fantasia: 'Plannex', razao_social: 'Plannex Ltda.', cnpj: '12345678000190', pct_casa: 25 } })).status, 200);
+  assert.equal((await chamar(env, 'PATCH', '/api/empresa', { cookie: ana, corpo: { nome_fantasia: 'Plannex', razao_social: 'Plannex Ltda.', cnpj: '12345678000190', pct_casa: 25, pct_equipe: 60 } })).status, 200);
+  assert.equal((await chamar(env, 'PATCH', '/api/empresa', { cookie: ana, corpo: { pct_equipe: -1 } })).status, 400);
   const r = await chamar(env, 'GET', '/api/financeiro', { cookie: ana });
   assert.equal(r.dados.empresa.cnpj, '12.345.678/0001-90');
   assert.equal(r.dados.empresa.pct_casa, 25);
+  assert.equal(r.dados.empresa.pct_equipe, 60);
 });
 
 test('Despesas: registrar já paga, renovar (vencimento anda um ciclo), editar e excluir', async () => {

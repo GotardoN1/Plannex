@@ -413,7 +413,7 @@ function camposDoContato(dados) {
 
 async function financeiro(env) {
   const [empresa, despesas, pagamentos] = await env.DB.batch([
-    env.DB.prepare('SELECT nome_fantasia, razao_social, cnpj, socio1, socio2, pct_casa, pct_socio1, atualizado_em FROM empresa WHERE id = 1'),
+    env.DB.prepare('SELECT nome_fantasia, razao_social, cnpj, socio1, socio2, pct_casa, pct_socio1, pct_equipe, atualizado_em FROM empresa WHERE id = 1'),
     env.DB.prepare('SELECT * FROM despesas ORDER BY COALESCE(vencimento, inicio, criado_em), id'),
     env.DB.prepare('SELECT id, despesa_id, valor_centavos, pago_em FROM despesas_pagamentos ORDER BY pago_em, id'),
   ]);
@@ -438,7 +438,7 @@ async function alterarEmpresa(request, env) {
     if (dados.cnpj && !cnpj) return json({ erro: 'CNPJ inválido: são 14 números.' }, 400);
     definir('cnpj', cnpj);
   }
-  for (const campo of ['pct_casa', 'pct_socio1']) {
+  for (const campo of ['pct_casa', 'pct_socio1', 'pct_equipe']) {
     if (!(campo in dados)) continue;
     const pct = Number(dados[campo]);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) return json({ erro: 'O percentual vai de 0 a 100.' }, 400);
