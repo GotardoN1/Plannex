@@ -325,6 +325,9 @@
   .footer-bottom { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
 }
 
-/* Caixa de sucesso: o número da solicitação fica pequeno, no pé (referência da equipe). */
-.contact-success-ref { display: block; margin-top: 12px; color: #7f8ea3; font-size: 11px; text-align: center; font-variant-numeric: tabular-nums; }
-[data-tema="claro"] .contact-success-ref { color: #6b7a8f !important; }
+/* Caixa de sucesso: o protocolo legível, logo abaixo do título. */
+.contact-success-protocol { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px !important; }
+.contact-success-protocol small { color: var(--muted, #a9b6c8); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.contact-success-protocol strong { color: #f6b083; font-size: 17px; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+[data-tema="claro"] .contact-success-protocol small { color: #5b6b80 !important; }
+[data-tema="claro"] .contact-success-protocol strong { color: #a14d16 !important; }

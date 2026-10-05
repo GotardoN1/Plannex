@@ -2,9 +2,18 @@
 // abrem a conversa já com o texto; o administrador revisa e envia (nada sai sozinho).
 import { SERVICOS, reais, diaBr, primeiroNome } from './util.js';
 
-// Chave PIX da Plannex. Enquanto estiver vazia, a mensagem deixa a lacuna para completar à mão.
-export const PIX = { chave: '', titular: 'Plannex' };
-const textoPix = () => (PIX.chave ? `${PIX.chave} (${PIX.titular})` : '__________ (chave PIX)');
+// Chave PIX da Plannex (vai na mensagem de aceite e na OS).
+export const PIX = { chave: '11945383454', titular: 'Plannex' };
+
+// Preço de cada plano do site, em centavos. Os personalizados (sob orçamento) não têm: o valor é preenchido à mão.
+export const PRECO_PLANO = {
+  'Cálculo simples': 14990,
+  'Pacote 10 cálculos': 119900,
+  'Automação Pontual': 19990,
+  'Pacote Evolução': 39990,
+};
+// Valor da demanda: o que o administrador definiu ou, se ainda não definiu, o preço do plano escolhido.
+export const valorDaDemanda = c => (c.valor_centavos !== null && c.valor_centavos !== undefined ? c.valor_centavos : PRECO_PLANO[c.plano] ?? null);
 
 // Prazo padrão, em dias úteis depois da confirmação (o mesmo que a Central usa ao aceitar).
 export const PRAZO_DIAS = { calculos: 3, automacao: 5 };
@@ -19,7 +28,7 @@ const ENTREGAVEIS = {
 const EMPRESA = /(^|[\s(])(ltda|s\/?a|eireli|me|epp|construtora|distribuidora|escrit[óo]rio|com[ée]rcio|ind[úu]stria|associa[çc][ãa]o|cl[íi]nica|mercado|padaria|loja|hotel|academia|gr[áa]fica|contabilidade|farm[áa]cia|transportadora|auto pe[çc]as|advogados|advocacia|grupo|empresa)($|[\s.,)])/i;
 const nomeDe = c => (EMPRESA.test(c.nome || '') ? c.nome : primeiroNome(c.nome));
 const servicoTexto = c => (c.servico === 'automacao' ? 'automação de planilha' : 'cálculo');
-const assinatura = '\n\nAtenciosamente,\nEquipe Plannex';
+const assinatura = '\n\nAtenciosamente, Equipe Plannex.';
 
 // Em que momento a demanda está, para escolher a mensagem.
 export function momento(c) {
@@ -41,7 +50,8 @@ export const MOMENTOS = {
 export function textoMensagem(c, qual = momento(c), { versao = 1 } = {}) {
   const ola = `Olá, ${nomeDe(c)}! Tudo bem?`;
   const dias = PRAZO_DIAS[c.servico] || 3;
-  const valor = c.valor_centavos !== null && c.valor_centavos !== undefined ? reais(c.valor_centavos) : '';
+  const centavos = valorDaDemanda(c);
+  const valor = centavos !== null ? reais(centavos) : '';
   switch (qual) {
     case 'recusado':
       return `Olá, ${nomeDe(c)}. Agradecemos o contato com a Plannex e o interesse em nossos serviços.\n\n`
@@ -52,15 +62,16 @@ export function textoMensagem(c, qual = momento(c), { versao = 1 } = {}) {
       return `${ola}\n\nSomos da equipe da Plannex e temos a satisfação de informar que a sua solicitação de ${servicoTexto(c)} foi aceita. Segue a Ordem de Serviço com o escopo, o prazo${valor ? ' e o valor' : ''} do trabalho.\n\n`
         + `Por gentileza, confira a documentação${valor ? ` e o valor (${valor})` : ' e os valores'}. Estando tudo de acordo, para darmos início:\n`
         + '1. Assine a Ordem de Serviço e nos envie de volta;\n'
-        + `2. Efetue o pagamento via PIX — chave ${textoPix()} — e nos envie o comprovante.\n\n`
+        + `2. Efetue o pagamento via PIX ${PIX.chave} e nos envie o comprovante.\n\n`
         + `O prazo estimado é de ${dias} dias úteis a partir da confirmação. Qualquer dúvida, é só responder esta mensagem.`
         + assinatura;
     case 'pedido':
-      return `${ola}\n\nConfirmamos o recebimento da Ordem de Serviço. A sua demanda já está em execução com a nossa equipe`
+      return `${ola}\n\nConfirmamos o recebimento do Pagamento e Ordem de Serviço. A sua demanda já está em execução com a nossa equipe`
         + `${c.prazo ? `, com entrega prevista até ${diaBr(c.prazo)}` : ''}.\n\nAvisaremos assim que estiver pronta.`
         + assinatura;
     case 'revisado':
-      return `${ola}\n\nRecebemos os ajustes solicitados e já estamos preparando a nova versão. Avisaremos assim que estiver pronta.`
+      return `${ola}\n\nRecebemos os ajustes solicitados e já estamos preparando a nova versão, que será revisada em até 1 dia útil. Avisaremos assim que estiver pronta.\n\n`
+        + 'Se preferir, podemos agendar uma reunião rápida de alinhamento; é só nos informar o melhor dia e horário.'
         + assinatura;
     case 'entregue':
       return `${ola}\n\nSomos da equipe da Plannex e temos o prazer de informar que a sua demanda está concluída${versao > 1 ? ', já com os ajustes solicitados' : ''}. `
@@ -69,7 +80,7 @@ export function textoMensagem(c, qual = momento(c), { versao = 1 } = {}) {
         + assinatura;
     case 'concluido':
       return `${ola}\n\nA sua demanda foi concluída. Agradecemos pela confiança no trabalho da Plannex.\n\n`
-        + 'Quando precisar de um novo cálculo ou de outra automação, é só nos chamar por aqui.'
+        + 'Quando precisar de uma nova demanda, entre em contato efetuando uma nova solicitação no site.'
         + assinatura;
     default:
       return `${ola}\n\nSomos da equipe da Plannex. Recebemos a sua solicitação de ${servicoTexto(c)} e já estamos analisando as informações e os documentos enviados.\n\n`

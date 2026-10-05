@@ -285,17 +285,40 @@ $$('a[href^="#"]').forEach(link => {
   if (!pageIds.includes(id)) return;
   link.addEventListener('click', event => { event.preventDefault(); navigate(id); });
 });
+// Rola até a seção. Não depende só do próximo quadro de animação (que alguns navegadores atrasam ou
+// pausam): o que vier primeiro, o quadro ou um temporizador curto, faz a rolagem uma única vez. Se a
+// rolagem suave não chegar (aba em segundo plano, navegador que a interrompe), vai direto à seção.
+function scrollToSection(target) {
+  let done = false;
+  const go = () => {
+    if (done) return;
+    done = true;
+    target.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    setTimeout(() => {
+      if (Math.abs(target.getBoundingClientRect().top) > 160) target.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }, 900);
+  };
+  requestAnimationFrame(go);
+  setTimeout(go, 80);
+}
+// Página que contém uma seção (ex.: #calculos fica no Início).
+const pageOfSection = id => {
+  const target = id ? document.getElementById(id) : null;
+  const page = target?.closest('.page, section[id]');
+  return target && page && pageIds.includes(page.id) ? { target, pageId: page.id } : null;
+};
+function goToSection(id, { push = true } = {}) {
+  const found = pageOfSection(id);
+  if (!found) return false;
+  if (push && location.hash !== '#' + id) history.pushState(null, '', '#' + id);
+  showPage(found.pageId, false);
+  scrollToSection(found.target);
+  return true;
+}
 $$('[data-page-target][data-scroll-target]').forEach(link => {
   link.addEventListener('click', event => {
     event.preventDefault();
-    const pageId = link.dataset.pageTarget;
-    const target = $('#' + link.dataset.scrollTarget);
-    if (!pageIds.includes(pageId) || !target) return;
-    if (location.hash !== '#' + pageId) history.pushState(null, '', '#' + pageId);
-    showPage(pageId, false);
-    requestAnimationFrame(() => {
-      target.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
-    });
+    goToSection(link.dataset.scrollTarget);
   });
 });
 $('.skip-link')?.addEventListener('click', event => {
@@ -305,6 +328,8 @@ $('.skip-link')?.addEventListener('click', event => {
 });
 window.addEventListener('hashchange', () => {
   const id = location.hash.slice(1);
+  // Endereço de uma seção (ex.: #calculos, #contratacao-calculos): abre a página dela e rola até lá.
+  if (id && !pageIds.includes(id) && goToSection(id, { push: false })) return;
   if (id && !pageIds.includes(id)) {
     history.replaceState(null, '', '#inicio');
     showPage('inicio', true);
@@ -329,7 +354,11 @@ window.addEventListener('scroll', updateReadingProgress, { passive: true });
 window.addEventListener('resize', updateReadingProgress, { passive: true });
 const initialHash = location.hash.slice(1);
 if (initialHash && !pageIds.includes(initialHash)) history.replaceState(null, '', '#inicio');
-showPage(pageIds.includes(initialHash) ? initialHash : 'inicio');
+showPage(pageIds.includes(initialHash) ? initialHash : (pageOfSection(initialHash)?.pageId || 'inicio'));
+if (initialHash && !pageIds.includes(initialHash)) {
+  const found = pageOfSection(initialHash);
+  if (found) window.addEventListener('load', () => scrollToSection(found.target), { once: true });
+}
 
 // Movimento ambiente sutil: a luz acompanha o cursor sem interferir na leitura.
 const backgroundGlow = $('.bg-glow');
@@ -458,11 +487,8 @@ function setContactDocumentCopy(service) {
   if (summary && !$('#contact-files')?.files?.length) {
     summary.textContent = contactDocumentExamples[service] || 'Selecione os arquivos que ajudam a entender sua demanda.';
   }
-  if (help) {
-    help.textContent = service === 'automacao'
-      ? 'Excel, PDF, Word ou imagem · até 10 MB no total.'
-      : 'PDF, Excel, Word ou imagem · até 10 MB no total.';
-  }
+  if (help) help.textContent = `${service === 'automacao' ? 'PDF, Word, Excel (inclusive .xlsm), CSV, TXT ou imagem' : CONTACT_FORMATS_TEXT} · até 10 MB no total.`;
+  if (contactFiles) contactFiles.accept = service === 'automacao' ? '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.jpg,.jpeg,.png,.webp,.heic,.heif,.xlsm' : '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.jpg,.jpeg,.png,.webp,.heic,.heif';
 }
 
 function setContactService(service, options = {}) {
@@ -632,8 +658,40 @@ if (contactFiles) contactFiles.disabled = true;
 
 // Anexos: aceita documentos, planilhas, imagens e afins. Ficam de fora só programas, scripts e atalhos
 // (o que pode executar e trazer vírus). O servidor repete a mesma checagem.
-const CONTACT_BLOCKED_FILES = /\.(exe|com|bat|cmd|msi|msp|msc|scr|pif|cpl|dll|sys|jar|js|jse|mjs|vbs|vbe|wsf|wsh|ws|sct|ps1|psm1|psd1|sh|bash|hta|inf|scf|url|gadget|html?|svg|xht(ml)?|lnk|iso|img|vhdx?|apk|app|reg)$/i;
-const contactBlockedFiles = files => files.filter(file => CONTACT_BLOCKED_FILES.test((file.name || '').trim()));
+// Formatos aceitos nos anexos (os mesmos que o servidor aceita; lá o conteúdo real também é conferido).
+// Planilha com macros (.xlsm) só em automação.
+const CONTACT_ALLOWED_FILES = /\.(pdf|docx?|odt|rtf|txt|xlsx?|ods|csv|jpe?g|png|webp|heic|heif)$/i;
+const CONTACT_FORMATS_TEXT = 'PDF, Word, Excel, CSV, TXT ou imagem (JPG, PNG, WEBP, HEIC)';
+const contactBlockedFiles = files => {
+  const automation = document.querySelector('[data-contact-service]:checked')?.dataset.contactService === 'automacao';
+  return files.filter(file => {
+    const name = (file.name || '').trim();
+    return !(CONTACT_ALLOWED_FILES.test(name) || (automation && /\.xlsm$/i.test(name)));
+  });
+};
+
+// Depois do envio: limpa tudo o que foi preenchido e volta o formulário ao estado inicial.
+function resetContactForm(form) {
+  form.reset();
+  contactOrigin = '';
+  const originInput = $('#contact-origin');
+  if (originInput) originInput.value = '';
+  delete document.body.dataset.contactTheme;
+  $$('[data-contact-choice]').forEach(choice => choice.classList.remove('is-selected'));
+  const planFieldset = $('#contact-plan-fieldset');
+  if (planFieldset) planFieldset.hidden = true;
+  const planChoices = $('#contact-plan-choices');
+  if (planChoices) planChoices.innerHTML = '';
+  setAutomationContactFields(false);
+  if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
+  if (contactFileField) contactFileField.hidden = true;
+  if (contactFiles) { contactFiles.disabled = true; contactFiles.value = ''; }
+  if (contactFileSummary) contactFileSummary.textContent = 'Selecione o serviço acima para ver exemplos de documentos.';
+  const example = $('#contact-description-example');
+  if (example) example.textContent = 'Informações essenciais sobre a sua necessidade e o resultado esperado.';
+  if (contactCpf) contactCpf.setCustomValidity('');
+  ['contact-description', 'contact-notes'].forEach(id => document.getElementById(id)?.dispatchEvent(new Event('input')));
+}
 
 // Caixa de confirmação depois do envio.
 function contactShowSuccess(repeated, protocol) {
@@ -652,12 +710,18 @@ function contactShowSuccess(repeated, protocol) {
   const title = document.createElement('h3');
   title.id = 'contact-success-title';
   title.textContent = repeated ? 'Pedido já recebido!' : 'Pedido efetuado com sucesso!';
+  // Protocolo da solicitação, legível (é o número que o cliente pode informar no atendimento).
+  const number = document.createElement('p');
+  number.className = 'contact-success-protocol';
+  if (protocol) {
+    const label = document.createElement('small');
+    label.textContent = 'Protocolo';
+    const code = document.createElement('strong');
+    code.textContent = protocol;
+    number.append(label, code);
+  }
   const text = document.createElement('p');
-  text.textContent = 'Entraremos em contato após a análise da solicitação.';
-  // Número da solicitação: discreto, só como referência (quem usa é a equipe).
-  const number = document.createElement('small');
-  number.className = 'contact-success-ref';
-  number.textContent = protocol ? `Ref. ${protocol}` : '';
+  text.textContent = 'Próximo passo: nossa equipe analisa a solicitação e entra em contato pelo WhatsApp ou e-mail informado em até 1 dia útil, com o retorno sobre o atendimento, o prazo e o valor.';
   const ok = document.createElement('button');
   ok.type = 'button';
   ok.className = 'button';
@@ -668,7 +732,7 @@ function contactShowSuccess(repeated, protocol) {
   ok.addEventListener('click', close);
   box.addEventListener('click', event => { if (event.target === box) close(); });
   document.addEventListener('keydown', onKey);
-  card.append(icon, title, text, ok, ...(protocol ? [number] : []));
+  card.append(icon, title, ...(protocol ? [number] : []), text, ok);
   box.append(card);
   document.body.append(box);
   ok.focus();
@@ -686,7 +750,7 @@ contactFiles?.addEventListener('change', () => {
   const blocked = contactBlockedFiles([...contactFiles.files]);
   if (blocked.length) {
     contactFiles.value = '';
-    if (contactFileSummary) contactFileSummary.textContent = `Não aceitamos ${blocked.map(file => file.name).slice(0, 2).join(', ')}: programas e scripts ficam de fora. Envie documentos, planilhas ou imagens.`;
+    if (contactFileSummary) contactFileSummary.textContent = `Não aceitamos ${blocked.map(file => file.name).slice(0, 2).join(', ')}. Envie ${CONTACT_FORMATS_TEXT}.`;
     return;
   }
   const files = [...contactFiles.files];
@@ -739,7 +803,7 @@ $('#contact-form')?.addEventListener('submit', async event => {
   }
   if (contactBlockedFiles(files).length) {
     if (status) {
-      status.textContent = 'Há anexos de um tipo que não aceitamos (programas ou scripts). Envie documentos, planilhas ou imagens.';
+      status.textContent = `Há anexos de um formato que não aceitamos. Envie ${CONTACT_FORMATS_TEXT}.`;
       status.classList.add('is-error');
     }
     contactFiles?.focus();
@@ -824,10 +888,11 @@ $('#contact-form')?.addEventListener('submit', async event => {
     if (status) {
       status.textContent = central.repetido
         ? 'Recebemos sua solicitação (ela já tinha chegado). Entraremos em contato após a análise.'
-        : 'Pedido efetuado com sucesso. Entraremos em contato após a análise da solicitação.';
+        : `Pedido efetuado com sucesso${central.protocolo ? ` (protocolo ${central.protocolo})` : ''}. Entraremos em contato em até 1 dia útil, após a análise da solicitação.`;
       status.classList.add('is-success');
     }
     contactShowSuccess(central.repetido, central.protocolo);
+    resetContactForm(form);
     if (submit) {
       submit.classList.remove('is-loading');
       submit.classList.add('is-sent');

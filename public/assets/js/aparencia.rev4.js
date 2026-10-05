@@ -48,7 +48,7 @@
   }
   // Mesmo número do botão "Falar no WhatsApp" do contato (WHATSAPP_NUMBER em script.revNNN.js).
   var WHATSAPP = '5511945383454';
-  var MENSAGEM = 'Olá! Vim pelo site da Plannex e gostaria de falar sobre uma demanda.';
+  var MENSAGEM = 'Olá, tudo bem? Gostaria de falar sobre uma demanda com a equipe da Plannex.';
   var ZAP = 'M4 20l1.3-4A8 8 0 1 1 8 18.7zM9.2 8.6c.3 2.4 2 4.3 4.6 5.1l1.1-1.2 1.8.9-.4 1.6c-3.8.2-7.2-3.2-7-7l1.6-.4.9 1.8z';
   var LUA = 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z';
   var SOL = 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4';

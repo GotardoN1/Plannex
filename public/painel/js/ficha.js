@@ -12,6 +12,7 @@ import { etiquetasDaDemanda } from './etiquetas.js';
 import { gerarOS } from './os.js';
 import { MOMENTOS, linkWhatsAppMensagem, linkEmailMensagem } from './mensagens.js';
 import { criarZip } from './zip.js';
+import { avaliarClassificacao, PLANOS } from './classificacao.js';
 import {
   el, botao, link, icone, avatar, etiquetaServico, NOME_ETAPA, CAIXA, SERVICOS, ORIGENS, ETAPAS,
   dataHora, relativo, reais, lerReais, centavosParaCampo, situacaoPrazo, diaBr, tamanhoArquivo,
@@ -38,6 +39,8 @@ const abaPorChave = chave => ABAS.find(a => a.chave === chave) || ABA_ENTRADA;
 const janela = () => document.querySelector('#ficha');
 let atualId = null;
 let abaAberta = 'entrada';
+// Etapa da demanda no último desenho: se mudar, a ficha vai sozinha para a aba da nova etapa.
+let etapaDesenhada;
 let editandoDados = false;
 let dados = { itens: [], arquivos: [], carregado: false };
 let sequencia = 0;
@@ -58,6 +61,7 @@ export function abrirFicha(id, abaInicial = null) {
   }
   atualId = id;
   editandoDados = false;
+  corrigindoClassificacao = false;
   dados = { itens: [], arquivos: [], carregado: false };
   const chave = abaInicial || abaDaEtapa(contato.etapa);
   const aba = ABAS.find(a => a.chave === chave);
@@ -76,6 +80,11 @@ export function atualizarFicha() {
   // Não atrapalha quem está digitando.
   if (janela().contains(document.activeElement) && document.activeElement.matches('input, textarea, select')) return;
   const rolagem = janela().querySelector('.ficha-corpo')?.scrollTop || 0;
+  const c = contatoPorId(atualId);
+  if ((c.etapa || null) !== etapaDesenhada) {
+    const aba = ABAS.find(a => a.chave === abaDaEtapa(c.etapa));
+    abaAberta = !c.etapa ? 'entrada' : aba && podeVerAba(aba) ? aba.chave : abaAberta;
+  }
   desenhar();
   janela().querySelector('.ficha-corpo').scrollTop = rolagem;
   carregar();
@@ -106,6 +115,7 @@ async function depoisDeMudar() {
 
 function desenhar() {
   const c = contatoPorId(atualId);
+  etapaDesenhada = c.etapa || null;
   const fechar = botao('', 'botao--icone botao--fantasma', () => janela().close(), { icone: 'fechar', titulo: 'Fechar ficha' });
   const origem = [ORIGENS[c.origem] || c.origem, c.chamada].filter(Boolean).join(' · ');
   const cabecalho = el('header', 'ficha-topo',
@@ -276,10 +286,48 @@ function rodapeDoPainel(c, aba) {
 // Pedido novo ou recusado: quem é, o que pediu e comentários. Aceitar e Recusar ficam no topo.
 function painelEntrada(c) {
   return [
+    eAdmin() ? blocoClassificacao(c) : null,
     blocoContato(c),
     blocoSolicitacao(c),
     comentarios(c, 'entrada', 'Comentários', 'Anotar algo sobre este contato…'),
   ];
+}
+
+// Triagem: serviço e plano marcados pelo cliente, com o alerta quando não combinam com a descrição.
+// Corrigir muda só a classificação; o texto que o cliente escreveu fica como está (e a mudança vai ao histórico).
+let corrigindoClassificacao = false;
+function blocoClassificacao(c) {
+  const avaliacao = avaliarClassificacao(c);
+  const resumo = el('p', 'classificacao-atual', el('strong', '', SERVICOS[c.servico]?.nome || c.servico), c.plano ? ` · ${c.plano}` : ' · sem plano');
+  const alerta = avaliacao.alerta
+    ? el('p', 'classificacao-alerta', icone('alerta'), el('span', '', avaliacao.motivo, ' Confira antes de aceitar.'))
+    : null;
+  const topo = el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('etapa'), 'Classificação'),
+    botao(corrigindoClassificacao ? 'Cancelar' : 'Corrigir', 'botao--fantasma botao--pequeno', () => { corrigindoClassificacao = !corrigindoClassificacao; desenharPainel(); }, { icone: corrigindoClassificacao ? 'fechar' : 'editar' }));
+  if (!corrigindoClassificacao) return el('section', `bloco bloco--classificacao${avaliacao.alerta ? ' is-alerta' : ''}`, topo, resumo, alerta);
+
+  const servico = el('select');
+  servico.name = 'servico';
+  for (const [chave, info] of Object.entries(SERVICOS)) servico.append(opcao(chave, info.nome, chave === (avaliacao.sugestao || c.servico)));
+  const plano = el('select');
+  plano.name = 'plano';
+  const preencherPlanos = () => {
+    plano.replaceChildren(opcao('', 'Sem plano'), ...PLANOS[servico.value].map(p => opcao(p, p, p === c.plano)));
+  };
+  servico.addEventListener('change', preencherPlanos);
+  preencherPlanos();
+  const salvar = botao('Salvar classificação', 'botao--primario botao--pequeno', null);
+  salvar.type = 'submit';
+  const form = el('form', 'form-classificacao',
+    el('div', 'campos-lado', el('label', 'campo', 'Serviço', servico), el('label', 'campo', 'Plano', plano)),
+    el('p', 'bloco-dica', 'O texto que o cliente escreveu não muda. A correção fica registrada no histórico.'),
+    el('div', 'form-acoes', salvar));
+  form.addEventListener('submit', async evento => {
+    evento.preventDefault();
+    const ok = await acoes.alterar(c.id, { dados: { servico: servico.value, plano: plano.value } }, 'Classificação corrigida.');
+    if (ok) { corrigindoClassificacao = false; desenharPainel(); }
+  });
+  return el('section', `bloco bloco--classificacao${avaliacao.alerta ? ' is-alerta' : ''}`, topo, alerta, form);
 }
 
 // 1. Notas e ordens: o administrador cobra, emite a nota e colhe a assinatura (Gerar OS fica no topo da ficha).
@@ -482,7 +530,7 @@ function concluir(c) {
   const desde = c.etapa === 'revisado' && reprovada ? String(reprovada.quando) : '';
   const finais = dados.arquivos.filter(a => a.categoria === 'entrega' && a.tamanho > 1024 && (!desde || String(a.criado_em) > desde)).length;
   if (!finais && !eAdmin()) {
-    acoes.avisar(desde ? 'Envie a nova versão (um arquivo de mais de 1 KB) antes de entregar.' : 'Envie o arquivo da entrega (qualquer tipo, com mais de 1 KB) antes de entregar.', 'erro');
+    acoes.avisar(desde ? 'Envie a nova versão (um arquivo de mais de 1 KB) antes de entregar.' : 'Envie o arquivo da entrega (com mais de 1 KB) antes de entregar.', 'erro');
     return;
   }
   acoes.mover(c.id, 'entregue');
@@ -509,10 +557,18 @@ function acoesRapidas(c) {
   // Ordem de serviço da casa, já preenchida com o que o cliente informou.
   const os = botao('Gerar OS', '', null, { icone: 'documento', titulo: 'Baixa a ordem de serviço em PDF já preenchida; o resto se completa no PDF e o cliente assina' });
   os.addEventListener('click', async () => {
+    const escolha = acoes.seletorResponsavelOS();
+    const gerar = await acoes.confirmar({
+      titulo: 'Gerar a ordem de serviço?',
+      texto: 'A OS sai preenchida com o plano, o valor, o escopo e o que o cliente escreveu. Escolha quem consta como responsável.',
+      botao: 'Gerar OS',
+      extra: escolha,
+    });
+    if (!gerar) return;
     os.disabled = true;
     try {
       if (!dados.carregado) await carregar();
-      const nome = await gerarOS(c, dados.arquivos.filter(a => a.categoria === 'cliente'));
+      const nome = await gerarOS(contatoPorId(c.id) || c, dados.arquivos.filter(a => a.categoria === 'cliente'), { responsavel: escolha.querySelector('select').value });
       acoes.avisar(`${nome} baixada.`);
     } catch (e) {
       acoes.avisar(e.message || 'Não foi possível gerar a ordem de serviço.', 'erro');
@@ -781,10 +837,24 @@ function blocoArquivos(c, categorias, opcoes = {}) {
   return el('section', 'bloco bloco--documentos', partes);
 }
 
+// Formatos aceitos em cada envio (o servidor confere a mesma lista e o conteúdo real; ver src/arquivos.js).
+const DOCS = '.pdf,.doc,.docx,.odt,.rtf,.txt';
+const PLANILHAS = '.xls,.xlsx,.ods,.csv';
+const IMAGENS = '.jpg,.jpeg,.png,.webp';
+const FORMATOS_ENVIO = {
+  cliente: { aceita: `${DOCS},${PLANILHAS},${IMAGENS},.heic,.heif`, texto: 'PDF, Word, Excel, CSV, TXT ou imagem (JPG, PNG, WEBP, HEIC)' },
+  cliente_automacao: { aceita: `${DOCS},${PLANILHAS},.xlsm,${IMAGENS},.heic,.heif`, texto: 'PDF, Word, Excel (inclusive .xlsm), CSV, TXT ou imagem' },
+  entrega: { aceita: `${DOCS},${PLANILHAS},.xlsm,${IMAGENS},.mp4`, texto: 'PDF, Word, Excel (inclusive .xlsm), CSV, imagem ou vídeo MP4' },
+  financeiro: { aceita: `.pdf,.xml,${IMAGENS},.doc,.docx,.xls,.xlsx,.csv,.txt`, texto: 'PDF, XML da nota, imagem, Word ou Excel' },
+};
+const formatosDe = (categoria, c) => FORMATOS_ENVIO[categoria === 'cliente' ? (c.servico === 'automacao' ? 'cliente_automacao' : 'cliente') : categoria === 'entrega' ? 'entrega' : 'financeiro'];
+
 function zonaDeEnvio(c, categoria, aoEnviar) {
   const id = `envio-${++sequencia}`;
+  const formatos = formatosDe(categoria, c);
   const entrada = el('input');
   entrada.type = 'file';
+  entrada.accept = formatos.aceita;
   entrada.multiple = true;
   entrada.className = 'sr';
   entrada.id = id;
@@ -792,7 +862,7 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
   const status = el('p', 'aviso');
   const zona = el('label', 'zona-envio', icone('enviar'),
     el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
-    el('small', '', 'Qualquer tipo de arquivo, menos programas · até 10 MB'));
+    el('small', '', `${formatos.texto} · até 10 MB`));
   zona.htmlFor = id;
 
   const enviarUm = async arquivo => {
@@ -927,7 +997,8 @@ function preencherArquivos() {
       const autor = a.usuario || (a.usuario_id ? 'usuário removido' : 'enviado pelo cliente no site');
       const li = el('li', `documento documento--${a.categoria}`,
         baixar,
-        el('span', 'documento-info', `${tamanhoArquivo(a.tamanho)} · ${autor} · ${dataHora(a.criado_em)}`));
+        el('span', 'documento-info', `${tamanhoArquivo(a.tamanho)} · ${autor} · ${dataHora(a.criado_em)}`,
+          a.aviso ? el('span', 'aviso-macro', icone('alerta'), a.aviso === 'macro' ? 'Contém macros: abra só se esperava por elas' : 'Formato antigo do Office: pode conter macros') : null));
       const podeRemover = eAdmin() || (a.usuario_id === estado.usuario.id && !somenteLeitura(c));
       if (podeRemover) {
         li.append(botaoDoisCliques('', '', 'botao--icone botao--fantasma botao--pequeno', 'lixo', async () => {
@@ -1034,7 +1105,10 @@ function itemHistorico(i, c) {
   if (i.tipo === 'chegada') {
     iconeItem = 'chegada';
     const autor = c.criado_por ? usuarioPorId(c.criado_por)?.nome : null;
-    conteudo = el('p', '', autor ? `${autor} cadastrou o contato (${ORIGENS[c.origem] || c.origem})` : `Chegou pelo site · ${SERVICOS[c.servico]?.completo}`);
+    // O funcionário não recebe a equipe toda: para ele, quem cadastrou aparece só como "a equipe".
+    conteudo = el('p', '', c.criado_por
+      ? `${autor || 'A equipe'} cadastrou o contato (${ORIGENS[c.origem] || c.origem})`
+      : `Chegou pelo site · ${SERVICOS[c.servico]?.completo}`);
   } else if (i.tipo === 'etapa') {
     iconeItem = 'etapa';
     conteudo = el('p', '', el('strong', '', quem || 'Alguém'), ` moveu de ${i.de ? NOME_ETAPA[i.de] : CAIXA} para ${i.para ? NOME_ETAPA[i.para] : CAIXA}`);

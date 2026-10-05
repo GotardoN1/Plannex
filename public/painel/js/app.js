@@ -12,7 +12,7 @@ import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema, aplicarVis
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
 import { perfisDemo, desenharEscolha, desenharFaixa } from './demo.js';
-import { gerarOS } from './os.js';
+import { gerarOS, RESPONSAVEIS_OS } from './os.js';
 import { linkWhatsAppMensagem, linkEmailMensagem } from './mensagens.js';
 
 const $ = seletor => document.querySelector(seletor);
@@ -142,6 +142,8 @@ async function alterar(id, campos, mensagem, desfazer) {
     if (local.dados) { Object.assign(local, local.dados); delete local.dados; }
     Object.assign(contato, local);
     redesenharQuandoPuder();
+    // A ficha aberta acompanha na hora (e vai para a aba da nova etapa), sem esperar a recarga.
+    atualizarFicha();
   }
   try {
     await api(`/api/contatos/${id}`, { method: 'PATCH', corpo: campos });
@@ -214,7 +216,7 @@ async function mover(id, etapa) {
   if (comOS) {
     try {
       const { arquivos } = await api(`/api/contatos/${id}/arquivos`);
-      const nome = await gerarOS(atual, arquivos.filter(a => a.categoria === 'cliente'));
+      const nome = await gerarOS(atual, arquivos.filter(a => a.categoria === 'cliente'), { responsavel: aviso.querySelector('[name="responsavel-os"]')?.value });
       avisar(`${nome} baixada. Anexe a OS na mensagem ao cliente.`);
     } catch (e) {
       avisar(e.message || 'Não foi possível gerar a ordem de serviço.', 'erro');
@@ -230,6 +232,21 @@ async function mover(id, etapa) {
   }
   return mudou;
 }
+
+// Responsável que consta na OS (Robson ou Gustavo); começa em quem está usando, se for um dos dois.
+function seletorResponsavelOS() {
+  const lista = el('select');
+  lista.name = 'responsavel-os';
+  for (const nome of RESPONSAVEIS_OS) {
+    const opcao = el('option', '', nome);
+    opcao.value = nome;
+    lista.append(opcao);
+  }
+  const eu = RESPONSAVEIS_OS.find(nome => nome.split(' ')[0].toLowerCase() === (estado.usuario?.nome || '').split(' ')[0].toLowerCase());
+  if (eu) lista.value = eu;
+  return el('label', 'campo', 'Responsável na OS (demanda e entrega)', lista);
+}
+acoes.seletorResponsavelOS = seletorResponsavelOS;
 
 // Canal preferido para avisar o cliente (lembrado neste navegador).
 const lerCanal = () => { try { return localStorage.getItem('plannex-canal'); } catch { return null; } };
@@ -252,6 +269,7 @@ function avisoDoAceite(contato) {
   os.checked = true;
   return el('div', 'aviso-aceite',
     el('label', 'campo', 'Avisar o cliente (aceite, OS e pagamento) por', lista),
+    seletorResponsavelOS(),
     el('label', 'campo-check', os, el('span', '', 'Baixar a OS preenchida para anexar')));
 }
 
@@ -330,7 +348,8 @@ function confirmar({ titulo, texto, de, para, botao: rotuloBotao, extra = null, 
   const janela = $('#janela-confirmar');
   $('#confirmar-titulo').textContent = titulo;
   $('#confirmar-texto').textContent = texto;
-  $('#confirmar-etapas').replaceChildren(el('span', 'etapa-pill', de), icone('seta_dir'), el('span', 'etapa-pill etapa-pill--destino', para));
+  $('#confirmar-etapas').replaceChildren(...(de || para ? [el('span', 'etapa-pill', de), icone('seta_dir'), el('span', 'etapa-pill etapa-pill--destino', para)] : []));
+  $('#confirmar-etapas').hidden = !de && !para;
   $('#confirmar-extra').replaceChildren(...(extra ? [extra] : []));
   $('#confirmar-extra').hidden = !extra;
   $('#confirmar-sim').textContent = rotuloBotao;

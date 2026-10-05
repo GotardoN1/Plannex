@@ -8,6 +8,7 @@
 
 import { gerarHashSenha, conferirSenha, HASH_FALSO, base64 } from './senha.js';
 import { PERFIS_DEMO, resetarDemo } from './demo.js';
+import { validarArquivo, fluxoDaCategoria } from './arquivos.js';
 
 // Chaves mantidas do banco; os nomes mudaram na versão resumida das etapas.
 // Andamento em 4 etapas: Notas e ordens (administrador) -> Pedido (com responsável) -> Revisão -> Entregue.
@@ -67,22 +68,56 @@ const LIMITE_LOGIN = [5, 15];
 const AGORA_SQL = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
 
 // Demonstração: só no Worker "plannex-demo", que tem DEMO=true. Sem a variável, nada disso existe.
-const emDemo = env => env.DEMO === 'true';
+// Modo demonstração: só vale depois de prepararAmbiente confirmar que este Worker pode ser a demo.
+const emDemo = env => env.DEMO_ATIVA === true;
+
+// O modo demonstração (perfis sem senha e reinício que apaga dados) só liga se TUDO confirmar:
+//   - DEMO=true e o Worker não é o de produção (AMBIENTE=producao recusa a demo);
+//   - o banco ligado (DB) está marcado como 'demo' na tabela "ambiente";
+//   - o armazenamento ligado (ARQUIVOS) tem a chave "ambiente" = 'demo'.
+// As marcas são gravadas pelo "npm run deploy:demo", só nos recursos da demonstração. Se algo não
+// confirmar (ou der erro), a demonstração fica desligada: /api/demo/* responde 404 e nada é reiniciado.
+const demoConfirmada = new WeakMap();
+async function prepararAmbiente(env) {
+  if (env.DEMO !== 'true') return { ...env, DEMO_ATIVA: false };
+  if (env.AMBIENTE !== 'demo') {
+    console.error('DEMO=true recusado: este Worker não está configurado como demonstração (AMBIENTE=demo).');
+    return { ...env, DEMO_ATIVA: false };
+  }
+  return { ...env, DEMO_ATIVA: await recursosDaDemo(env) };
+}
+async function recursosDaDemo(env) {
+  const cache = demoConfirmada.get(env.DB);
+  if (cache && cache > Date.now()) return true;
+  try {
+    const banco = await env.DB.prepare("SELECT valor FROM ambiente WHERE chave = 'ambiente'").first();
+    const marcaArquivos = await env.ARQUIVOS.get('ambiente');
+    const ok = banco?.valor === 'demo' && String(marcaArquivos ?? '') === 'demo';
+    if (ok) demoConfirmada.set(env.DB, Date.now() + 5 * 60 * 1000);
+    else console.error('Demonstração desligada: o banco ou o armazenamento ligados não estão marcados como demo.');
+    return ok;
+  } catch (erro) {
+    console.error('Demonstração desligada: não foi possível confirmar os recursos.', erro);
+    return false;
+  }
+}
 const DEMO_ARQUIVO_MAXIMO = 1024 * 1024;
 // Moldes em branco (só administrador): a ordem de serviço e o relatório. Aceitam PDF ou Word.
 const MOLDES = { ordem: 'o molde da ordem de serviço', relatorio: 'o molde do relatório' };
 const EXTENSOES_MOLDE = /\.(pdf|docx?)$/i;
 // Materiais: armazenamento pequeno da equipe (moldes, planilhas de demonstração, PDFs).
 const MATERIAIS_TOTAL_MAXIMO = 100 * 1024 * 1024;
-const EXTENSOES_PROIBIDAS = /\.(exe|com|bat|cmd|msi|msp|msc|scr|pif|cpl|dll|sys|jar|js|jse|mjs|vbs|vbe|wsf|wsh|ws|sct|ps1|psm1|psd1|sh|bash|hta|inf|scf|url|gadget|html?|svg|xht(ml)?|lnk|iso|img|vhdx?|apk|app|reg)$/i;
-const arquivoProibido = nome => EXTENSOES_PROIBIDAS.test(String(nome || '').trim());
+// Formatos aceitos nos envios: lista por fluxo, com o conteúdo conferido (src/arquivos.js).
 const DEMO_LIMITE_ENVIOS = [40, 24 * 60];
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, envOriginal) {
     const url = new URL(request.url);
+    const env = await prepararAmbienteSePreciso(envOriginal, url);
     // Na demonstração o site público leva direto à Central: o formulário de lá mandaria e-mail de verdade.
     if (emDemo(env) && ['/', '/index.html'].includes(url.pathname)) return Response.redirect(new URL('/painel/', url), 302);
+    // A demonstração não deve aparecer em buscadores.
+    if (emDemo(env) && url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       return await api(request, env, url);
@@ -93,7 +128,8 @@ export default {
   },
 
   // Limpeza diária: sessões vencidas e registros antigos de tentativas.
-  async scheduled(_evento, env) {
+  async scheduled(_evento, envOriginal) {
+    const env = await prepararAmbiente(envOriginal);
     // A demonstração volta aos dados de exemplo toda madrugada.
     if (emDemo(env)) await resetarDemo(env);
     await env.DB.batch([
@@ -102,6 +138,12 @@ export default {
     ]);
   },
 };
+
+// O ambiente só é conferido quando importa (API, página inicial e robots.txt da demonstração).
+function prepararAmbienteSePreciso(env, url) {
+  const importa = url.pathname.startsWith('/api/') || ['/', '/index.html', '/robots.txt'].includes(url.pathname);
+  return importa ? prepararAmbiente(env) : { ...env, DEMO_ATIVA: false };
+}
 
 const negado = () => json({ erro: 'Seu acesso não permite isso.' }, 403);
 const eAdmin = usuario => usuario.papel === 'admin';
@@ -283,12 +325,23 @@ async function registrarContato(request, env) {
 
   // Documentos que a pessoa anexou: mesmas regras do formulário (até 10 arquivos, 10 MB no total),
   // só tipos de documento e só enquanto houver espaço no armazenamento grátis.
-  arquivos = arquivos.filter(a => a.size > 0 && !arquivoProibido(a.name)).slice(0, 10);
-  const total = arquivos.reduce((soma, a) => soma + a.size, 0);
-  if (arquivos.length && total <= CLIENTE_TOTAL_MAXIMO) {
+  // Cada arquivo é conferido (formato permitido e conteúdo real); o que não confere fica de fora e a
+  // ficha registra quais foram recusados.
+  const validos = [];
+  const recusados = [];
+  for (const a of arquivos.filter(a => a.size > 0).slice(0, 10)) {
+    const conferido = await validarArquivo(a, fluxoDaCategoria('cliente', servico));
+    if (conferido.ok) validos.push({ arquivo: a, ...conferido });
+    else recusados.push(limparTexto(a.name, 160) || 'arquivo');
+  }
+  if (recusados.length) {
+    await nota(env, novo.id, null, `enviou pelo site arquivos recusados (formato não aceito ou conteúdo que não confere): ${recusados.join(', ')}`, 'sistema', false, 'entrada').run();
+  }
+  const total = validos.reduce((soma, v) => soma + v.arquivo.size, 0);
+  if (validos.length && total <= CLIENTE_TOTAL_MAXIMO) {
     const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM arquivos').first();
     if (usado + total <= ARMAZENAMENTO_MAXIMO) {
-      await guardarArquivos(env, novo.id, null, 'cliente', arquivos);
+      await guardarArquivos(env, novo.id, null, 'cliente', validos);
     } else {
       await nota(env, novo.id, null, 'enviou documentos pelo site, mas o armazenamento da Central está cheio: eles estão só no e-mail', 'sistema', false, 'entrada').run();
     }
@@ -587,7 +640,10 @@ async function central(env, usuario) {
               (SELECT COUNT(*) FROM arquivos a WHERE a.contato_id = contatos.id ${admin ? '' : "AND a.categoria IN ('cliente', 'entrega')"}) AS total_arquivos
        FROM contatos ${filtroContatos} ORDER BY criado_em DESC, id DESC LIMIT 5000`
     )),
-    env.DB.prepare(`SELECT id, nome, apelido, papel, area${admin ? ', usuario, criado_em' : ''} FROM usuarios ORDER BY nome`),
+    // Administrador: a equipe toda (para distribuir e gerir). Funcionário: só ele mesmo.
+    admin
+      ? env.DB.prepare('SELECT id, nome, apelido, papel, area, usuario, criado_em FROM usuarios ORDER BY nome')
+      : env.DB.prepare('SELECT id, nome, apelido, papel FROM usuarios WHERE id = ?').bind(usuario.id),
     consultaAtividade(env, usuario, 30, 0),
     env.DB.prepare('SELECT id, contato_id, texto, cor FROM etiquetas WHERE usuario_id = ? ORDER BY id').bind(usuario.id),
     env.DB.prepare(`SELECT m.tipo, m.nome, m.tamanho, m.atualizado_em, u.nome AS usuario FROM moldes m LEFT JOIN usuarios u ON u.id = m.usuario_id
@@ -797,11 +853,21 @@ async function alterarContato(request, env, usuario, contato) {
         alterados.push(campo === 'descricao' ? 'descrição' : campo === 'observacoes' ? 'observações' : campo === 'cpf' ? 'CPF/CNPJ' : campo);
       }
     }
+    const NOMES_SERVICO = { calculos: 'Cálculos', automacao: 'Automação' };
+    const reclassificou = [];
     if ('servico' in dados.dados && SERVICOS.includes(dados.dados.servico) && dados.dados.servico !== contato.servico) {
       definir('servico', dados.dados.servico);
-      alterados.push('serviço');
+      reclassificou.push(`serviço de ${NOMES_SERVICO[contato.servico]} para ${NOMES_SERVICO[dados.dados.servico]}`);
+    }
+    if ('plano' in dados.dados) {
+      const plano = limparTexto(dados.dados.plano, CAMPOS_CONTATO.plano) || null;
+      if (plano !== contato.plano) {
+        definir('plano', plano);
+        reclassificou.push(`plano de "${contato.plano || 'sem plano'}" para "${plano || 'sem plano'}"`);
+      }
     }
     if (alterados.length) registrar(`editou ${juntar(alterados)} do contato`);
+    if (reclassificou.length) registrar(`corrigiu a classificação: ${juntar(reclassificou)} (o texto do cliente não mudou)`);
   }
 
   // Às vezes só há registros (ex.: a data da entrega de uma demanda já concluída): grava do mesmo jeito.
@@ -862,8 +928,10 @@ async function anotar(request, env, usuario, id) {
 }
 
 async function excluirNota(env, usuario, id) {
-  const registro = await env.DB.prepare('SELECT usuario_id, tipo FROM notas WHERE id = ?').bind(id).first();
+  const registro = await env.DB.prepare('SELECT usuario_id, tipo, contato_id FROM notas WHERE id = ?').bind(id).first();
   if (!registro) return json({ erro: 'Anotação não encontrada.' }, 404);
+  // Só quem ainda vê a demanda (ex.: depois de reatribuída ou arquivada, o antigo responsável não vê mais).
+  if (!(await contatoVisivel(env, usuario, registro.contato_id))) return json({ erro: 'Anotação não encontrada.' }, 404);
   if (registro.tipo !== 'nota' || registro.usuario_id !== usuario.id) return json({ erro: 'Só dá para apagar as suas anotações.' }, 403);
   await env.DB.prepare('DELETE FROM notas WHERE id = ?').bind(id).run();
   return json({ ok: true });
@@ -886,7 +954,7 @@ const ABA_DA_CATEGORIA = { cliente: 'entrada', nota: 'nota_emitida', ordem: 'not
 async function listarArquivos(env, usuario, contatoId) {
   const filtro = eAdmin(usuario) ? '' : `AND a.categoria IN (${CATEGORIAS_FUNCIONARIO.map(c => `'${c}'`).join(', ')})`;
   const { results } = await env.DB.prepare(
-    `SELECT a.id, a.categoria, a.nome, a.tipo, a.tamanho, a.usuario_id, a.criado_em, u.nome AS usuario
+    `SELECT a.id, a.categoria, a.nome, a.tipo, a.tamanho, a.aviso, a.usuario_id, a.criado_em, u.nome AS usuario
      FROM arquivos a LEFT JOIN usuarios u ON u.id = a.usuario_id
      WHERE a.contato_id = ? ${filtro} ORDER BY a.criado_em DESC, a.id DESC`
   ).bind(contatoId).all();
@@ -901,7 +969,6 @@ async function enviarArquivo(request, env, usuario, contato) {
   const arquivo = formulario?.get('arquivo');
   const categoria = String(formulario?.get('categoria') || 'outro');
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
-  if (arquivoProibido(arquivo.name)) return json({ erro: 'Esse tipo de arquivo não é aceito (programas e páginas podem levar vírus).' }, 400);
   if (!(categoria in CATEGORIAS_ARQUIVO)) return json({ erro: 'Tipo de arquivo inválido.' }, 400);
   if (!podeVerCategoria(usuario, categoria)) return negado();
   // Funcionário não mexe mais numa demanda concluída.
@@ -913,19 +980,20 @@ async function enviarArquivo(request, env, usuario, contato) {
     if (await excedeuLimite(env, 'demo-envio', DEMO_LIMITE_ENVIOS)) return json({ erro: 'A demonstração atingiu o limite de envios de hoje.' }, 429);
     await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-envio').run();
   }
-  await guardarArquivos(env, contato.id, usuario.id, categoria, [arquivo]);
+  const conferido = await validarArquivo(arquivo, fluxoDaCategoria(categoria, contato.servico));
+  if (!conferido.ok) return json({ erro: conferido.erro }, 400);
+  await guardarArquivos(env, contato.id, usuario.id, categoria, [{ arquivo, ...conferido }]);
   return json({ ok: true }, 201);
 }
 
 // Grava no KV e registra no banco; se o banco falhar, apaga do KV para não sobrar lixo.
 async function guardarArquivos(env, contatoId, usuarioId, categoria, arquivos) {
   const registros = [];
-  for (const arquivo of arquivos) {
+  for (const { arquivo, tipo, aviso, bytes } of arquivos) {
     const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'arquivo';
-    const tipo = limparTexto(arquivo.type, 100) || 'application/octet-stream';
     const chave = `contato/${contatoId}/${crypto.randomUUID()}`;
-    await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
-    registros.push({ nome, tipo, chave, tamanho: arquivo.size });
+    await env.ARQUIVOS.put(chave, bytes);
+    registros.push({ nome, tipo, aviso, chave, tamanho: arquivo.size });
   }
   const restrito = !CATEGORIAS_FUNCIONARIO.includes(categoria);
   const texto = registros.length === 1
@@ -933,8 +1001,8 @@ async function guardarArquivos(env, contatoId, usuarioId, categoria, arquivos) {
     : `anexou ${registros.length} arquivos (${CATEGORIAS_ARQUIVO[categoria]})`;
   try {
     await env.DB.batch([
-      ...registros.map(r => env.DB.prepare('INSERT INTO arquivos (contato_id, categoria, nome, tipo, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .bind(contatoId, categoria, r.nome, r.tipo, r.tamanho, r.chave, usuarioId)),
+      ...registros.map(r => env.DB.prepare('INSERT INTO arquivos (contato_id, categoria, nome, tipo, tamanho, chave, usuario_id, aviso) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(contatoId, categoria, r.nome, r.tipo, r.tamanho, r.chave, usuarioId, r.aviso)),
       nota(env, contatoId, usuarioId, texto, 'sistema', restrito, ABA_DA_CATEGORIA[categoria]),
     ]);
   } catch (erro) {
@@ -995,6 +1063,8 @@ async function enviarMolde(request, env, usuario, tipo) {
   if (!EXTENSOES_MOLDE.test(arquivo.name || '')) return json({ erro: 'O molde precisa ser PDF ou Word (.pdf, .doc ou .docx).' }, 400);
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
+  const conferido = await validarArquivo(arquivo, 'molde');
+  if (!conferido.ok) return json({ erro: conferido.erro }, 400);
   if (emDemo(env)) {
     if (arquivo.size > DEMO_ARQUIVO_MAXIMO) return json({ erro: 'Na demonstração, o limite é 1 MB por arquivo.' }, 413);
     if (await excedeuLimite(env, 'demo-envio', DEMO_LIMITE_ENVIOS)) return json({ erro: 'A demonstração atingiu o limite de envios de hoje.' }, 429);
@@ -1003,7 +1073,7 @@ async function enviarMolde(request, env, usuario, tipo) {
   const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'molde';
   const chave = `moldes/${tipo}/${crypto.randomUUID()}`;
   const anterior = await env.DB.prepare('SELECT chave FROM moldes WHERE tipo = ?').bind(tipo).first();
-  await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
+  await env.ARQUIVOS.put(chave, conferido.bytes);
   try {
     await env.DB.prepare(`INSERT INTO moldes (tipo, nome, tamanho, chave, usuario_id) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (tipo) DO UPDATE SET nome = excluded.nome, tamanho = excluded.tamanho, chave = excluded.chave,
@@ -1051,7 +1121,8 @@ async function enviarMaterial(request, env, usuario, id) {
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
-  if (arquivoProibido(arquivo.name)) return json({ erro: 'Esse tipo de arquivo não é aceito (programas e páginas podem levar vírus).' }, 400);
+  const conferido = await validarArquivo(arquivo, 'material');
+  if (!conferido.ok) return json({ erro: conferido.erro }, 400);
   const anterior = id ? await env.DB.prepare('SELECT chave, tamanho FROM materiais WHERE id = ?').bind(id).first() : null;
   if (id && !anterior) return json({ erro: 'Material não encontrado.' }, 404);
   const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM materiais').first();
@@ -1064,11 +1135,11 @@ async function enviarMaterial(request, env, usuario, id) {
     await env.DB.prepare('INSERT INTO tentativas (chave) VALUES (?)').bind('demo-envio').run();
   }
   const nome = limparTexto(arquivo.name, 160).replace(/[\\/:*?"<>|]/g, '_') || 'material';
-  const tipo = limparTexto(arquivo.type, 100) || 'application/octet-stream';
+  const tipo = conferido.tipo;
   const descricao = formulario.has('descricao') ? (limparTexto(formulario.get('descricao'), 160) || null) : undefined;
   const visibilidade = formulario.get('visibilidade') === 'admin' ? 'admin' : 'todos';
   const chave = `materiais/${crypto.randomUUID()}`;
-  await env.ARQUIVOS.put(chave, await arquivo.arrayBuffer());
+  await env.ARQUIVOS.put(chave, conferido.bytes);
   try {
     if (id) {
       await env.DB.prepare(`UPDATE materiais SET nome = ?, tipo = ?, tamanho = ?, chave = ?, usuario_id = ?,

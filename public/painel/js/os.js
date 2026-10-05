@@ -2,9 +2,12 @@
 // Usa o PDF editável da casa (modelos/ordem-de-servico.pdf, ou o molde "Ordem de serviço" enviado na
 // Central, se for um PDF com os mesmos campos). Os campos continuam editáveis: o resto se completa no
 // leitor de PDF (ou à mão) e o cliente assina.
-import { estado, usuarioPorId } from './estado.js';
+import { estado } from './estado.js';
 import { NOME_ETAPA, CAIXA, reais, diaBr, diaDe, hoje } from './util.js';
-import { PIX, PRAZO_DIAS } from './mensagens.js';
+import { PIX, PRAZO_DIAS, valorDaDemanda } from './mensagens.js';
+
+// Quem pode constar como responsável pela demanda e pela entrega na OS (o administrador escolhe ao gerar).
+export const RESPONSAVEIS_OS = ['Robson Barros', 'Gustavo Ricardo'];
 
 const MODELO_PADRAO = './modelos/ordem-de-servico.pdf';
 
@@ -100,17 +103,17 @@ const ESCOPO = {
   },
 };
 
-function dados(c, arquivosDoCliente) {
+function dados(c, arquivosDoCliente, responsavelOS) {
   const automacao = c.servico === 'automacao';
-  const responsavel = usuarioPorId(c.responsavel_id);
   const escopo = ESCOPO[automacao ? 'automacao' : 'calculos'];
   const dias = PRAZO_DIAS[c.servico] || 3;
   const resumo = [
     c.descricao,
     c.atividade_manual ? `Atividade manual a automatizar: ${c.atividade_manual}` : '',
     c.manter_inalterado ? `Deve permanecer inalterado: ${c.manter_inalterado}` : '',
-    c.observacoes ? `Observações do cliente: ${c.observacoes}` : '',
   ].filter(Boolean).join('\n');
+  // Valor: o definido na Central ou o preço do plano; "sob orçamento" fica em branco para preencher à mão.
+  const valor = valorDaDemanda(c);
   const nomes = arquivosDoCliente.map(a => a.nome);
   const pendencias = nomes.length
     ? `Recebidos: ${nomes.join(', ')}`
@@ -121,7 +124,7 @@ function dados(c, arquivosDoCliente) {
   const textos = {
     protocolo: c.protocolo || `${diaDe(c.criado_em).slice(0, 4)}/${String(c.id).padStart(4, '0')}`,
     data_abertura: diaBr(diaDe(c.criado_em)),
-    responsavel: responsavel?.nome || '',
+    responsavel: responsavelOS || RESPONSAVEIS_OS.join(' / '),
     cliente: c.nome,
     cpf_cnpj: c.cpf,
     whatsapp: c.telefone,
@@ -130,11 +133,13 @@ function dados(c, arquivosDoCliente) {
     resumo_solicitacao: resumo,
     documentos_pendencias: pendencias,
     escopo: escopo.texto,
-    valor: c.valor_centavos !== null && c.valor_centavos !== undefined ? reais(c.valor_centavos) : '',
-    pagamento: c.pago_em ? `Pago em ${diaBr(c.pago_em)}` : `PIX${PIX.chave ? ` ${PIX.chave}` : ''}, antes do início`,
+    valor: valor !== null ? reais(valor) : '',
+    pagamento: c.pago_em ? `Pago em ${diaBr(c.pago_em)}` : `PIX ${PIX.chave}, antes do início`,
     // Prazo estimado conta da confirmação (assinatura e pagamento).
     prazo: `${dias} dias úteis`,
     status_entrega: etapa,
+    // Observações e condições específicas: o que o cliente escreveu em "Observações adicionais".
+    observacoes: c.observacoes,
     proximos_passos: 'Conferir os dados, assinar esta OS e enviar o comprovante do PIX para iniciarmos.',
     cliente_aprovacao: c.nome,
     // Data da confirmação: o dia em que a OS foi gerada.
@@ -147,13 +152,13 @@ function dados(c, arquivosDoCliente) {
   return { textos, marcas };
 }
 
-export async function gerarOS(c, arquivosDoCliente = []) {
+export async function gerarOS(c, arquivosDoCliente = [], { responsavel = '' } = {}) {
   const { PDFDocument, StandardFonts } = await carregarBiblioteca();
   const pdf = await modelo(PDFDocument);
   const formulario = pdf.getForm();
   const fonte = await pdf.embedFont(StandardFonts.Helvetica);
   const nomes = new Set(formulario.getFields().map(f => f.getName()));
-  const { textos, marcas } = dados(c, arquivosDoCliente);
+  const { textos, marcas } = dados(c, arquivosDoCliente, responsavel);
 
   for (const [nome, valor] of Object.entries(textos)) {
     const texto = limpo(valor);

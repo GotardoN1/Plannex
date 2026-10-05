@@ -8,8 +8,12 @@
     "directory": "./public",
     "binding": "ASSETS",
     // Só a API passa pelo código; o resto sai direto dos arquivos, com os cabeçalhos do _headers.
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*"],
+    // Endereço que não existe: mostra a página 404.html (com status 404).
+    "not_found_handling": "404-page"
   },
+  // Identifica o Worker de produção: com isso, um DEMO=true por engano é recusado (src/index.js).
+  "vars": { "AMBIENTE": "producao" },
   "d1_databases": [
     {
       "binding": "DB",
@@ -31,12 +35,15 @@
   "env": {
     "demo": {
       "name": "plannex-demo",
-      "vars": { "DEMO": "true" },
+      // A demonstração só liga se, além disto, o banco e os arquivos estiverem marcados como "demo"
+      // (o "npm run deploy:demo" grava as marcas só nos recursos da demonstração).
+      "vars": { "DEMO": "true", "AMBIENTE": "demo" },
       "assets": {
         "directory": "./public",
         "binding": "ASSETS",
         // A página inicial também passa pelo código, que leva direto à Central.
-        "run_worker_first": ["/api/*", "/", "/index.html"]
+        "run_worker_first": ["/api/*", "/", "/index.html", "/robots.txt"],
+        "not_found_handling": "404-page"
       },
       "d1_databases": [
         {

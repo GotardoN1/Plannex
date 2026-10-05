@@ -86,9 +86,16 @@ A regra vale na API: um funcionário não consegue buscar o que não vê na tela
 
 - **Login:** usuário e senha. Senhas guardadas com PBKDF2 (100 mil iterações, sal próprio). Sessão por cookie `HttpOnly`, `Secure` e `SameSite=Strict`, válida por 7 dias. Depois de 5 erros em 15 minutos, o login trava.
 - **Formulário:** no máximo 5 envios a cada 10 minutos por visitante, com o campo anti-robô do site. O IP não é guardado, só um hash dele para contar tentativas.
-- **Dados guardados:** os campos do formulário (nome, WhatsApp, e-mail, plano, descrição e observações) e os documentos anexados (até 10 arquivos e 10 MB; documentos, planilhas, imagens e afins, nunca programas, scripts ou atalhos como .exe e .bat). Se o armazenamento passar de 800 MB, os documentos novos ficam só no e-mail e a ficha avisa. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
+- **Dados guardados:** os campos do formulário (nome, WhatsApp, e-mail, CPF/CNPJ opcional, plano, descrição e observações) e os documentos anexados (até 10 arquivos e 10 MB). Se o armazenamento passar de 800 MB, os documentos novos ficam só no e-mail e a ficha avisa. Os dados de contato são pessoais: só a equipe com login vê, e o contato pode ser excluído a pedido da pessoa.
 - **Equipe:** só administradores dão, mudam e removem acessos. Ninguém muda ou remove o próprio acesso, então sempre sobra um administrador.
-- **Anexos:** sempre baixados como arquivo, nunca abertos como página do site.
+- **Anexos:** lista de formatos por fluxo, com o conteúdo real conferido no servidor (`src/arquivos.js`): a extensão precisa estar na lista e os primeiros bytes precisam bater (PDF, Office/OpenDocument pelo ZIP interno, imagens pela assinatura, CSV/TXT sem bytes binários nem página/script disfarçados). O que não confere é recusado; no formulário do site, o arquivo fica de fora e a ficha registra quais foram recusados.
+  - Documentos do cliente: PDF, DOC/DOCX, ODT, RTF, TXT, XLS/XLSX, ODS, CSV, JPG, PNG, WEBP, HEIC. Planilha com macros (.xlsm) só em demandas de automação.
+  - Entrega: os mesmos (com .xlsm) e vídeo MP4. Notas e ordens: PDF, XML da nota, imagens, Word, Excel, CSV, TXT. Materiais: como a entrega. Moldes: PDF, DOC, DOCX.
+  - Macros: .docm, .xlsb, .xlam, .pptm e afins são recusados; um .xlsx/.docx com macro escondida (vbaProject.bin) também. O .xlsm aceito e os .doc/.xls do formato antigo ficam marcados na ficha com um aviso.
+  - Download só com login e acesso à demanda; sempre como anexo (`Content-Disposition: attachment`, `application/octet-stream`, `X-Content-Type-Options: nosniff`, sem cache). A chave no armazenamento é aleatória e não existe endereço público para ela.
+  - Antivírus: o plano grátis da Cloudflare não tem verificação antimalware para arquivos guardados no KV. A defesa aqui é a lista fechada, a conferência do conteúdo, a recusa de macros fora da automação e o download sempre como arquivo. Para verificação de verdade seria preciso um serviço externo (pago) chamado no envio.
+- **Equipe na API:** a `/api/central` manda a equipe toda só para administradores; o funcionário recebe só os próprios dados (nome, apelido, papel), além das demandas dele, sem contato, CPF nem valores do cliente.
+- **Anotações:** cada um apaga só as próprias, e só enquanto ainda vê a demanda (o ex-responsável de uma demanda reatribuída ou arquivada não apaga mais).
 
 ## Demonstração
 
@@ -97,7 +104,7 @@ Em **https://plannex-demo.luh20123.workers.dev/painel/** fica uma cópia da Cent
 - Escolha de perfil sem senha: duas pessoas administradoras e três funcionárias, cada uma com uma dica do que mostra, e um roteiro sugerido.
 - Faixa amarela no topo para trocar de perfil, reiniciar os dados ou voltar à escolha.
 - Os dados voltam ao exemplo toda madrugada (03h) e pelo botão "Reiniciar dados". As datas são relativas ao dia, então a demonstração nunca parece velha.
-- É outro Worker (`plannex-demo`), com banco e arquivos próprios. A Central real não tem as rotas de demonstração: elas só existem com `DEMO=true`.
+- É outro Worker (`plannex-demo`), com banco e arquivos próprios. O modo demonstração falha fechado: só liga com `DEMO=true` **e** `AMBIENTE=demo` **e** com o banco e o armazenamento ligados marcados como demonstração (linha `ambiente = demo` no banco e chave `ambiente` = `demo` no KV). O Worker de produção tem `AMBIENTE=producao` e recusa a demonstração; sem as marcas, `/api/demo/*` responde 404 e nada é reiniciado (o próprio `resetarDemo` também recusa). O `npm run deploy:demo` grava as marcas só nos recursos da demonstração antes de publicar.
 - Na demonstração, a página inicial do site leva direto à Central, para ninguém mandar e-mail de verdade pelo formulário. Anexos ficam limitados a 1 MB e 40 envios por dia, para não gastar a cota grátis da conta.
 
 Para publicar uma versão nova da demonstração: `npm run deploy:demo`. Para ver no computador: `PLANNEX_DEMO=1 PORT=5331 node tools/servidor-local.mjs`.
@@ -116,9 +123,13 @@ public/                     tudo que o site publica
 src/index.js                Worker: serve public/ e responde a API em /api/
 src/senha.js                hash de senha (PBKDF2), usado pelo Worker e pelas ferramentas
 src/demo.js                 perfis e dados fictícios da demonstração
+src/arquivos.js             formatos aceitos por fluxo e conferência do conteúdo dos arquivos
+tests/                      testes automatizados (npm test), com banco e arquivos em memória
 migrations/                 tabelas do banco D1
 tools/criar-usuario.mjs     cria usuário do painel ou troca a senha
 tools/servidor-local.mjs    prévia local sem o workerd
+tools/ambiente-local.mjs    banco (node:sqlite), KV e arquivos simulados, usados pela prévia e pelos testes
+tools/backup.mjs            backup do banco e dos arquivos para uma pasta local
 wrangler.jsonc              configuração do Worker, do banco e da limpeza diária
 ```
 
@@ -135,6 +146,8 @@ npm install
 PLANNEX_SENHA="uma-senha-de-teste" node tools/servidor-local.mjs --usuario teste "Usuário de Teste"
 node tools/servidor-local.mjs
 ```
+
+Testes automatizados (segurança da demonstração, anotações, acesso por papel, uploads e downloads, sessão e triagem): `npm test`.
 
 O site abre em http://localhost:5330 e o painel em http://localhost:5330/painel/. A prévia roda o mesmo Worker com o banco num arquivo SQLite local (`.wrangler/previa.sqlite`). O `npm run dev` (wrangler dev) também funciona, mas no Windows exige o Visual C++ Redistributable.
 
@@ -164,6 +177,25 @@ No início de `public/assets/js/script.revNNN.js`:
 - `WHATSAPP_NUMBER`: 55 + DDD + número, só dígitos.
 - `FORM_SUBMIT_ENDPOINT`: endereço do FormSubmit com o e-mail que recebe os pedidos.
 
-## Segurança
+## Segurança (resumo)
+
+## Backup
+
+A Cloudflare guarda um histórico do banco D1 (Time Travel: dá para voltar a um ponto dos últimos dias), mas não há cópia dos arquivos do KV nem cópia fora da Cloudflare. Para isso existe `tools/backup.mjs`:
+
+```bash
+node tools/backup.mjs              # produção
+node tools/backup.mjs --env demo   # demonstração
+```
+
+Copia o banco inteiro (`banco.sql`) e cada arquivo do KV para `backups/AAAA-MM-DD_HHMM/` (fora do git), com um LEIA-ME de como restaurar. Só lê, e cabe no plano grátis (uma exportação do D1 e uma leitura por arquivo). Sugestão: rodar toda semana e depois de entregas importantes, e guardar a pasta também fora do computador (HD externo ou nuvem da empresa). A pasta tem dados pessoais: trate como documento sigiloso.
+
+## Endereços, buscadores e 404
+
+`robots.txt` libera o site e bloqueia `/painel/` e `/api/`; `sitemap.xml` lista a página inicial e a de privacidade; as duas páginas têm `canonical`. Hoje usam o endereço `misty-king-c67fe.luh20123.workers.dev`: quando o domínio próprio estiver ligado ao Worker, troque nesses três lugares (index.html, privacidade.html, sitemap.xml e robots.txt). Endereço que não existe mostra `404.html` com status 404 (`not_found_handling` no `wrangler.jsonc`). Na demonstração, o `robots.txt` pede para não indexar nada.
+
+O site é uma página só (`index.html`) e as seções mudam por âncora (`/#automacao`, `/#contato`); os atalhos do rodapé levam direto à seção (`/#calculos`, `/#contratacao-calculos`…), inclusive abrindo o endereço em outra aba.
+
+## Segurança do site
 
 A página só carrega arquivos do próprio site. A Content-Security-Policy libera, fora isso, apenas o envio ao FormSubmit; não há scripts, fontes ou rastreadores de terceiros. O painel não aparece em buscadores (`noindex`) e toda escrita na API precisa vir do próprio site.

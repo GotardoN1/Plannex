@@ -9,12 +9,13 @@ export function abrirNovo() {
   const form = el('form', 'form-novo');
   const aviso = el('p', 'aviso');
 
-  const servicos = el('div', 'escolha-servico', Object.entries(SERVICOS).map(([chave, info], i) => {
+  const servicos = el('div', 'escolha-servico', Object.entries(SERVICOS).map(([chave, info]) => {
     const radio = el('input');
     radio.type = 'radio';
     radio.name = 'servico';
     radio.value = chave;
-    radio.checked = i === 0;
+    // Nada marcado de início: quem cadastra escolhe o serviço (evita classificar por engano).
+    radio.required = true;
     return el('label', `opcao-servico opcao-servico--${chave}`, radio, el('span', '', info.nome));
   }));
 
@@ -38,7 +39,8 @@ export function abrirNovo() {
   const direto = el('input');
   direto.type = 'checkbox';
   direto.name = 'direto_para_pedido';
-  direto.checked = true;
+  // Desmarcado de início: só entra direto no andamento se a pessoa marcar.
+  direto.checked = false;
 
   form.append(
     el('header', 'ficha-topo ficha-topo--simples', el('h2', '', 'Novo contato'),
@@ -64,6 +66,7 @@ export function abrirNovo() {
     aviso.textContent = '';
     const dados = Object.fromEntries(new FormData(form));
     dados.direto_para_pedido = direto.checked;
+    if (!dados.servico) { aviso.textContent = 'Escolha o serviço: Cálculos ou Automação.'; return; }
     if (!dados.nome?.trim()) { aviso.textContent = 'Informe o nome.'; return; }
     try {
       const { id } = await api('/api/contatos', { method: 'POST', corpo: dados });

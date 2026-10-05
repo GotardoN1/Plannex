@@ -10,7 +10,8 @@
     "db:migrar": "wrangler d1 migrations apply plannex --remote",
     "usuario:local": "node tools/criar-usuario.mjs --local",
     "usuario": "node tools/criar-usuario.mjs --remote",
-    "deploy:demo": "wrangler d1 migrations apply plannex-demo --env demo --remote && wrangler deploy --env demo"
+    "deploy:demo": "wrangler d1 migrations apply plannex-demo --env demo --remote && wrangler d1 execute plannex-demo --env demo --remote --command \"INSERT INTO ambiente (chave, valor) VALUES ('ambiente', 'demo') ON CONFLICT (chave) DO UPDATE SET valor = 'demo'\" && wrangler kv key put ambiente demo --binding ARQUIVOS --env demo --remote && wrangler deploy --env demo",
+    "test": "node --test \"tests/*.test.mjs\""
   },
   "devDependencies": {
     "wrangler": "^4.145.0"

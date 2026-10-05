@@ -8,6 +8,7 @@ import {
   relativo, dataHora, normalizar, textoBusca, reais, diaBr,
 } from './util.js';
 import { linkWhatsAppMensagem, momento, MOMENTOS } from './mensagens.js';
+import { avaliarClassificacao } from './classificacao.js';
 
 const filtro = { modo: 'todos', servico: '', texto: '', responsavel: '' };
 
@@ -99,17 +100,21 @@ function linha(c, tipo) {
   const item = el('li', `contato contato--${c.servico}${c.lido_em || concluida ? '' : ' is-novo'}${concluida ? ' is-concluido' : ''}`);
   const responsavel = usuarioPorId(c.responsavel_id);
   const previa = c.descricao || c.atividade_manual || c.observacoes || '';
+  // Na triagem (caixa de entrada do administrador), avisa quando serviço/plano não combinam com a descrição.
+  const classificacao = admin && !c.etapa ? avaliarClassificacao(c) : { alerta: false };
   const abrir = () => acoes.abrirFicha(c.id);
 
   const principal = el('div', 'contato-principal',
     el('span', 'contato-marcador', c.lido_em || concluida ? '' : el('span', 'ponto-novo', el('span', 'sr', 'Não lido'))),
     avatar(c.nome),
     el('span', 'contato-texto',
-      el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico), c.protocolo ? el('span', 'etiqueta-protocolo', c.protocolo) : null, etiquetasDaDemanda(c)),
+      el('span', 'contato-linha1', el('strong', 'contato-nome', c.nome), etiquetaServico(c.servico), c.protocolo ? el('span', 'etiqueta-protocolo', c.protocolo) : null,
+        classificacao.alerta ? el('span', 'etiqueta-conferir', icone('alerta'), 'Conferir classificação') : null, etiquetasDaDemanda(c)),
       el('span', 'contato-previa', previa || (c.email || c.telefone || 'Sem descrição'))));
   principal.tabIndex = 0;
   principal.setAttribute('role', 'button');
-  principal.title = concluida ? `Ver a ficha de ${c.nome} · concluída em ${dataHora(c.atualizado_em)}` : `Abrir a ficha de ${c.nome} · chegou em ${dataHora(c.criado_em)}`;
+  if (classificacao.alerta) principal.dataset.alerta = classificacao.motivo;
+  principal.title = classificacao.alerta ? `${classificacao.motivo} Abra para conferir.` : concluida ? `Ver a ficha de ${c.nome} · concluída em ${dataHora(c.atualizado_em)}` : `Abrir a ficha de ${c.nome} · chegou em ${dataHora(c.criado_em)}`;
   principal.addEventListener('click', abrir);
   principal.addEventListener('keydown', evento => {
     if (evento.target === principal && (evento.key === 'Enter' || evento.key === ' ')) { evento.preventDefault(); abrir(); }
@@ -164,7 +169,7 @@ function linha(c, tipo) {
       celulaAcao.append(botao('Reabrir', 'botao--fantasma botao--pequeno', () => acoes.mover(c.id, 'entregue'),
         { icone: 'restaurar', titulo: 'Devolve ao Andamento, na Conclusão' }));
     }
-    celulas = admin ? [situacao, celulaResponsavel, celulaValor, celulaAcao] : [situacao];
+    celulas = admin ? [situacao, celulaWhatsapp, celulaResponsavel, celulaValor, celulaAcao] : [situacao];
     modelo = admin ? 'concluidos' : 'concluidos-func';
   } else if (tipo === 'entrada' && !admin) {
     celulas = [situacao, celulaAcao];

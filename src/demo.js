@@ -95,6 +95,9 @@ const ARQUIVADOS = 4;
 const DIA = 86400000;
 
 export async function resetarDemo(env) {
+  // Segunda trava: só roda com a demonstração confirmada (DEMO_ATIVA vem de prepararAmbiente, que confere
+  // se o banco e o armazenamento ligados são os da demonstração). Sem isso, não apaga nada.
+  if (env.DEMO_ATIVA !== true) throw new Error('resetarDemo recusado: ambiente de demonstração não confirmado.');
   const agora = Date.now();
   const iso = t => new Date(t).toISOString().replace(/\.\d+Z$/, 'Z');
   const dia = t => new Date(t - 3 * 3600000).toISOString().slice(0, 10);

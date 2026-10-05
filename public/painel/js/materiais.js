@@ -5,6 +5,9 @@ import { estado, acoes, eAdmin } from './estado.js';
 import { api } from './api.js';
 import { el, botao, icone, dataHora, relativo, tamanhoArquivo, tipoArquivo } from './util.js';
 
+// Formatos aceitos nos materiais (o servidor confere a mesma lista e o conteúdo real).
+const FORMATOS_MATERIAL = '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.xlsm,.ods,.csv,.jpg,.jpeg,.png,.webp,.mp4';
+
 const ESPACO = 100 * 1024 * 1024;
 let sequencia = 0;
 
@@ -68,6 +71,7 @@ function formularioEnvio(usado) {
   const id = `material-${++sequencia}`;
   const entrada = el('input');
   entrada.type = 'file';
+  entrada.accept = FORMATOS_MATERIAL;
   entrada.id = id;
   entrada.className = 'sr';
   const descricao = el('input');
@@ -134,6 +138,7 @@ function linha(m) {
   // Trocar o arquivo (mantém a descrição).
   const novo = el('input');
   novo.type = 'file';
+  novo.accept = FORMATOS_MATERIAL;
   novo.className = 'sr';
   novo.addEventListener('change', async () => {
     const arquivo = novo.files[0];

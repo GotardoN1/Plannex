@@ -25,7 +25,8 @@ function dataDos(d) {
 }
 
 // arquivos: [{ nome, bytes: Uint8Array, data?: Date }] → Blob do ZIP. Nomes repetidos ganham (2), (3)…
-export function criarZip(arquivos) {
+// "pastas": mantém as barras do nome (pasta/arquivo), sem permitir "..".
+export function criarZip(arquivos, { pastas = false } = {}) {
   const codificar = new TextEncoder();
   const usados = new Map();
   const locais = [];
@@ -33,7 +34,9 @@ export function criarZip(arquivos) {
   let deslocamento = 0;
 
   for (const arquivo of arquivos) {
-    let nome = arquivo.nome.replace(/[\\/:*?"<>|]+/g, '-');
+    let nome = pastas
+      ? arquivo.nome.split('/').filter(parte => parte && parte !== '..').map(parte => parte.replace(/[\\:*?"<>|]+/g, '-')).join('/')
+      : arquivo.nome.replace(/[\\/:*?"<>|]+/g, '-');
     const vezes = usados.get(nome.toLowerCase()) || 0;
     usados.set(nome.toLowerCase(), vezes + 1);
     if (vezes) nome = nome.replace(/(\.[^.]*)?$/, ext => ` (${vezes + 1})${ext || ''}`);

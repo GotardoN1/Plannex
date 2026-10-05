@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /painel/
+Disallow: /api/
+
+Sitemap: https://misty-king-c67fe.luh20123.workers.dev/sitemap.xml

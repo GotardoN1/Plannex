@@ -351,7 +351,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
 .contato-colunas--entrada-func { grid-template-columns: 150px 172px; }
 .botao--avancar { width: 100%; }
 .celula--mover .mover-para { width: 100%; }
-.contato-colunas--concluidos { grid-template-columns: 150px 28px 112px 104px; }
+.contato-colunas--concluidos { grid-template-columns: 150px 34px 28px 112px 104px; }
 .contato-colunas--concluidos-func { grid-template-columns: 150px; }
 .celula { display: flex; align-items: center; min-width: 0; }
 .celula--situacao { flex-direction: column; align-items: flex-end; gap: 5px; cursor: pointer; }
@@ -628,7 +628,7 @@ fieldset.campo legend { padding: 0; margin-bottom: 6px; }
   .contato-colunas--arquivo { grid-template-columns: 1fr 34px 28px auto; }
   .botao--avancar { width: auto; }
   .contato-colunas--entrada-func { grid-template-columns: 1fr auto; }
-  .contato-colunas--concluidos { grid-template-columns: 1fr 28px auto auto; }
+  .contato-colunas--concluidos { grid-template-columns: 1fr 34px 28px auto auto; }
   .contato-colunas--concluidos-func { grid-template-columns: 1fr; }
   .celula--situacao { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
   .quadro { grid-auto-columns: 84%; }
@@ -1272,5 +1272,19 @@ a.nav-item { text-decoration: none; }
 .envio-linha .envio-resumo { flex: 1; min-width: 200px; }
 .campos-lado--3 { grid-template-columns: 1fr 1.3fr 1fr; }
 @media (max-width: 720px) { .campos-lado--3 { grid-template-columns: 1fr; } }
+/* Triagem: classificação a conferir. */
+.etiqueta-conferir { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; background: var(--alerta-fundo); color: var(--alerta); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.etiqueta-conferir .icone { width: 12px; height: 12px; }
+.bloco--classificacao.is-alerta { border-color: #f2c46b88; }
+.classificacao-atual { font-size: 13px; color: var(--muted); }
+.classificacao-atual strong { color: var(--ink); }
+.classificacao-alerta { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--alerta-fundo); color: var(--alerta); font-size: 13px; line-height: 1.45; }
+.classificacao-alerta .icone { flex: none; width: 16px; height: 16px; margin-top: 1px; }
+.form-classificacao { display: grid; gap: 8px; }
+
+/* Arquivo que pode conter macros: aviso discreto na lista. */
+.aviso-macro { display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; border-radius: 999px; background: var(--alerta-fundo); color: var(--alerta); font-size: 11px; font-weight: 600; }
+.aviso-macro .icone { width: 12px; height: 12px; }
+
 /* Entregue: o molde em branco do relatório acompanha a altura de "Arquivos da entrega", lado a lado. */
 .ficha-grade > .ficha-coluna > .bloco--moldes:only-child { flex: 1 1 auto; }
