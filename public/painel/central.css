@@ -1398,3 +1398,54 @@ a.nav-item { text-decoration: none; }
   .lateral .nav { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
   .lateral .lateral-rodape { flex: none; background: inherit; }
 }
+
+/* ---------- Financeiro: empresa e divisão no topo, pagamento simplificado e barras ---------- */
+.campos-lado--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .campos-lado--4 { grid-template-columns: 1fr 1fr; } }
+.bloco--empresa { margin-bottom: 14px; gap: 10px; }
+.empresa-resumo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; align-items: center; }
+.empresa-dados { display: grid; gap: 2px; }
+.empresa-dados strong { font-size: 18px; }
+.empresa-dados small { color: var(--subtle); font-size: 13px; }
+.empresa-editar > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--destaque-claro); font-size: 13px; font-weight: 600; }
+.empresa-editar > summary .icone { width: 14px; height: 14px; }
+.empresa-editar[open] > summary { margin-bottom: 10px; }
+.form-empresa { display: grid; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.divisao { display: grid; gap: 8px; }
+.barra-divisao { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
+.barra-divisao span { display: block; height: 100%; }
+.divisao-casa { background: var(--destaque); }
+.divisao-socio1 { background: #5b9fe7; }
+.divisao-socio2 { background: #46c093; }
+.divisao-legenda { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); }
+.divisao-legenda li { display: inline-flex; align-items: center; gap: 6px; }
+.divisao-legenda i { width: 10px; height: 10px; border-radius: 3px; }
+.divisao-legenda strong { color: var(--ink); }
+.pagamento-cabeca { display: flex; align-items: center; gap: 14px; }
+.pagamento .pagamento-data { display: grid; justify-items: center; padding: 8px 14px; border-radius: var(--radius-sm); background: var(--destaque-fundo); }
+.pagamento .pagamento-data strong { color: var(--destaque-claro); font-size: 22px; line-height: 1.1; }
+.pagamento .pagamento-data small { color: var(--muted); font-size: 11px; }
+.pagamento-ref { display: grid; gap: 2px; font-weight: 600; }
+.pagamento-ref small { color: var(--subtle); font-size: 12px; font-weight: 400; }
+.pagamento-pessoas { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.pagamento-pessoa { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); }
+.pagamento-pessoa strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.pagamento-inicial { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; font-weight: 700; color: #07111f; }
+.pagamento-pessoa--casa .pagamento-inicial { background: var(--destaque); }
+.pagamento-pessoa--socio1 .pagamento-inicial { background: #5b9fe7; }
+.pagamento-pessoa--socio2 .pagamento-inicial { background: #46c093; }
+.legenda-divisao { display: inline-flex; align-items: center; gap: 6px; color: var(--subtle); font-size: 12px; }
+.legenda-divisao i { width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; }
+.cor-casa { background: var(--destaque); }
+.cor-socios { background: #5b9fe7; }
+.barras-meses { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.barras-meses li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.barra-mes { display: grid; font-weight: 600; font-size: 13px; }
+.barra-mes small { color: var(--subtle); font-size: 11px; font-weight: 400; }
+.barra-trilho { display: block; height: 14px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.barra-total { display: flex; height: 100%; border-radius: 999px; overflow: hidden; }
+.barra-total i { display: block; height: 100%; }
+.barra-total i.cor-socios { flex: 1; }
+.barras-meses strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.numeros--financeiro .tile-detalhe { font-size: 12px; }
+@media (max-width: 900px) { .empresa-resumo { grid-template-columns: minmax(0, 1fr); } }

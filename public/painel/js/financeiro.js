@@ -3,7 +3,7 @@
 //   - Sugestão de pagamento aos sócios no 5º dia útil do mês seguinte.
 //   - Despesas da empresa (domínio, CORECON…): quando foram compradas e quando vencem de novo,
 //     agrupadas por ano e mês, com aviso em amarelo (até 30 dias) e vermelho (até 7 dias ou vencida).
-// Os percentuais e os nomes dos sócios ficam na aba Empresa.
+// No topo, os dados da empresa e a divisão (percentual da Plannex e de cada sócio), editáveis.
 import { estado, acoes } from './estado.js';
 import { api } from './api.js';
 import { el, botao, icone, reais, diaBr, hoje, lerReais, centavosParaCampo } from './util.js';
@@ -86,7 +86,7 @@ function porMes(fin) {
 
 export async function desenharFinanceiro(raiz) {
   // Com dados em mãos, desenha na hora (sem piscar "Carregando…") e depois confere se mudou algo.
-  if (estado.financeiro) desenhar(raiz);
+  if (estado.financeiro && !raiz.querySelector('.form-empresa.is-sujo')) desenhar(raiz);
   else raiz.replaceChildren(el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro'))), el('p', 'vazio-mini', 'Carregando…'));
   const antes = JSON.stringify(estado.financeiro || null);
   try {
@@ -95,6 +95,7 @@ export async function desenharFinanceiro(raiz) {
     if (!raiz.querySelector('.bloco')) raiz.replaceChildren(el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro'))), el('p', 'aviso', e.message));
     return;
   }
+  if (raiz.querySelector('.form-empresa.is-sujo')) return;
   if (JSON.stringify(estado.financeiro) !== antes || !raiz.querySelector('.bloco')) desenhar(raiz);
 }
 
@@ -108,12 +109,7 @@ function desenhar(raiz) {
 function desenharTudo(raiz) {
   const fin = estado.financeiro;
   const empresa = fin.empresa || {};
-  const socio1 = empresa.socio1 || 'Sócio 1';
-  const socio2 = empresa.socio2 || 'Sócio 2';
-  const pctCasa = Number(empresa.pct_casa ?? 30);
-  const pctSocio1 = Number(empresa.pct_socio1 ?? 50);
-  const pctS1 = Math.round((100 - pctCasa) * pctSocio1) / 100;
-  const pctS2 = Math.round((100 - pctCasa - pctS1) * 100) / 100;
+  const divisao = divisaoDe(empresa);
   const meses = porMes(fin);
   const atual = hoje().slice(0, 7);
   const anterior = somarMes(atual, -1);
@@ -128,69 +124,152 @@ function desenharTudo(raiz) {
 
   // Saúde: crítica com caixa negativo ou despesa vencida; atenção com mês no vermelho ou vencimento perto.
   const motivos = [];
-  if (caixaCasa < 0) motivos.push(['critica', `O caixa da Plannex está negativo (${reais(caixaCasa)}): as despesas passaram da parte da casa.`]);
+  if (caixaCasa < 0) motivos.push(['critica', `O caixa da Plannex está negativo (${reais(caixaCasa)}).`]);
   const vencidas = alertas.filter(a => a.s.classe === 'vencida');
-  if (vencidas.length) motivos.push(['critica', `${vencidas.length} ${vencidas.length === 1 ? 'despesa vencida' : 'despesas vencidas'}: ${vencidas.map(a => a.d.nome).join(', ')}.`]);
-  if (mesAtual.saldoCasa < 0) motivos.push(['atencao', `Neste mês, as despesas (${reais(mesAtual.despesas)}) passam da parte da casa (${reais(mesAtual.casa)}).`]);
+  if (vencidas.length) motivos.push(['critica', `${vencidas.length === 1 ? 'Despesa vencida' : 'Despesas vencidas'}: ${vencidas.map(a => a.d.nome).join(', ')}.`]);
+  if (mesAtual.saldoCasa < 0) motivos.push(['atencao', 'As despesas deste mês passaram da Parte da Plannex.']);
   const urgentes = alertas.filter(a => a.s.classe === 'urgente');
-  if (urgentes.length) motivos.push(['atencao', `${urgentes.length} ${urgentes.length === 1 ? 'despesa vence' : 'despesas vencem'} nos próximos 7 dias.`]);
+  if (urgentes.length) motivos.push(['atencao', `${urgentes.length === 1 ? 'Uma despesa vence' : `${urgentes.length} despesas vencem`} nos próximos 7 dias.`]);
   if (!mesAtual.recebido && !mesAnterior.recebido) motivos.push(['atencao', 'Nenhum recebimento neste mês nem no anterior.']);
   const nivel = motivos.some(m => m[0] === 'critica') ? 'critica' : motivos.length ? 'atencao' : 'boa';
   const NIVEL = { boa: ['Saudável', 'ok'], atencao: ['Atenção', 'alerta'], critica: ['Crítica', 'alerta'] };
-
   const saude = el('section', `bloco saude saude--${nivel}`,
     el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('dinheiro'), 'Saúde da empresa'), el('span', `saude-selo saude-selo--${nivel}`, icone(NIVEL[nivel][1]), NIVEL[nivel][0])),
     motivos.length
       ? el('ul', 'saude-motivos', motivos.map(([tipo, texto]) => el('li', `saude-motivo saude-motivo--${tipo}`, texto)))
-      : el('p', 'saude-ok', 'Caixa da casa positivo, sem despesas vencidas e com recebimentos recentes.'));
+      : el('p', 'saude-ok', 'Tudo em ordem: caixa positivo, sem despesas vencidas e com recebimentos recentes.'));
 
+  // Resumo do mês: quatro números, sem detalhes demais.
   const variacao = mesAnterior.recebido ? Math.round(((mesAtual.recebido - mesAnterior.recebido) / mesAnterior.recebido) * 100) : null;
   const numeros = el('section', 'numeros numeros--financeiro', [
-    tile('Recebido no mês', reais(mesAtual.recebido), maiuscula(nomeMes(atual)),
-      variacao === null ? `${mesAtual.pagamentos} ${mesAtual.pagamentos === 1 ? 'pagamento' : 'pagamentos'}` : `${variacao >= 0 ? '↑' : '↓'} ${Math.abs(variacao)}% em relação a ${MESES[Number(anterior.slice(5)) - 1]}`),
-    tile('Fica para a Plannex', reais(mesAtual.casa), `${pctCasa}% do recebido`, `despesas do mês: ${reais(mesAtual.despesas)}`),
-    tile('Caixa da Plannex', reais(caixaCasa), 'acumulado', 'parte da casa menos as despesas pagas'),
-    tile('A receber', reais(aReceber), 'demandas com valor', 'aceitas e ainda sem pagamento'),
+    tile('Recebido no mês', reais(mesAtual.recebido), variacao === null ? maiuscula(nomeMes(atual)) : `${variacao >= 0 ? '↑' : '↓'} ${Math.abs(variacao)}% em relação ao mês anterior`),
+    tile('Parte da Plannex', reais(mesAtual.casa), `${divisao.casa}% do recebido no mês`),
+    tile('Caixa da Plannex', reais(caixaCasa), 'Parte da Plannex menos as despesas pagas'),
+    tile('A receber', reais(aReceber), 'Demandas aceitas ainda sem pagamento'),
   ]);
 
-  // Sugestão de pagamento aos sócios: o mês fechado é pago no 5º dia útil do mês seguinte.
-  const pagarFechado = quintoDiaUtil(atual);
-  const pagarAtual = quintoDiaUtil(somarMes(atual, 1));
-  const linhaPagamento = (rotulo, data, m, previa) => el('div', 'pagamento-socios',
-    el('div', 'pagamento-data', el('strong', '', diaBr(data)), el('small', '', rotulo)),
-    el('div', 'pagamento-valores',
-      el('span', '', el('small', '', socio1), el('strong', '', reais(m.socio1))),
-      el('span', '', el('small', '', socio2), el('strong', '', reais(m.socio2))),
-      el('span', '', el('small', '', 'Fica na Plannex'), el('strong', '', reais(m.casa)))),
-    el('p', 'pagamento-nota', previa
-      ? `Prévia: ${nomeMes(m.mes)} ainda está em andamento (${reais(m.recebido)} recebidos até agora).`
-      : `Referente a ${nomeMes(m.mes)}: ${reais(m.recebido)} recebidos.`));
-  const pagamentos = el('section', 'bloco',
-    el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('agenda'), 'Pagamento dos sócios'), el('span', 'bloco-dica-topo', '5º dia útil do mês')),
-    el('p', 'bloco-dica', `Divisão de cada R$ 100 recebidos: Plannex ${pctCasa}% · ${socio1} ${pctS1}% · ${socio2} ${pctS2}%. Ajuste na aba Empresa.`),
-    diasAte(pagarFechado) >= 0 ? linhaPagamento(`pagamento de ${MESES[Number(anterior.slice(5)) - 1]}`, pagarFechado, mesAnterior, false) : null,
-    linhaPagamento(`pagamento de ${MESES[Number(atual.slice(5)) - 1]}`, pagarAtual, mesAtual, true));
+  // Próximo pagamento aos sócios: no 5º dia útil, o mês anterior; passado esse dia, o mês atual no próximo.
+  const diaDoMesAtual = quintoDiaUtil(atual);
+  const [dataPagamento, referencia] = diasAte(diaDoMesAtual) >= 0 ? [diaDoMesAtual, mesAnterior] : [quintoDiaUtil(somarMes(atual, 1)), mesAtual];
+  const emAndamento = referencia.mes === atual;
+  const pessoa = (nome, valor, classe) => el('li', `pagamento-pessoa pagamento-pessoa--${classe}`,
+    el('span', 'pagamento-inicial', nome.charAt(0).toUpperCase()), el('span', 'pagamento-nome', nome), el('strong', '', reais(valor)));
+  const pagamento = el('section', 'bloco pagamento',
+    el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('agenda'), 'Próximo pagamento dos sócios')),
+    el('div', 'pagamento-cabeca',
+      el('div', 'pagamento-data', el('strong', '', diaBr(dataPagamento).slice(0, 5)), el('small', '', '5º dia útil')),
+      el('p', 'pagamento-ref', `Referente a ${nomeMes(referencia.mes)}`, el('small', '', emAndamento
+        ? `${reais(referencia.recebido)} recebidos até agora (o mês ainda está em andamento)`
+        : `${reais(referencia.recebido)} recebidos no mês`))),
+    el('ul', 'pagamento-pessoas',
+      pessoa(divisao.socio1, referencia.socio1, 'socio1'),
+      pessoa(divisao.socio2, referencia.socio2, 'socio2'),
+      pessoa('Parte da Plannex', referencia.casa, 'casa')));
 
-  // Mês a mês: o que entrou, a divisão e o que sobrou para a casa.
-  const listaMeses = [...meses.values()].sort((a, b) => b.mes.localeCompare(a.mes)).slice(0, 12);
-  const tabela = el('section', 'bloco',
-    el('div', 'bloco-topo', el('h2', '', 'Mês a mês'), el('span', 'bloco-dica-topo', composicao(listaMeses.slice(0, 3)))),
-    listaMeses.length
-      ? el('div', 'tabela-rolagem', el('table', 'tabela-financeiro',
-        el('thead', '', el('tr', '', ['Mês', 'Recebido', 'Plannex', socio1, socio2, 'Despesas', 'Saldo da casa'].map(t => el('th', '', t)))),
-        el('tbody', '', listaMeses.map(m => el('tr', '',
-          el('td', '', maiuscula(nomeMes(m.mes))), el('td', '', reais(m.recebido)), el('td', '', reais(m.casa)),
-          el('td', '', reais(m.socio1)), el('td', '', reais(m.socio2)), el('td', '', reais(m.despesas)),
-          el('td', m.saldoCasa < 0 ? 'is-negativo' : '', reais(m.saldoCasa)))))))
-      : el('p', 'vazio-mini', 'Ainda não há recebimentos nem despesas registrados.'));
+  // Recebido por mês, em barras: a Parte da Plannex e a parte dos sócios em cores diferentes.
+  const ultimos = [...meses.values()].filter(m => m.recebido > 0).sort((a, b) => b.mes.localeCompare(a.mes)).slice(0, 6);
+  const maior = Math.max(1, ...ultimos.map(m => m.recebido));
+  const grafico = el('section', 'bloco',
+    el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('visao'), 'Recebido por mês'),
+      el('span', 'legenda-divisao', el('i', 'cor-casa'), 'Parte da Plannex', el('i', 'cor-socios'), 'Sócios')),
+    ultimos.length
+      ? el('ul', 'barras-meses', ultimos.map(m => {
+        const total = el('span', 'barra-total');
+        total.style.width = `${Math.max(4, (m.recebido / maior) * 100)}%`;
+        const casa = el('i', 'cor-casa');
+        casa.style.width = `${m.recebido ? (m.casa / m.recebido) * 100 : 0}%`;
+        total.append(casa, el('i', 'cor-socios'));
+        total.title = `Parte da Plannex ${reais(m.casa)} · ${divisao.socio1} ${reais(m.socio1)} · ${divisao.socio2} ${reais(m.socio2)}`;
+        return el('li', '', el('span', 'barra-mes', maiuscula(MESES[Number(m.mes.slice(5)) - 1]).slice(0, 3), el('small', '', m.mes.slice(0, 4))), el('span', 'barra-trilho', total), el('strong', '', reais(m.recebido)));
+      }))
+      : el('p', 'vazio-mini', 'Os meses aparecem aqui quando houver pagamentos registrados nas demandas.'),
+    ultimos.length ? el('p', 'bloco-dica', composicao(ultimos.slice(0, 3))) : null);
 
   raiz.replaceChildren(
-    el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro'), el('p', '', empresa.nome_fantasia ? `${empresa.nome_fantasia}${empresa.cnpj ? ` · CNPJ ${empresa.cnpj}` : ''}` : 'Cadastre os dados da empresa na aba Empresa.'))),
+    el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro'))),
+    blocoEmpresa(raiz, empresa, divisao),
     alertas.length ? blocoAlertas(alertas) : null,
-    el('div', 'grade-financeiro', saude, pagamentos),
     numeros,
-    tabela,
+    el('div', 'grade-financeiro', saude, pagamento),
+    grafico,
     blocoDespesas(raiz));
+}
+
+// Percentuais: a Plannex fica com "casa"; o resto se divide entre os sócios.
+function divisaoDe(empresa) {
+  const casa = Number(empresa.pct_casa ?? 30);
+  const s1 = Math.round((100 - casa) * Number(empresa.pct_socio1 ?? 50)) / 100;
+  return { casa, s1, s2: Math.round((100 - casa - s1) * 100) / 100, socio1: empresa.socio1 || 'Sócio 1', socio2: empresa.socio2 || 'Sócio 2' };
+}
+
+// Barra da divisão (Plannex e os dois sócios), com a legenda embaixo.
+function barraDivisao(d) {
+  const barra = el('div', 'barra-divisao');
+  for (const [classe, pct] of [['casa', d.casa], ['socio1', d.s1], ['socio2', d.s2]]) {
+    const parte = el('span', `divisao-${classe}`);
+    parte.style.width = `${pct}%`;
+    barra.append(parte);
+  }
+  return el('div', 'divisao',
+    barra,
+    el('ul', 'divisao-legenda',
+      el('li', '', el('i', 'divisao-casa'), 'Parte da Plannex ', el('strong', '', `${d.casa}%`)),
+      el('li', '', el('i', 'divisao-socio1'), `${d.socio1} `, el('strong', '', `${d.s1}%`)),
+      el('li', '', el('i', 'divisao-socio2'), `${d.socio2} `, el('strong', '', `${d.s2}%`))));
+}
+
+// Empresa e divisão, no topo do Financeiro: o resumo e, ao clicar em Editar, o formulário.
+function blocoEmpresa(raiz, e, divisao) {
+  const entrada = (nome, valor, extras = {}) => { const i = el('input'); i.name = nome; i.value = valor ?? ''; Object.assign(i, extras); return i; };
+  const fantasia = entrada('nome_fantasia', e.nome_fantasia, { maxLength: 160, placeholder: 'Ex.: Plannex' });
+  const razao = entrada('razao_social', e.razao_social, { maxLength: 160, placeholder: 'Ex.: Plannex Cálculos e Automação Ltda.' });
+  const cnpj = entrada('cnpj', e.cnpj, { maxLength: 18, inputMode: 'numeric', placeholder: '00.000.000/0000-00' });
+  const socio1 = entrada('socio1', divisao.socio1, { maxLength: 80 });
+  const socio2 = entrada('socio2', divisao.socio2, { maxLength: 80 });
+  const pctCasa = entrada('pct_casa', divisao.casa, { type: 'number', min: 0, max: 100, step: '0.5' });
+  const pctSocio1 = entrada('pct_socio1', e.pct_socio1 ?? 50, { type: 'number', min: 0, max: 100, step: '0.5' });
+  cnpj.addEventListener('input', () => {
+    const d = cnpj.value.replace(/\D/g, '').slice(0, 14);
+    cnpj.value = d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+  });
+  // A barra acompanha o que se digita.
+  const previa = el('div', 'previa-divisao');
+  const atualizarPrevia = () => previa.replaceChildren(barraDivisao(divisaoDe({ pct_casa: Number(pctCasa.value) || 0, pct_socio1: Number(pctSocio1.value) || 0, socio1: socio1.value, socio2: socio2.value })));
+  const form = el('div', 'form-empresa',
+    el('div', 'campos-lado campos-lado--3', el('label', 'campo', 'Nome fantasia', fantasia), el('label', 'campo', 'Razão social', razao), el('label', 'campo', 'CNPJ', cnpj)),
+    el('div', 'campos-lado campos-lado--4', el('label', 'campo', 'Sócio 1', socio1), el('label', 'campo', 'Sócio 2', socio2),
+      el('label', 'campo', 'Parte da Plannex (%)', pctCasa), el('label', 'campo', 'Do restante, para o sócio 1 (%)', pctSocio1)),
+    previa);
+  for (const i of form.querySelectorAll('input')) i.addEventListener('input', () => { form.classList.add('is-sujo'); atualizarPrevia(); });
+  atualizarPrevia();
+
+  const detalhes = el('details', 'empresa-editar', el('summary', '', icone('editar'), 'Editar dados e divisão'), form);
+  detalhes.dataset.chave = 'empresa';
+  const salvar = botao('Salvar', 'botao--primario botao--pequeno', async () => {
+    salvar.disabled = true;
+    try {
+      await api('/api/empresa', {
+        method: 'PATCH',
+        corpo: { nome_fantasia: fantasia.value, razao_social: razao.value, cnpj: cnpj.value, socio1: socio1.value, socio2: socio2.value, pct_casa: Number(pctCasa.value), pct_socio1: Number(pctSocio1.value) },
+      });
+      acoes.avisar('Dados da empresa salvos.');
+      form.classList.remove('is-sujo');
+      detalhes.open = false;
+      await desenharFinanceiro(raiz);
+    } catch (erro) {
+      acoes.avisar(erro.message, 'erro');
+      salvar.disabled = false;
+    }
+  }, { icone: 'ok' });
+  form.append(el('div', 'form-acoes', salvar));
+
+  return el('section', 'bloco bloco--empresa',
+    el('div', 'empresa-resumo',
+      el('div', 'empresa-dados',
+        el('strong', '', e.nome_fantasia || 'Empresa sem nome cadastrado'),
+        el('small', '', [e.razao_social, e.cnpj ? `CNPJ ${e.cnpj}` : null].filter(Boolean).join(' · ') || 'Cadastre a razão social e o CNPJ em "Editar dados e divisão".')),
+      barraDivisao(divisao)),
+    detalhes);
 }
 
 function composicao(meses) {
@@ -198,11 +277,11 @@ function composicao(meses) {
   const auto = meses.reduce((s, m) => s + m.automacao, 0);
   const total = calc + auto;
   if (!total) return '';
-  return `Últimos 3 meses: cálculos ${Math.round((calc / total) * 100)}% · automação ${Math.round((auto / total) * 100)}%`;
+  return `Nos últimos 3 meses, ${Math.round((calc / total) * 100)}% veio de cálculos e ${Math.round((auto / total) * 100)}% de automação.`;
 }
 
-function tile(rotulo, valor, quando, detalhe) {
-  return el('div', 'tile tile--fixo', el('span', 'tile-rotulo', rotulo, ' ', el('small', '', quando)), el('strong', 'tile-valor', valor), el('span', 'tile-detalhe', detalhe));
+function tile(rotulo, valor, detalhe) {
+  return el('div', 'tile tile--fixo', el('span', 'tile-rotulo', rotulo), el('strong', 'tile-valor', valor), el('span', 'tile-detalhe', detalhe));
 }
 
 function blocoAlertas(alertas) {

@@ -9,7 +9,6 @@ import { desenharAgenda } from './agenda.js';
 import { desenharEquipe } from './equipe.js';
 import { desenharMateriais } from './materiais.js';
 import { desenharFinanceiro, carregarFinanceiro, alertasFinanceiros } from './financeiro.js';
-import { desenharEmpresa } from './empresa.js';
 import { desenharPreferencias, aplicarTema, temaGuardado, trocarTema, aplicarVisual, visualGuardado } from './preferencias.js';
 import { abrirFicha, atualizarFicha, fichaAberta } from './ficha.js';
 import { abrirNovo } from './novo.js';
@@ -32,7 +31,6 @@ const TELAS = {
   equipe: { titulo: 'Equipe', desenhar: desenharEquipe, admin: true },
   materiais: { titulo: 'Materiais', desenhar: desenharMateriais },
   financeiro: { titulo: 'Financeiro', desenhar: desenharFinanceiro, admin: true },
-  empresa: { titulo: 'Empresa', desenhar: desenharEmpresa, admin: true },
   preferencias: { titulo: 'Preferências', desenhar: desenharPreferencias },
 };
 const podeVer = nome => Boolean(TELAS[nome]) && (!TELAS[nome].admin || eAdmin());
