@@ -1286,5 +1286,16 @@ a.nav-item { text-decoration: none; }
 .aviso-macro { display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; border-radius: 999px; background: var(--alerta-fundo); color: var(--alerta); font-size: 11px; font-weight: 600; }
 .aviso-macro .icone { width: 12px; height: 12px; }
 
+/* Ficha: "Anexar arquivo" pequeno no topo do bloco (no lugar da área grande) e blocos lado a lado. */
+.bloco-topo-acoes, .acao-zip { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.anexar-envio { display: inline-flex; }
+.botao.anexar { cursor: pointer; }
+.botao.anexar.is-enviando { opacity: .6; pointer-events: none; }
+.bloco.is-alvo { border-color: var(--destaque); box-shadow: 0 0 0 3px #f29a6326; }
+.aviso-envio:empty { display: none; }
+.ficha .ficha-painel .ficha-grade--larga { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+@media (max-width: 900px) { .ficha .ficha-painel .ficha-grade--larga { grid-template-columns: minmax(0, 1fr); } }
+
 /* Entregue: o molde em branco do relatório acompanha a altura de "Arquivos da entrega", lado a lado. */
 .ficha-grade > .ficha-coluna > .bloco--moldes:only-child { flex: 1 1 auto; }
+.ficha-grade > .ficha-coluna > .bloco--moldes:not(:only-child) { flex: 0 0 auto; }

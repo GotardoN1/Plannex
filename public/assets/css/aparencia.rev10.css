@@ -333,60 +333,6 @@
 [data-tema="claro"] .contact-success-protocol strong { color: #a14d16 !important; }
 
 /* =====================================================================
-   Leitura (2026-10-05): os textos pequenos demais sobem para um tamanho confortável, sem mudar o visual.
-   Escala mínima: rótulos em maiúsculas 11,5px · selos 11px · legendas e detalhes 12,5–13px ·
-   textos de leitura 14px. Observações curtas (condição de lançamento, aviso de privacidade) ficam em 12px.
-   ===================================================================== */
-
-/* Rótulos em maiúsculas (a caixa alta e o espaçamento já ajudam a ler). */
-:is(.eyebrow, .report-label, .plan-kicker, .simulation-label, .transform-state, .automation-preview-copy small,
-    .hero-price-preview > small, .automation-overview-head span, .automation-overview-head small) { font-size: 11.5px !important; }
-.footer-column h3 { font-size: 11.5px !important; }
-
-/* Selos e pílulas. */
-:is(.hero-price-preview > b, .plan-badge, .calc-price-promo span, .plan-price-promo span, .secondary-mini-ui-status,
-    .secondary-mini-ui-foot > span:first-child) { font-size: 11px !important; }
-
-/* Textos de leitura: descrições, itens de lista e explicações. */
-:is(.calculation-scope-item small, .calc-offer-points li span, .plan-feature-copy, .plan-description, .automation-page article p,
-    .automation-overview p, .calc-price-card > p, .calculation-scope-summary p, .calculation-scope-notes span,
-    .delivery-checks li > span:not(.delivery-icon), .delivery-security span, .contact-after-submit li, .contact-help-card p,
-    .plan-response, .fase small, .grupo-calculos li) { font-size: 14px !important; line-height: 1.5 !important; }
-:is(.delivery-security strong, .plan-feature-copy strong, .calculation-scope-notes strong) { font-size: inherit !important; }
-.contact-field > label, .contact-service-fieldset legend, .contact-plan-fieldset legend, .contact-attachment-fieldset legend { font-size: 14px !important; }
-.contact-after-submit > strong { font-size: 13px !important; }
-.contact-after-submit li > span { font-size: 11px !important; }
-
-/* Legendas, valores secundários e detalhes. */
-:is(.hero-price-note, .hero-price-value span, .calc-price > span, .calc-consultation-price span, .automation-preview-meta,
-    .plan-price-caption, .automation-preview-saving, .automation-preview-price del, .plan-price-promo del, .delivery-checks em,
-    .contact-service-choice-copy small, .contact-plan-choice small, .automation-path-step small) { font-size: 13px !important; }
-.automation-path-step strong { font-size: 14px !important; }
-:is(.secondary-compact-tags span, .calculation-scope-tags span, .transform-issues span) { font-size: 12.5px !important; line-height: 1.2 !important; }
-:is(.sheet-caption span, .sheet-caption small) { font-size: 12px !important; }
-.contact-textarea-example { font-size: 13.5px !important; }
-.contact-field label small, legend small { font-size: 12.5px !important; }
-
-/* Demonstrações (laboratório de cálculo e o fluxo no Excel): ilustrativas, mas legíveis. */
-.pipeline-copy strong { font-size: 13px !important; }
-.pipeline-copy small { font-size: 12px !important; line-height: 1.35 !important; }
-:is(.simulation-bottom p, .demo-modes button) { font-size: 13px !important; }
-.sim-control { font-size: 12.5px !important; }
-:is(.formula-bar code, .formula-bar span, .sheet-tab span, .workbook-title span) { font-size: 12px !important; }
-.secondary-mini-ui-title { font-size: 12.5px !important; }
-.secondary-mini-ui-row strong { font-size: 13px !important; }
-.secondary-mini-ui-row small { font-size: 12px !important; }
-
-/* Botões do visual Sofisticado e rodapé. */
-[data-visual="site"] .button { font-size: 14px !important; }
-.footer-column a, .footer-column a.footer-login-link { font-size: 13.5px !important; }
-.footer-summary, .footer-tagline { font-size: 14px !important; }
-.footer-bottom small { font-size: 12.5px !important; }
-
-/* Observações curtas: podem ser menores, mas sem forçar a vista. */
-:is(.plan-availability-note, .calc-availability-note, .calculos-outros, .contact-privacy-note) { font-size: 12px !important; }
-
-/* =====================================================================
    "Outra frente de serviço · Automação" (no Início): nas cores da página de Automação (azul),
    porque leva ao outro serviço.
    ===================================================================== */
@@ -406,16 +352,33 @@
 [data-tema="claro"] #automacao-chamada :is(.secondary-mini-ui-status, .mini-ui-step, .mini-ui-check, .secondary-mini-ui-title i) { color: #2459a0 !important; }
 [data-tema="claro"] #automacao-chamada .secondary-mini-ui-progress i { background: #2459a0 !important; }
 
-/* Leitura: pontos da página de Automação com regras mais específicas. */
-html body #automacao .automation-preview-card > b { font-size: 11px !important; }
-html body #automacao .automation-snapshot li strong { font-size: 14px !important; }
-html body #automacao .automation-snapshot li span { font-size: 13.5px !important; line-height: 1.5 !important; }
-html body #automacao .plan .plan-price-promo span { font-size: 11px !important; }
-html body #automacao .plan-price-caption { font-size: 13px !important; }
-html body #automacao .mini-sheet :is(th, td) { font-size: 12px !important; }
-html body.rev100-system #automacao .support-plans-two .plan .plan-price-promo span { font-size: 11px !important; }
-html body.rev100-system #inicio .calc-offer-points li strong { font-size: 14px !important; }
-/* Caixa de preço do topo: com a legenda maior, ela quebra em duas linhas em vez de espremer o texto ao lado. */
-.hero-price-value span { white-space: normal !important; max-width: 15em; line-height: 1.35; }
-/* O WhatsApp e a pílula de aparência ficam no canto: o fim do rodapé ganha espaço para não ficar coberto. */
-@media (min-width: 761px) { .site-footer { padding-bottom: 96px !important; } }
+/* =====================================================================
+   Textos que estavam miúdos demais (2026-10-05): aumento pontual, só nesses pontos e sem mudar o visual.
+   O resto do site mantém os tamanhos de antes.
+   ===================================================================== */
+/* Laboratório (passo a passo da demonstração de cálculo). */
+html body .pipeline-copy small { font-size: 11px !important; line-height: 1.35 !important; }
+html body .pipeline-copy strong { font-size: 11.5px !important; }
+/* Contato: "Depois do envio". */
+html body .contact-after-submit li { font-size: 12.5px !important; line-height: 1.45 !important; }
+html body .contact-field label small { font-size: 10.5px !important; }
+/* Selos e etiquetas que estavam com 7–9px. */
+html body .hero-price-preview > b { font-size: 9px !important; }
+html body .hero-price-preview > small { font-size: 10px !important; }
+html body .calc-price-promo span { font-size: 9.5px !important; }
+html body .secondary-mini-ui-status, html body .secondary-mini-ui-foot > span:first-child { font-size: 9.5px !important; }
+html body :is(.secondary-compact-tags span, .calculation-scope-tags span) { font-size: 11px !important; }
+html body .footer-column h3 { font-size: 10px !important; }
+html[data-visual="site"] body #calculos .calc-price-card > .eyebrow { font-size: 10px !important; }
+/* Página de Automação. */
+html body #automacao .automation-preview-card > b, html body #automacao .plan-badge { font-size: 9px !important; }
+html body.rev100-system #automacao .support-plans-two .plan .plan-price-promo span, html body #automacao .plan-price-promo span { font-size: 9.5px !important; }
+html body #automacao .plan-kicker { font-size: 10px !important; }
+html body #automacao .transform-issues span { font-size: 10.5px !important; }
+html body #automacao .transform-state { font-size: 10px !important; }
+html body #automacao .automation-overview-head small { font-size: 9.5px !important; }
+html body #automacao .automation-overview-head span { font-size: 10px !important; }
+html body #automacao .automation-path-step small { font-size: 11px !important; }
+html body #automacao .automation-snapshot li span { font-size: 11.5px !important; }
+html body #automacao .automation-snapshot li strong { font-size: 12px !important; }
+html body #automacao .sheet-caption small { font-size: 10.5px !important; }

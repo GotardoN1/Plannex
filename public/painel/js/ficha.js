@@ -286,10 +286,12 @@ function rodapeDoPainel(c, aba) {
 // Pedido novo ou recusado: quem é, o que pediu e comentários. Aceitar e Recusar ficam no topo.
 function painelEntrada(c) {
   return [
-    eAdmin() ? blocoClassificacao(c) : null,
-    blocoContato(c),
-    blocoSolicitacao(c),
-    comentarios(c, 'entrada', 'Comentários', 'Anotar algo sobre este contato…'),
+    eAdmin()
+      ? el('div', 'ficha-grade', el('div', 'ficha-coluna', blocoClassificacao(c)), el('div', 'ficha-coluna', blocoContato(c)))
+      : blocoContato(c),
+    el('div', 'ficha-grade ficha-grade--larga',
+      el('div', 'ficha-coluna', blocoSolicitacao(c)),
+      el('div', 'ficha-coluna', comentarios(c, 'entrada', 'Comentários', 'Anotar algo sobre este contato…'))),
   ];
 }
 
@@ -348,15 +350,17 @@ function painelPedido(c) {
     eAdmin()
       ? el('div', 'ficha-grade', el('div', 'ficha-coluna', blocoEntrega(c)), el('div', 'ficha-coluna', blocoContato(c)))
       : blocoEntrega(c),
-    blocoSolicitacao(c, { comEnvio: true }),
-    comentarios(c, ['processo_iniciado', 'entrada'], 'Anotações do pedido', 'Ex.: conferi os holerites, falta o índice de março…'),
+    el('div', 'ficha-grade ficha-grade--larga',
+      el('div', 'ficha-coluna', blocoSolicitacao(c, { comEnvio: true })),
+      el('div', 'ficha-coluna', comentarios(c, ['processo_iniciado', 'entrada'], 'Anotações do pedido', 'Ex.: conferi os holerites, falta o índice de março…'))),
   ];
 }
 
 function painelRevisado(c) {
   const partes = [
-    comentarios(c, 'revisado', 'O que o cliente pediu para ajustar', 'Ex.: incluir as horas extras de março e refazer o relatório…', { destaque: true }),
-    blocoArquivos(c, ['entrega'], { titulo: 'Nova versão', icone: 'documento', envio: 'entrega' }),
+    el('div', 'ficha-grade',
+      el('div', 'ficha-coluna', comentarios(c, 'revisado', 'O que o cliente pediu para ajustar', 'Ex.: incluir as horas extras de março e refazer o relatório…', { destaque: true })),
+      el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: 'Nova versão', icone: 'documento', envio: 'entrega' }))),
   ];
   if (c.etapa === 'revisado' && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
@@ -381,12 +385,14 @@ function painelEntregue(c) {
   const registro = entregue ? ultimaEntrega() : null;
   const partes = [];
   if (entregue) partes.push(registroDaEntrega(c, registro));
-  if (entregue && eAdmin()) partes.push(blocoEnvioCliente(c));
   partes.push(
     el('div', 'ficha-grade',
-      el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], { titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c) })),
-      el('div', 'ficha-coluna', blocoMoldes(['relatorio']))),
-    comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'));
+      el('div', 'ficha-coluna', blocoArquivos(c, ['entrega'], {
+        titulo: 'Arquivos da entrega', icone: 'documento', envio: 'entrega', aoEnviar: entregue ? null : () => perguntarSeConclui(c),
+        acaoTopo: entregue && eAdmin() ? acaoZip(c) : null,
+      })),
+      el('div', 'ficha-coluna', blocoMoldes(['relatorio']),
+        comentarios(c, 'entregue', 'Comentário da entrega', 'Ex.: entregue por e-mail ao cliente, com o vídeo explicativo…'))));
   if (c.etapa === 'pedido' && podeMoverPara(c, 'entregue')) {
     partes.push(el('div', 'painel-rodape painel-rodape--destaque',
       !c.iniciado_em && !eAdmin()
@@ -424,9 +430,9 @@ function atualizarMensagens(c) {
 
 // ---------- Envio ao cliente (Conclusão) ----------
 
-// Versão da entrega: v1 na primeira, v2 depois da primeira retificação, e assim por diante.
+// Versão da entrega: Versão 1 na primeira, Versão 2 depois da primeira retificação, e assim por diante.
 const versaoDaEntrega = c => (c.retificacoes || 0) + 1;
-const nomeZip = (c, versao) => `${c.protocolo || `Plannex-${c.id}`}_v${versao}.zip`;
+const nomeZip = (c, versao) => `${c.protocolo || `Plannex-${c.id}`}_Versao-${versao}.zip`;
 
 // Arquivos da versão atual: os enviados depois da última retificação (ou todos, se não houve).
 function arquivosDaVersao() {
@@ -437,11 +443,10 @@ function arquivosDaVersao() {
   return novos.length ? novos : entrega;
 }
 
-function blocoEnvioCliente(c) {
+// "Versão N" e "Baixar em ZIP", no topo de "Arquivos da entrega" (administrador, depois de entregue).
+function acaoZip(c) {
   const versao = versaoDaEntrega(c);
   const nome = nomeZip(c, versao);
-  const resumo = el('p', 'envio-resumo', 'Carregando os arquivos da entrega…');
-  resumo.dataset.envioResumo = '';
 
   // Baixa os arquivos da versão atual e junta num ZIP.
   const baixarZip = async evento => {
@@ -472,9 +477,8 @@ function blocoEnvioCliente(c) {
     }
   };
 
-  return el('section', 'bloco bloco--envio',
-    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('baixar'), 'Arquivos para o cliente'), el('span', 'versao-entrega', `v${versao}`)),
-    el('div', 'envio-linha', resumo, botao(`Baixar em ZIP`, 'botao--primario botao--pequeno', baixarZip, { icone: 'baixar', titulo: `Baixa ${nome} com os arquivos da versão ${versao}` })));
+  return el('span', 'acao-zip', el('span', 'versao-entrega', `Versão ${versao}`),
+    botao('Baixar em ZIP', 'botao--primario botao--pequeno', baixarZip, { icone: 'baixar', titulo: `Baixa ${nome}, com os arquivos da Versão ${versao}` }));
 }
 
 // "Entregue em … por …". O administrador corrige o dia quando a entrega foi registrada depois.
@@ -692,9 +696,12 @@ function blocoSolicitacao(c, { comEnvio = false } = {}) {
   const anexo = el('div', 'dado dado--largo', el('dt', '', 'Anexo do cliente'), el('dd', '', resposta ? el('span', 'resposta', resposta) : null, lista));
   campos.push(anexo, item('Observações adicionais', c.observacoes, true));
 
-  const partes = [el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('documento'), 'Solicitação')), el('dl', 'dados dados--texto', campos)];
-  if (comEnvio && !somenteLeitura(c)) partes.push(...zonaDeEnvio(c, 'cliente'));
-  return el('section', 'bloco bloco--solicitacao', partes);
+  const anexar = comEnvio && !somenteLeitura(c) ? zonaDeEnvio(c, 'cliente') : null;
+  const secao = el('section', 'bloco bloco--solicitacao',
+    el('div', 'bloco-topo', el('h3', 'titulo-icone', icone('documento'), 'Solicitação'), anexar?.botao || null),
+    el('dl', 'dados dados--texto', campos), anexar?.status || null);
+  anexar?.soltarEm(secao);
+  return secao;
 }
 
 // "largo": textos longos ocupam a linha toda; os curtos ficam lado a lado.
@@ -831,10 +838,13 @@ function blocoArquivos(c, categorias, opcoes = {}) {
   const lista = el('ul', 'documentos documentos--miniaturas', el('li', 'carregando', 'Carregando…'));
   lista.dataset.lista = 'arquivos';
   lista.dataset.categorias = visiveis.join(',');
-  const partes = [el('div', 'bloco-topo', el('h3', 'titulo-icone', icone(opcoes.icone || 'anexo'), opcoes.titulo)), lista];
   const envio = opcoes.envio || visiveis[0];
-  if (!somenteLeitura(c) && visiveis.includes(envio)) partes.push(...zonaDeEnvio(c, envio, opcoes.aoEnviar));
-  return el('section', 'bloco bloco--documentos', partes);
+  const anexar = !somenteLeitura(c) && visiveis.includes(envio) ? zonaDeEnvio(c, envio, opcoes.aoEnviar) : null;
+  const topo = el('div', 'bloco-topo', el('h3', 'titulo-icone', icone(opcoes.icone || 'anexo'), opcoes.titulo),
+    el('span', 'bloco-topo-acoes', opcoes.acaoTopo || null, anexar?.botao || null));
+  const secao = el('section', 'bloco bloco--documentos', topo, lista, anexar?.status || null);
+  anexar?.soltarEm(secao);
+  return secao;
 }
 
 // Formatos aceitos em cada envio (o servidor confere a mesma lista e o conteúdo real; ver src/arquivos.js).
@@ -859,11 +869,11 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
   entrada.className = 'sr';
   entrada.id = id;
 
-  const status = el('p', 'aviso');
-  const zona = el('label', 'zona-envio', icone('enviar'),
-    el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
-    el('small', '', `${formatos.texto} · até 10 MB`));
+  const status = el('p', 'aviso aviso-envio');
+  // Botão pequeno no topo do bloco; arrastar o arquivo para o bloco também envia.
+  const zona = el('label', 'botao botao--fantasma botao--pequeno anexar', icone('anexo'), el('span', '', 'Anexar arquivo'));
   zona.htmlFor = id;
+  zona.title = `${formatos.texto} · até 10 MB. Também dá para arrastar o arquivo para este quadro.`;
 
   const enviarUm = async arquivo => {
     if (arquivo.size > 10 * 1024 * 1024) throw new Error(`${arquivo.name} passa de 10 MB.`);
@@ -900,14 +910,17 @@ function zonaDeEnvio(c, categoria, aoEnviar) {
     }
   };
   entrada.addEventListener('change', () => enviar(entrada.files));
-  zona.addEventListener('dragover', evento => { evento.preventDefault(); zona.classList.add('is-alvo'); });
-  zona.addEventListener('dragleave', () => zona.classList.remove('is-alvo'));
-  zona.addEventListener('drop', evento => {
-    evento.preventDefault();
-    zona.classList.remove('is-alvo');
-    enviar(evento.dataTransfer.files);
-  });
-  return [el('div', 'envio envio--simples', entrada, zona), status];
+  // O quadro inteiro aceita soltar arquivos.
+  const soltarEm = alvo => {
+    alvo.addEventListener('dragover', evento => { evento.preventDefault(); alvo.classList.add('is-alvo'); });
+    alvo.addEventListener('dragleave', evento => { if (!alvo.contains(evento.relatedTarget)) alvo.classList.remove('is-alvo'); });
+    alvo.addEventListener('drop', evento => {
+      evento.preventDefault();
+      alvo.classList.remove('is-alvo');
+      enviar(evento.dataTransfer.files);
+    });
+  };
+  return { botao: el('span', 'anexar-envio', entrada, zona), status, soltarEm };
 }
 
 // ---------- Moldes em branco ----------
@@ -1124,18 +1137,7 @@ function itemHistorico(i, c) {
     el('div', 'evento-conteudo', conteudo, el('time', '', dataHora(i.quando))));
 }
 
-function preencherEnvio() {
-  const resumo = janela().querySelector('[data-envio-resumo]');
-  if (!resumo || !dados.carregado) return;
-  const lista = arquivosDaVersao();
-  const c = contatoPorId(atualId);
-  resumo.replaceChildren(lista.length
-    ? `${lista.length} arquivo${lista.length > 1 ? 's' : ''} da versão ${versaoDaEntrega(c)}: ${lista.map(a => a.nome).join(', ')}.`
-    : 'Ainda não há arquivos da entrega.');
-}
-
 function preencher() {
-  preencherEnvio();
   if (!dados.carregado) return;
   preencherArquivos();
   preencherComentarios();

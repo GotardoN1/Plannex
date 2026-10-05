@@ -102,7 +102,7 @@ const ASSUNTOS = {
 
 export function assuntoMensagem(c, qual = momento(c), { versao = 1 } = {}) {
   const protocolo = c.protocolo ? ` · Ref. ${c.protocolo}` : '';
-  const versaoTexto = qual === 'entregue' && versao > 1 ? ` (v${versao})` : '';
+  const versaoTexto = qual === 'entregue' && versao > 1 ? ` (Versão ${versao})` : '';
   return `Plannex · ${ASSUNTOS[qual] || `Sua solicitação de ${SERVICOS[c.servico]?.nome.toLowerCase() || 'serviço'}`}${versaoTexto}${protocolo}`;
 }
 
