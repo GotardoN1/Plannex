@@ -240,23 +240,59 @@ function setHeaderCtaText(text) {
   }, 190);
 }
 
+// Endereços do site, sem "#": cada página e cada seção com atalho tem o seu caminho.
+const PAGE_PATHS = { inicio: '/', automacao: '/automacao', contato: '/contato' };
+const SECTION_PATHS = {
+  calculos: '/calculos',
+  'como-funciona-inicio': '/como-funciona',
+  'contratacao-calculos': '/formas-de-contratacao',
+  'planos-automacao': '/planos-de-automacao',
+};
+// Caminho → { page } ou { section }. Aceita também os endereços antigos com "#" (links já compartilhados).
+function routeOf(pathname, hash = '') {
+  const path = (pathname || '/').replace(/\/index\.html$/, '/').replace(/(.)\/+$/, '$1') || '/';
+  const fromHash = (hash || '').replace(/^#\/?/, '');
+  if (fromHash) {
+    if (pageIds.includes(fromHash)) return { page: fromHash };
+    if (SECTION_PATHS[fromHash] || document.getElementById(fromHash)) return { section: fromHash };
+  }
+  if (path === '/' || path === '/inicio') return { page: 'inicio' };
+  const page = Object.keys(PAGE_PATHS).find(id => PAGE_PATHS[id] === path);
+  if (page) return { page };
+  const section = Object.keys(SECTION_PATHS).find(id => SECTION_PATHS[id] === path);
+  return section ? { section } : null;
+}
+const pathOfLink = link => {
+  try { const url = new URL(link.getAttribute('href'), location.href); return url.origin === location.origin ? url : null; } catch { return null; }
+};
+// Canonical de cada página (as seções apontam para a página delas).
+function setCanonical(pageId) {
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) return;
+  const base = new URL(canonical.href).origin;
+  canonical.href = base + PAGE_PATHS[pageId];
+  document.querySelector('meta[property="og:url"]')?.setAttribute('content', base + PAGE_PATHS[pageId]);
+}
+
 function showPage(id, focus = false) {
   const targetId = pageIds.includes(id) ? id : 'inicio';
   const oldId = document.body.dataset.page;
   const changedPage = oldId !== targetId;
   pages.forEach(page => page.classList.toggle('is-active', page.id === targetId));
   $$('header nav a').forEach(link => {
-    const active = link.hash === '#' + targetId;
+    const url = pathOfLink(link);
+    const active = Boolean(url) && routeOf(url.pathname)?.page === targetId;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
   document.body.dataset.page = targetId;
+  setCanonical(targetId);
   const automationContext = targetId === 'automacao';
   const headerCta = $('#header-cta');
   setHeaderCtaText(automationContext ? 'Solicitar automação' : targetId === 'contato' ? 'Enviar solicitação' : 'Solicitar cálculo');
   if (headerCta) {
-    headerCta.href = '#contato';
+    headerCta.href = '/contato';
     headerCta.dataset.contactArea = automationContext ? 'automacao' : targetId === 'inicio' ? 'calculos' : '';
   }
   if (changedPage) window.scrollTo({ top: 0, behavior: 'auto' });
@@ -276,14 +312,20 @@ function showPage(id, focus = false) {
   updateReadingProgress();
 }
 function navigate(id, focus = true) {
-  if (location.hash !== '#' + id) history.pushState(null, '', '#' + id);
+  if (location.pathname !== PAGE_PATHS[id]) history.pushState(null, '', PAGE_PATHS[id]);
   showPage(id, focus);
 }
-$$('a[href^="#"]').forEach(link => {
+// Links internos para as páginas (Início, Serviço de Automação, Contato) trocam a página sem recarregar.
+$$('a[href]').forEach(link => {
   if (link.hasAttribute('data-scroll-target') || link.hasAttribute('data-contact-area') || link.hasAttribute('data-contact-context')) return;
-  const id = link.getAttribute('href').slice(1);
-  if (!pageIds.includes(id)) return;
-  link.addEventListener('click', event => { event.preventDefault(); navigate(id); });
+  const url = pathOfLink(link);
+  const route = url && !url.hash ? routeOf(url.pathname) : null;
+  if (!route?.page) return;
+  link.addEventListener('click', event => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1) return;
+    event.preventDefault();
+    navigate(route.page);
+  });
 });
 // Rola até a seção. Não depende só do próximo quadro de animação (que alguns navegadores atrasam ou
 // pausam): o que vier primeiro, o quadro ou um temporizador curto, faz a rolagem uma única vez. Se a
@@ -310,7 +352,8 @@ const pageOfSection = id => {
 function goToSection(id, { push = true } = {}) {
   const found = pageOfSection(id);
   if (!found) return false;
-  if (push && location.hash !== '#' + id) history.pushState(null, '', '#' + id);
+  const path = SECTION_PATHS[id] || PAGE_PATHS[found.pageId];
+  if (push && location.pathname !== path) history.pushState(null, '', path);
   showPage(found.pageId, false);
   scrollToSection(found.target);
   return true;
@@ -326,17 +369,28 @@ $('.skip-link')?.addEventListener('click', event => {
   $('#conteudo').focus({ preventScroll: true });
   $('#conteudo').scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
 });
-window.addEventListener('hashchange', () => {
-  const id = location.hash.slice(1);
-  // Endereço de uma seção (ex.: #calculos, #contratacao-calculos): abre a página dela e rola até lá.
-  if (id && !pageIds.includes(id) && goToSection(id, { push: false })) return;
-  if (id && !pageIds.includes(id)) {
-    history.replaceState(null, '', '#inicio');
-    showPage('inicio', true);
-    return;
-  }
-  showPage(id, true);
+// Voltar e avançar do navegador.
+window.addEventListener('popstate', () => {
+  const route = routeOf(location.pathname);
+  if (route?.section && goToSection(route.section, { push: false })) return;
+  showPage(route?.page || 'inicio', true);
 });
+// Endereço antigo com "#" digitado ou aberto na mesma aba (ex.: /#contato): troca pelo caminho limpo.
+window.addEventListener('hashchange', () => {
+  const route = routeOf('/', location.hash);
+  if (!route) return;
+  if (route.section) {
+    history.replaceState(null, '', SECTION_PATHS[route.section] || '/');
+    goToSection(route.section, { push: false });
+  } else {
+    history.replaceState(null, '', PAGE_PATHS[route.page]);
+    showPage(route.page, true);
+  }
+});
+// Seção do endereço atual (ex.: /como-funciona), para abrir a parte recolhida no celular.
+function sectionFromLocation() {
+  return routeOf(location.pathname, location.hash)?.section || '';
+}
 $('#year').textContent = new Date().getFullYear();
 
 // A lightweight reading cue uses one animation frame per scroll update.
@@ -352,12 +406,16 @@ function updateReadingProgress() {
 }
 window.addEventListener('scroll', updateReadingProgress, { passive: true });
 window.addEventListener('resize', updateReadingProgress, { passive: true });
-const initialHash = location.hash.slice(1);
-if (initialHash && !pageIds.includes(initialHash)) history.replaceState(null, '', '#inicio');
-showPage(pageIds.includes(initialHash) ? initialHash : (pageOfSection(initialHash)?.pageId || 'inicio'));
-if (initialHash && !pageIds.includes(initialHash)) {
-  const found = pageOfSection(initialHash);
+// Endereço inicial. Os antigos com "#" (ex.: /#contato) viram o caminho limpo (/contato).
+const initialRoute = routeOf(location.pathname, location.hash) || { page: 'inicio' };
+const initialPath = initialRoute.section ? SECTION_PATHS[initialRoute.section] : PAGE_PATHS[initialRoute.page];
+if (initialPath && (location.pathname !== initialPath || location.hash)) history.replaceState(null, '', initialPath + location.search);
+if (initialRoute.section) {
+  const found = pageOfSection(initialRoute.section);
+  showPage(found?.pageId || 'inicio');
   if (found) window.addEventListener('load', () => scrollToSection(found.target), { once: true });
+} else {
+  showPage(initialRoute.page);
 }
 
 // Movimento ambiente sutil: a luz acompanha o cursor sem interferir na leitura.
@@ -555,7 +613,7 @@ $$('a[data-contact-area],button[data-contact-area]').forEach(control => {
       ], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
 
-    if (location.hash !== '#contato') history.pushState(null, '', '#contato');
+    if (location.pathname !== '/contato') history.pushState(null, '', '/contato');
     showPage('contato', false);
     if (['calculos','automacao'].includes(service)) setContactService(service, { plan: presetPlan });
     requestAnimationFrame(() => {
@@ -1243,13 +1301,14 @@ function initMobileSectionToggles(){
     if(toggle)setOpen(toggle,true);
   },true);
   const openHashTarget=()=>{
-    if(!mobileQuery.matches||!location.hash)return;
-    const id=location.hash.slice(1);
+    if(!mobileQuery.matches)return;
+    const id=sectionFromLocation();
+    if(!id)return;
     const toggle=toggles.find(item=>item.dataset.mobileToggle===id);
     if(toggle)setOpen(toggle,true);
   };
   openHashTarget();
-  window.addEventListener('hashchange',openHashTarget);
+  window.addEventListener('popstate',openHashTarget);
   if(typeof mobileQuery.addEventListener==='function')mobileQuery.addEventListener('change',sync);
   else if(typeof mobileQuery.addListener==='function')mobileQuery.addListener(sync);
   sync();

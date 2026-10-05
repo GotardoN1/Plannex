@@ -28,7 +28,8 @@ const ENTREGAVEIS = {
 const EMPRESA = /(^|[\s(])(ltda|s\/?a|eireli|me|epp|construtora|distribuidora|escrit[óo]rio|com[ée]rcio|ind[úu]stria|associa[çc][ãa]o|cl[íi]nica|mercado|padaria|loja|hotel|academia|gr[áa]fica|contabilidade|farm[áa]cia|transportadora|auto pe[çc]as|advogados|advocacia|grupo|empresa)($|[\s.,)])/i;
 const nomeDe = c => (EMPRESA.test(c.nome || '') ? c.nome : primeiroNome(c.nome));
 const servicoTexto = c => (c.servico === 'automacao' ? 'automação de planilha' : 'cálculo');
-const assinatura = '\n\nAtenciosamente, Equipe Plannex.';
+// A assinatura vem logo depois do último parágrafo, numa linha só.
+const assinatura = '\nAtenciosamente, Equipe Plannex.';
 
 // Em que momento a demanda está, para escolher a mensagem.
 export function momento(c) {
@@ -48,46 +49,46 @@ export const MOMENTOS = {
 
 // Texto da mensagem. "versao" só vale para a entrega (v1, v2…).
 export function textoMensagem(c, qual = momento(c), { versao = 1 } = {}) {
-  const ola = `Olá, ${nomeDe(c)}! Tudo bem?`;
+  // Saudação; em algumas mensagens, com o protocolo da solicitação entre parênteses.
+  const ola = (comProtocolo = false) => `Olá, ${nomeDe(c)}!${comProtocolo && c.protocolo ? ` (Protocolo ${c.protocolo})` : ''}`;
   const dias = PRAZO_DIAS[c.servico] || 3;
-  const centavos = valorDaDemanda(c);
-  const valor = centavos !== null ? reais(centavos) : '';
+  const entregaveis = ENTREGAVEIS[c.servico] || 'os arquivos finais';
   switch (qual) {
     case 'recusado':
       return `Olá, ${nomeDe(c)}. Agradecemos o contato com a Plannex e o interesse em nossos serviços.\n\n`
-        + `Analisamos a sua solicitação com atenção e, infelizmente, ela não se enquadra no tipo de serviço que realizamos no momento. Por isso, não poderemos atendê-la.\n\n`
+        + 'Analisamos a sua solicitação com atenção e, infelizmente, ela não se enquadra no tipo de serviço que realizamos no momento. Por isso, não poderemos atendê-la.\n\n'
         + 'Se surgir outra necessidade de cálculos judiciais e financeiros ou de automação de planilhas, ficaremos à disposição.'
         + assinatura;
     case 'nota_emitida':
-      return `${ola}\n\nSomos da equipe da Plannex e temos a satisfação de informar que a sua solicitação de ${servicoTexto(c)} foi aceita. Segue a Ordem de Serviço com o escopo, o prazo${valor ? ' e o valor' : ''} do trabalho.\n\n`
-        + `Por gentileza, confira a documentação${valor ? ` e o valor (${valor})` : ' e os valores'}. Estando tudo de acordo, para darmos início:\n`
+      return `${ola()}\n\nA sua solicitação foi aceita com sucesso.\nSegue a Ordem de Serviço com o escopo, o prazo e o valor do trabalho.\n\n`
+        + 'Por gentileza, confira a documentação e siga o passo a passo:\n'
         + '1. Assine a Ordem de Serviço e nos envie de volta;\n'
         + `2. Efetue o pagamento via PIX ${PIX.chave} e nos envie o comprovante.\n\n`
-        + `O prazo estimado é de ${dias} dias úteis a partir da confirmação. Qualquer dúvida, é só responder esta mensagem.`
+        + `O prazo estimado é de ${dias} dias úteis a partir da confirmação. Em caso de dúvida, basta responder a esta mensagem.`
         + assinatura;
     case 'pedido':
-      return `${ola}\n\nConfirmamos o recebimento do Pagamento e Ordem de Serviço. A sua demanda já está em execução com a nossa equipe`
-        + `${c.prazo ? `, com entrega prevista até ${diaBr(c.prazo)}` : ''}.\n\nAvisaremos assim que estiver pronta.`
+      return `${ola()}\n\nConfirmamos o recebimento do pagamento e da Ordem de Serviço. A sua demanda já está em execução com a nossa equipe`
+        + `${c.prazo ? `, com entrega prevista até ${diaBr(c.prazo)}` : ''}.`
         + assinatura;
     case 'revisado':
-      return `${ola}\n\nRecebemos os ajustes solicitados e já estamos preparando a nova versão, que será revisada em até 1 dia útil. Avisaremos assim que estiver pronta.\n\n`
-        + 'Se preferir, podemos agendar uma reunião rápida de alinhamento; é só nos informar o melhor dia e horário.'
+      return `${ola(true)}\n\nRecebemos os ajustes solicitados e já estamos preparando a nova versão, que será revisada em até 1 dia útil. Avisaremos assim que estiver pronta.`
         + assinatura;
     case 'entregue':
-      return `${ola}\n\nSomos da equipe da Plannex e temos o prazer de informar que a sua demanda está concluída${versao > 1 ? ', já com os ajustes solicitados' : ''}. `
-        + `Seguem abaixo os anexos com ${ENTREGAVEIS[c.servico] || 'os arquivos finais'}.\n\n`
-        + 'Por gentileza, confira o material. Se precisar de algum ajuste, é só responder esta mensagem informando o que deve ser alterado.\n\nObrigado pela confiança!'
-        + assinatura;
+      return versao > 1
+        ? `${ola()}\n\nInformamos que a sua demanda está concluída, já com os ajustes solicitados. Por gentileza, confira o material enviado; aguardamos a sua aprovação.\n\n`
+          + `Seguem abaixo os anexos com ${entregaveis}.` + assinatura
+        : `${ola()}\n\nTemos o prazer de informar que a sua demanda está concluída. Por gentileza, confira o material enviado; aguardamos a sua aprovação.\n\n`
+          + `Seguem abaixo os anexos com ${entregaveis}.` + assinatura;
     case 'concluido':
-      return `${ola}\n\nA sua demanda foi concluída. Agradecemos pela confiança no trabalho da Plannex.\n\n`
-        + 'Quando precisar de uma nova demanda, entre em contato efetuando uma nova solicitação no site.'
+      return `${ola(true)}\n\nA sua demanda foi concluída. Agradecemos a confiança no trabalho da Plannex.`
         + assinatura;
     default:
-      return `${ola}\n\nSomos da equipe da Plannex. Recebemos a sua solicitação de ${servicoTexto(c)} e já estamos analisando as informações e os documentos enviados.\n\n`
-        + 'Em breve retornaremos com a análise, o prazo e os próximos passos. Se quiser complementar algo, é só responder esta mensagem.'
+      return `${ola(true)}\n\nSomos da equipe da Plannex. Recebemos a sua solicitação de ${servicoTexto(c)} e já estamos analisando as informações e os documentos enviados.\n\n`
+        + 'Em breve retornaremos com a análise, o prazo e os próximos passos.'
         + assinatura;
   }
 }
+
 
 const ASSUNTOS = {
   recebido: 'Recebemos a sua solicitação',

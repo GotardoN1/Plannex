@@ -8,7 +8,8 @@
     "directory": "./public",
     "binding": "ASSETS",
     // Só a API passa pelo código; o resto sai direto dos arquivos, com os cabeçalhos do _headers.
-    "run_worker_first": ["/api/*"],
+    // e os endereços limpos do site (/automacao, /contato…), que entregam a página única.
+    "run_worker_first": ["/api/*", "/inicio", "/automacao", "/contato", "/calculos", "/como-funciona", "/formas-de-contratacao", "/planos-de-automacao", "/termos"],
     // Endereço que não existe: mostra a página 404.html (com status 404).
     "not_found_handling": "404-page"
   },
@@ -42,7 +43,7 @@
         "directory": "./public",
         "binding": "ASSETS",
         // A página inicial também passa pelo código, que leva direto à Central.
-        "run_worker_first": ["/api/*", "/", "/index.html", "/robots.txt"],
+        "run_worker_first": ["/api/*", "/", "/index.html", "/robots.txt", "/inicio", "/automacao", "/contato", "/calculos", "/como-funciona", "/formas-de-contratacao", "/planos-de-automacao", "/termos"],
         "not_found_handling": "404-page"
       },
       "d1_databases": [

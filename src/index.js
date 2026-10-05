@@ -115,7 +115,11 @@ export default {
     const url = new URL(request.url);
     const env = await prepararAmbienteSePreciso(envOriginal, url);
     // Na demonstração o site público leva direto à Central: o formulário de lá mandaria e-mail de verdade.
-    if (emDemo(env) && ['/', '/index.html'].includes(url.pathname)) return Response.redirect(new URL('/painel/', url), 302);
+    // Endereços limpos do site (sem "#"): todos entregam a página única; a de privacidade também responde por /termos.
+    const caminho = url.pathname.replace(/(.)\/+$/, '$1');
+    if (ROTAS_DO_SITE.includes(caminho) && !emDemo(env)) return env.ASSETS.fetch(new Request(new URL('/', url), request));
+    if (caminho === '/termos') return env.ASSETS.fetch(new Request(new URL('/privacidade', url), request));
+    if (emDemo(env) && ['/', '/index.html', ...ROTAS_DO_SITE].includes(caminho)) return Response.redirect(new URL('/painel/', url), 302);
     // A demonstração não deve aparecer em buscadores.
     if (emDemo(env) && url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
@@ -139,9 +143,13 @@ export default {
   },
 };
 
-// O ambiente só é conferido quando importa (API, página inicial e robots.txt da demonstração).
+// Caminhos do site que mostram a página única (index.html), cada um abrindo a sua página ou seção.
+const ROTAS_DO_SITE = ['/inicio', '/automacao', '/contato', '/calculos', '/como-funciona', '/formas-de-contratacao', '/planos-de-automacao'];
+
+// O ambiente só é conferido quando importa (API, página inicial, rotas do site e robots.txt da demonstração).
 function prepararAmbienteSePreciso(env, url) {
-  const importa = url.pathname.startsWith('/api/') || ['/', '/index.html', '/robots.txt'].includes(url.pathname);
+  const caminho = url.pathname.replace(/(.)\/+$/, '$1');
+  const importa = url.pathname.startsWith('/api/') || ['/', '/index.html', '/robots.txt', ...ROTAS_DO_SITE].includes(caminho);
   return importa ? prepararAmbiente(env) : { ...env, DEMO_ATIVA: false };
 }
 

@@ -113,7 +113,7 @@ Para publicar uma versão nova da demonstração: `npm run deploy:demo`. Para ve
 
 ```
 public/                     tudo que o site publica
-  index.html                página única, navegação por âncoras (#inicio, #automacao, #contato)
+  index.html                página única, com endereços limpos (/, /automacao, /contato…)
   _headers                  cabeçalhos de segurança e cache
   assets/css, assets/img    estilos, logo, ícones e imagem de compartilhamento
   assets/js/script.revNNN.js        navegação, animações, demonstrações e envio do formulário por e-mail
@@ -194,7 +194,7 @@ Copia o banco inteiro (`banco.sql`) e cada arquivo do KV para `backups/AAAA-MM-D
 
 `robots.txt` libera o site e bloqueia `/painel/` e `/api/`; `sitemap.xml` lista a página inicial e a de privacidade; as duas páginas têm `canonical`. Hoje usam o endereço `misty-king-c67fe.luh20123.workers.dev`: quando o domínio próprio estiver ligado ao Worker, troque nesses três lugares (index.html, privacidade.html, sitemap.xml e robots.txt). Endereço que não existe mostra `404.html` com status 404 (`not_found_handling` no `wrangler.jsonc`). Na demonstração, o `robots.txt` pede para não indexar nada.
 
-O site é uma página só (`index.html`) e as seções mudam por âncora (`/#automacao`, `/#contato`); os atalhos do rodapé levam direto à seção (`/#calculos`, `/#contratacao-calculos`…), inclusive abrindo o endereço em outra aba.
+O site é uma página só (`index.html`), com endereços limpos, sem "#": `/`, `/automacao`, `/contato` e as seções com atalho (`/calculos`, `/como-funciona`, `/formas-de-contratacao`, `/planos-de-automacao`). O Worker entrega a página única nesses caminhos (`ROTAS_DO_SITE` em `src/index.js` e `run_worker_first` no `wrangler.jsonc`) e o script abre a página ou rola até a seção, com voltar/avançar do navegador funcionando. Endereços antigos com "#" (ex.: `/#contato`) continuam valendo e viram o caminho limpo. `/privacidade` e `/termos` abrem a página de Privacidade e Termos. Para um caminho novo, inclua-o nos três lugares (`ROTAS_DO_SITE`, `run_worker_first` e `SECTION_PATHS`/`PAGE_PATHS` no script).
 
 ## Segurança do site
 
