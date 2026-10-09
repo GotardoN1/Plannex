@@ -11,7 +11,7 @@ Site da **Plannex**, com duas frentes de serviço:
 
 | Seção | O que mostra |
 | --- | --- |
-| Início | Serviços de cálculo, fases do processo, a lista de cálculos que atendemos, formas de contratação (cálculo simples, pacote de 10 cálculos e personalizado) e o passo a passo do atendimento. No celular, "Do cálculo pontual…" e "Do pedido inicial…" ficam recolhidas lá embaixo, junto das demais, antes de "Ver detalhes da entrega técnica" |
+| Início | Serviços de cálculo, fases do processo, a lista de cálculos que atendemos, formas de contratação (Cálculo Geral, R$ 199,90, e Cálculo Personalizado, com valor após análise) e o passo a passo do atendimento. No celular, "Do cálculo pontual…" e "Do pedido inicial…" ficam recolhidas lá embaixo, junto das demais, antes de "Ver detalhes da entrega técnica" |
 | Laboratório Plannex | Demonstração animada de uma memória de cálculo indo dos documentos ao parecer, com dados fictícios |
 | Serviço de Automação | Planos de automação, a demonstração "da bagunça ao controle" e a lista do que pode ser automatizado |
 | Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta; planos de cálculo e de automação, inclusive os personalizados (sob orçamento). Pede CPF ou CNPJ (com conferência dos dígitos) ao lado do e-mail e aceita o WhatsApp com ou sem +55. O anexo começa em "Enviar depois"; quem escolhe "Sim, anexar" precisa subir pelo menos um arquivo. Depois do envio, uma caixa avisa "Pedido efetuado com sucesso! Entraremos em contato após a análise da solicitação.", com o número da solicitação bem pequeno no pé (é referência da equipe, não para o cliente acompanhar) |
@@ -20,7 +20,7 @@ Site da **Plannex**, com duas frentes de serviço:
 | Aparência | Pílula no canto inferior esquerdo: modo noturno (claro/escuro) e visual Simples ou Sofisticado (o original do site). A escolha fica no navegador e vale também na Central |
 | Central (`/painel/`) | Só com login: contatos, pedidos, prazos e pagamentos da equipe |
 
-Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev1.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões.
+Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev2.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões.
 
 ## Central Plannex (painel interno)
 
@@ -193,7 +193,7 @@ Copia o banco inteiro (`banco.sql`) e cada arquivo do KV para `backups/AAAA-MM-D
 
 ## Endereços, buscadores e 404
 
-`robots.txt` libera o site e bloqueia `/painel/` e `/api/`; `sitemap.xml` lista a página inicial e a de privacidade; as duas páginas têm `canonical`. Hoje usam o endereço `misty-king-c67fe.luh20123.workers.dev`: quando o domínio próprio estiver ligado ao Worker, troque nesses três lugares (index.html, privacidade.html, sitemap.xml e robots.txt). Endereço que não existe mostra `404.html` com status 404 (`not_found_handling` no `wrangler.jsonc`). Na demonstração, o `robots.txt` pede para não indexar nada.
+`robots.txt` libera o site e bloqueia `/painel/` e `/api/`; `sitemap.xml` lista a página inicial e a de privacidade; as duas páginas têm `canonical`. Usam o domínio oficial `plannex.online` (index.html, privacidade.html, sitemap.xml e robots.txt). Endereço que não existe mostra `404.html` com status 404 (`not_found_handling` no `wrangler.jsonc`). Na demonstração, o `robots.txt` pede para não indexar nada.
 
 O site é uma página só (`index.html`), com endereços limpos, sem "#": `/`, `/automacao`, `/contato` e as seções com atalho (`/calculos`, `/como-funciona`, `/formas-de-contratacao`, `/planos-de-automacao`). O Worker entrega a página única nesses caminhos (`ROTAS_DO_SITE` em `src/index.js` e `run_worker_first` no `wrangler.jsonc`) e o script abre a página ou rola até a seção, com voltar/avançar do navegador funcionando. Endereços antigos com "#" (ex.: `/#contato`) continuam valendo e viram o caminho limpo. `/privacidade` e `/termos` abrem a página de Privacidade e Termos. Para um caminho novo, inclua-o nos três lugares (`ROTAS_DO_SITE`, `run_worker_first` e `SECTION_PATHS`/`PAGE_PATHS` no script).
 

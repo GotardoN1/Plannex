@@ -21,18 +21,18 @@ const NOMES = [
 
 const PEDIDOS = {
   calculos: [
-    ['Cálculo simples', 'Atualização de valores de uma reclamação trabalhista com três parcelas em atraso desde 2023.'],
-    ['Cálculo personalizado', 'Preciso conferir o cálculo de liquidação apresentado pela outra parte. Acho que os juros estão errados.'],
-    ['Cálculo simples', 'Revisão de contrato de financiamento de veículo com juros acima do contratado.'],
-    ['Cálculo personalizado', 'Processo com quatro autores e várias verbas: horas extras, adicional noturno e reflexos.'],
-    ['Cálculo simples', 'Atualização monetária de uma dívida de aluguel para notificar o inquilino.'],
+    ['Cálculo Geral', 'Atualização de valores de uma reclamação trabalhista com três parcelas em atraso desde 2023.'],
+    ['Cálculo Personalizado', 'Preciso conferir o cálculo de liquidação apresentado pela outra parte. Acho que os juros estão errados.'],
+    ['Cálculo Geral', 'Revisão de contrato de financiamento de veículo com juros acima do contratado.'],
+    ['Cálculo Personalizado', 'Processo com quatro autores e várias verbas: horas extras, adicional noturno e reflexos.'],
+    ['Cálculo Geral', 'Atualização monetária de uma dívida de aluguel para notificar o inquilino.'],
   ],
   automacao: [
-    ['Automação pontual', 'Hoje lanço as vendas em três abas e depois copio para o relatório mensal. Quero um botão que faça tudo.'],
-    ['Pacote Evolução', 'Controle de estoque com entrada e saída. Perco muito tempo atualizando o saldo à mão.'],
-    ['Automação pontual', 'Planilha de comissões dos vendedores, com fechamento por mês e relatório por vendedor.'],
-    ['Pacote Evolução', 'Cadastro de clientes e agenda de visitas, com aviso de quem está sem visita há 30 dias.'],
-    ['Automação pontual', 'Fluxo de caixa com gráfico mensal e alerta quando o saldo previsto fica negativo.'],
+    ['Automação sob medida', 'Hoje lanço as vendas em três abas e depois copio para o relatório mensal. Quero um botão que faça tudo.'],
+    ['Automação sob medida', 'Controle de estoque com entrada e saída. Perco muito tempo atualizando o saldo à mão.'],
+    ['Automação sob medida', 'Planilha de comissões dos vendedores, com fechamento por mês e relatório por vendedor.'],
+    ['Automação sob medida', 'Cadastro de clientes e agenda de visitas, com aviso de quem está sem visita há 30 dias.'],
+    ['Automação sob medida', 'Fluxo de caixa com gráfico mensal e alerta quando o saldo previsto fica negativo.'],
   ],
 };
 

@@ -144,7 +144,7 @@ function desenharTudo(raiz) {
     el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('dinheiro'), 'Saúde da empresa'), el('span', `saude-selo saude-selo--${nivel}`, icone(NIVEL[nivel][1]), NIVEL[nivel][0])),
     motivos.length
       ? el('ul', 'saude-motivos', motivos.map(([tipo, texto]) => el('li', `saude-motivo saude-motivo--${tipo}`, texto)))
-      : el('p', 'saude-ok', 'Tudo em ordem: caixa positivo, sem despesas vencidas e com recebimentos recentes.'));
+      : el('p', 'saude-ok', 'Tudo em ordem: caixa positivo, sem despesas vencidas e com recebimentos recentes.'), novaDespesa(raiz));
 
   // Resumo: o mês atual ou, se ainda não houve recebimento nele, o último mês que teve faturamento.
   const comFaturamento = [...meses.values()].filter(m => m.recebido > 0).sort((a, b) => b.mes.localeCompare(a.mes));
@@ -198,11 +198,24 @@ function desenharTudo(raiz) {
       : el('p', 'vazio-mini', 'Os meses aparecem aqui quando houver pagamentos registrados nas demandas.'),
     ultimos.length ? el('p', 'bloco-dica', composicao(ultimos.slice(0, 3))) : null);
 
+  // Demonstrativo do caixa: Recebido − (equipe + sócios) = Parte da Plannex; Parte da Plannex − despesas pagas = Caixa.
+  const soma = campo => [...meses.values()].reduce((s, m) => s + m[campo], 0);
+  const demonstrativo = el('section', 'bloco',
+    el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('nota'), 'Demonstrativo do caixa')),
+    el('div', 'numeros numeros--financeiro', [
+      tile('Recebido no total', reais(soma('recebido')), 'Pagamentos das demandas, desde o início'),
+      tile('Equipe e sócios', reais(soma('equipe') + soma('socio1') + soma('socio2')), 'Partes pagas antes da Parte da Plannex'),
+      tile('Parte da Plannex', reais(soma('casa')), 'Recebido menos equipe e sócios'),
+      tile('Despesas pagas', reais(soma('despesas')), 'Pagamentos de despesas já registrados'),
+    ]));
+
   raiz.replaceChildren(
-    el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro'))),
+    el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro')),
+      el('span', `saude-selo saude-selo--${caixaCasa < 0 ? 'critica' : 'boa'}`, icone(caixaCasa < 0 ? 'alerta' : 'ok'), `Caixa da Plannex: ${reais(caixaCasa)}`)),
     blocoEmpresa(raiz, empresa, divisao),
     alertas.length ? blocoAlertas(alertas) : null,
     numeros,
+    demonstrativo,
     el('div', 'grade-financeiro', saude, pagamento),
     grafico,
     blocoDespesas(raiz),
@@ -440,12 +453,8 @@ function formularioDespesa(d = {}) {
   return form;
 }
 
-function blocoDespesas(raiz) {
-  const fin = estado.financeiro;
-  const despesas = fin.despesas || [];
-  const pagos = new Map();
-  for (const p of fin.pagamentos || []) pagos.set(p.despesa_id, [...(pagos.get(p.despesa_id) || []), p]);
-
+// Registrar despesa (recolhido até abrir): usado na Saúde da empresa.
+function novaDespesa(raiz) {
   // Nova despesa (recolhido até abrir).
   const form = formularioDespesa();
   const salvar = botao('Registrar despesa', 'botao--primario', async () => {
@@ -463,6 +472,15 @@ function blocoDespesas(raiz) {
   }, { icone: 'mais' });
   const nova = el('details', 'nova-despesa', el('summary', '', icone('mais'), 'Registrar despesa'), form, el('div', 'form-acoes', salvar));
   nova.dataset.chave = 'nova';
+  return nova;
+
+}
+
+function blocoDespesas(raiz) {
+  const fin = estado.financeiro;
+  const despesas = fin.despesas || [];
+  const pagos = new Map();
+  for (const p of fin.pagamentos || []) pagos.set(p.despesa_id, [...(pagos.get(p.despesa_id) || []), p]);
 
   // Agrupadas por ano e, dentro do ano, por mês do vencimento (ou da compra, se não vence).
   const ativas = despesas.filter(d => !d.encerrada_em);
@@ -498,7 +516,6 @@ function blocoDespesas(raiz) {
 
   return el('section', 'bloco bloco--despesas',
     el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('nota'), 'Despesas e vencimentos'), el('span', 'bloco-dica-topo', 'agrupadas por ano e mês do vencimento')),
-    nova,
     despesas.length ? el('div', 'despesas-grupos', grupos, fechadas) : el('p', 'vazio-mini', 'Nenhuma despesa registrada. Comece pelo domínio, pelo CORECON ou pela contabilidade.'));
 }
 

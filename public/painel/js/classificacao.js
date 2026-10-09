@@ -1,10 +1,10 @@
 // Triagem: confere se o serviço e o plano marcados pelo cliente combinam com o que ele escreveu.
 // Só sinaliza (a decisão é da equipe); corrigir a classificação não mexe no texto original.
 
-// Planos de cada serviço (os mesmos do formulário do site).
+// Planos de cada serviço: os do formulário do site e os de pedidos antigos (para que continuem editáveis).
 export const PLANOS = {
-  calculos: ['Cálculo simples', 'Pacote 10 cálculos', 'Cálculo personalizado'],
-  automacao: ['Automação Pontual', 'Pacote Evolução', 'Automação personalizada'],
+  calculos: ['Cálculo Geral', 'Cálculo Personalizado', 'Cálculo simples', 'Pacote 10 cálculos'],
+  automacao: ['Automação sob medida', 'Automação Pontual', 'Pacote Evolução', 'Automação personalizada'],
 };
 
 // Palavras que indicam cada serviço.

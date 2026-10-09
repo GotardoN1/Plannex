@@ -20,7 +20,7 @@
       telefone: valor(form, '#contact-phone'),
       email: valor(form, '#contact-email'),
       cpf: valor(form, '#contact-cpf'),
-      plano: marcado(form, 'Plano de interesse'),
+      plano: form.querySelector('[data-contact-service]:checked')?.dataset.contactPlan || '',
       descricao: valor(form, '#contact-description'),
       atividade_manual: visivel(form, '#contact-manual-task'),
       manter_inalterado: visivel(form, '#contact-keep-unchanged'),

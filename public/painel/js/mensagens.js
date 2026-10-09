@@ -7,6 +7,7 @@ export const PIX = { chave: '11945383454', titular: 'Plannex' };
 
 // Preço de cada plano do site, em centavos. Os personalizados (sob orçamento) não têm: o valor é preenchido à mão.
 export const PRECO_PLANO = {
+  'Cálculo Geral': 19990,
   'Cálculo simples': 14990,
   'Pacote 10 cálculos': 119900,
   'Automação Pontual': 19990,

@@ -462,18 +462,6 @@ const contactFiles = $('#contact-files');
 const contactFileSummary = $('#contact-file-summary');
 const contactFileField = $('#contact-file-field');
 const contactAttachmentFieldset = $('#contact-attachment-fieldset');
-const contactPlanOptions = {
-  calculos: [
-    { value: 'Cálculo simples', title: 'Cálculo simples', price: 'R$149,90', detail: 'Na primeira compra, 2 cálculos simples pelo preço de 1.' },
-    { value: 'Pacote 10 cálculos', title: 'Pacote 10 cálculos', price: 'R$1.199,00', detail: '10 cálculos simples por R$119,90 cada, para usar em até 12 meses.' },
-    { value: 'Cálculo personalizado', title: 'Cálculo personalizado', price: 'Sob Orçamento', detail: 'Processos extensos, múltiplos autores ou análise detalhada.' }
-  ],
-  automacao: [
-    { value: 'Automação Pontual', title: 'Automação Pontual', price: 'R$199,90', detail: 'Criação, melhoria ou automação com escopo definido.' },
-    { value: 'Pacote Evolução', title: 'Pacote Evolução', price: 'R$399,90', detail: '4 demandas no total: 2 planilhas ou fluxos principais + 2 adições. Contratadas separadamente, custariam R$599,80 — economia de R$199,90.' },
-    { value: 'Automação personalizada', title: 'Automação personalizada', price: 'Sob Orçamento', detail: 'Projetos maiores, várias planilhas conectadas ou integrações sob medida.' }
-  ]
-};
 const contactDocumentExamples = {
   calculos: 'Sentença, acórdão, petição inicial, holerites/contracheques, memória de cálculo, planilhas ou outros documentos do caso.',
   automacao: 'Planilha atual, arquivo de exemplo, demonstrativo ou imagens das abas/processos que deseja automatizar.'
@@ -481,8 +469,7 @@ const contactDocumentExamples = {
 
 function syncContactAttachmentAvailability() {
   const serviceSelected = Boolean(document.querySelector('[data-contact-service]:checked'));
-  const planSelected = Boolean(document.querySelector('#contact-plan-choices input[type="radio"]:checked'));
-  const ready = serviceSelected && planSelected;
+  const ready = serviceSelected;
 
   if (!ready) {
     if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
@@ -495,35 +482,6 @@ function syncContactAttachmentAvailability() {
   }
 
   showContactAttachmentChoices();
-}
-
-function renderContactPlans(service, selectedPlan = '') {
-  const fieldset = $('#contact-plan-fieldset');
-  const container = $('#contact-plan-choices');
-  if (!fieldset || !container || !contactPlanOptions[service]) return;
-  fieldset.dataset.service = service;
-  container.innerHTML = contactPlanOptions[service].map((plan, index) => `
-    <label class="contact-plan-choice">
-      <input ${index === 0 ? 'required' : ''} name="Plano de interesse" type="radio" value="${plan.value}">
-      <span aria-hidden="true" class="contact-plan-radio"></span>
-      <span class="contact-plan-choice-copy"><strong class="contact-plan-inline-title">${plan.title} <span>(${plan.price})</span></strong><small>${plan.detail}</small></span>
-    </label>`).join('');
-  fieldset.hidden = false;
-
-  const radios = [...container.querySelectorAll('input[type="radio"]')];
-  const syncVisual = () => {
-    container.querySelectorAll('.contact-plan-choice').forEach(label => {
-      label.classList.toggle('is-selected', Boolean(label.querySelector('input')?.checked));
-    });
-  };
-  radios.forEach(radio => radio.addEventListener('change', () => {
-    syncVisual();
-    syncContactAttachmentAvailability();
-  }));
-  const preset = radios.find(radio => radio.value === selectedPlan);
-  if (preset) preset.checked = true;
-  syncVisual();
-  syncContactAttachmentAvailability();
 }
 
 function setAutomationContactFields(active) {
@@ -552,12 +510,13 @@ function setContactDocumentCopy(service) {
 function setContactService(service, options = {}) {
   if (!['calculos','automacao'].includes(service)) return;
   document.body.dataset.contactTheme = service;
-  const input = document.querySelector(`[data-contact-service="${service}"]`);
-  if (!input) return;
-  input.checked = true;
+  if (options.plan) {
+    const escolhida = document.querySelector(`[data-contact-plan="${options.plan}"]`);
+    if (escolhida) escolhida.checked = true;
+  }
 
   $$('[data-contact-choice]').forEach(choice => {
-    const active = choice.dataset.contactChoice === service;
+    const active = Boolean(choice.querySelector('input:checked'));
     choice.classList.toggle('is-selected', active);
   });
 
@@ -570,7 +529,6 @@ function setContactService(service, options = {}) {
     description.placeholder = '';
     if (example) example.textContent = copy;
   }
-  renderContactPlans(service, options.plan || '');
   setAutomationContactFields(service === 'automacao');
   setContactDocumentCopy(service);
   if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
@@ -736,10 +694,6 @@ function resetContactForm(form) {
   if (originInput) originInput.value = '';
   delete document.body.dataset.contactTheme;
   $$('[data-contact-choice]').forEach(choice => choice.classList.remove('is-selected'));
-  const planFieldset = $('#contact-plan-fieldset');
-  if (planFieldset) planFieldset.hidden = true;
-  const planChoices = $('#contact-plan-choices');
-  if (planChoices) planChoices.innerHTML = '';
   setAutomationContactFields(false);
   if (contactAttachmentFieldset) contactAttachmentFieldset.hidden = true;
   if (contactFileField) contactFileField.hidden = true;
@@ -767,7 +721,7 @@ function contactShowSuccess(repeated, protocol) {
   icon.textContent = '✓';
   const title = document.createElement('h3');
   title.id = 'contact-success-title';
-  title.textContent = repeated ? 'Pedido já recebido!' : 'Pedido efetuado com sucesso!';
+  title.textContent = repeated ? 'Pedido já recebido!' : 'Recebemos sua solicitação!';
   // Protocolo da solicitação, legível (é o número que o cliente pode informar no atendimento).
   const number = document.createElement('p');
   number.className = 'contact-success-protocol';
@@ -779,7 +733,7 @@ function contactShowSuccess(repeated, protocol) {
     number.append(label, code);
   }
   const text = document.createElement('p');
-  text.textContent = 'Próximo passo: nossa equipe analisa a solicitação e entra em contato pelo WhatsApp ou e-mail informado em até 1 dia útil, com o retorno sobre o atendimento, o prazo e o valor.';
+  text.textContent = 'As informações serão analisadas e entraremos em contato pelos dados informados.';
   const ok = document.createElement('button');
   ok.type = 'button';
   ok.className = 'button';
@@ -946,7 +900,7 @@ $('#contact-form')?.addEventListener('submit', async event => {
     if (status) {
       status.textContent = central.repetido
         ? 'Recebemos sua solicitação (ela já tinha chegado). Entraremos em contato após a análise.'
-        : `Pedido efetuado com sucesso${central.protocolo ? ` (protocolo ${central.protocolo})` : ''}. Entraremos em contato em até 1 dia útil, após a análise da solicitação.`;
+        : `Recebemos sua solicitação${central.protocolo ? ` (protocolo ${central.protocolo})` : ''}. As informações serão analisadas e entraremos em contato pelos dados informados.`;
       status.classList.add('is-success');
     }
     contactShowSuccess(central.repetido, central.protocolo);
@@ -1605,3 +1559,29 @@ initGlobalScrollReveal();
     deadline.addEventListener('change', syncDeadline);
   }
 })();
+
+// Veja se o seu caso está aqui: cada categoria mostra 5 cálculos e revela mais 5 a cada clique.
+$$('[data-grupo-calculos]').forEach(grupo => {
+  const itens = [...grupo.querySelectorAll('li')];
+  const botao = grupo.querySelector('[data-grupo-mais]');
+  if (!botao) return;
+  const LOTE = 5;
+  let visiveis = LOTE;
+  const mostrar = qtd => {
+    itens.forEach((item, i) => { item.hidden = i >= qtd; });
+    const ocultos = itens.length - qtd;
+    botao.textContent = ocultos > 0 ? 'Ver mais cálculos' : 'Ver menos';
+    botao.dataset.estado = ocultos > 0 ? 'mais' : 'menos';
+  };
+  botao.addEventListener('click', () => {
+    visiveis = botao.dataset.estado === 'menos' ? LOTE : Math.min(itens.length, visiveis + LOTE);
+    mostrar(visiveis);
+  });
+  // Ao fechar a categoria, ela volta aos primeiros 5 itens.
+  grupo.addEventListener('toggle', () => {
+    if (grupo.open) return;
+    visiveis = LOTE;
+    mostrar(visiveis);
+  });
+  mostrar(visiveis);
+});

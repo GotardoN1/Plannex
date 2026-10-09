@@ -168,3 +168,18 @@ small, .calculation-scope-item small { font-size: 13px; color: var(--muted); }
 /* WhatsApp como na Central: verde escuro com contorno. */
 .button.contact-whatsapp-button, #whatsapp.button { background: #0f3324 !important; border-color: #1d6b45 !important; color: #b9f5d2 !important; }
 .button.contact-whatsapp-button:hover, #whatsapp.button:hover { background: #134330 !important; border-color: #25d366 !important; }
+
+/* Reformulação comercial: categorias expansíveis, oferta única e largura desktop das páginas de cálculos e automação. */
+.grupo-calculos > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.grupo-calculos > summary::-webkit-details-marker { display: none; }
+.grupo-calculos > summary::after { content: "+"; color: var(--accent); font-size: 20px; line-height: 1; }
+.grupo-calculos[open] > summary::after { content: "\2212"; }
+.calc-nota-caso { justify-content: center; gap: 10px; }
+.calc-nota-caso .plan-availability-note { margin: 0; }
+.grupo-calculos-mais { display: inline-block; margin-top: 12px; padding: 0; border: 0; background: none; font: inherit; color: var(--accent); cursor: pointer; text-align: left; }
+html body #calculos .calc-offer-pair.calc-offer-solo { grid-template-columns: minmax(0, 1fr) !important; }
+html body #automacao .plans.calc-offer-solo-auto { grid-template-columns: minmax(0, 1fr) !important; }
+@media (min-width: 1280px) {
+  html body .judicial-home.wrap, html body #automacao.wrap { width: min(1400px, calc(100% - 96px)); }
+}
+.contact-service-choices > .contact-service-choice:last-child { grid-column: 1 / -1; }
