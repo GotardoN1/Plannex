@@ -181,3 +181,108 @@ html body #automacao .plans.calc-offer-solo-auto { grid-template-columns: minmax
 .grupo-calculos li.calc-mais { list-style: none; }
 .grupo-calculos li.calc-mais::before { display: none; }
 .calc-preco-nota { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+/* ---------- Seções em faixas (modelo da referência) ----------
+   Cada seção das páginas de Cálculos e Automação vira uma faixa de largura total, com fundo neutro alternado,
+   divisória fina no topo e o mesmo respiro vertical. O conteúdo continua na largura do site. */
+:root { --faixa-a: #0f1c2f; --faixa-b: #0b1422; --faixa-borda: #1d2c41; --faixa-respiro: 80px; }
+[data-tema="claro"] { --faixa-a: #f3f6fa; --faixa-b: #ffffff; --faixa-borda: #d9e0ea; }
+@media (max-width: 760px) { :root { --faixa-respiro: 48px; } }
+html, body { overflow-x: clip; }
+
+html body .judicial-home.page, html body #automacao.page { padding-bottom: 0 !important; }
+html body .home-merged-calculations { margin-top: 48px !important; padding: 0 !important; border: 0 !important; }
+html body #calculos .section-divider--calc-result { display: none !important; }
+
+html body :is(#home-calc-intro-mobile, #fases-calculo, #calculos-atendidos, #contratacao-calculos, #editorial-delivery-mobile,
+  #como-funciona-inicio, #automacao-chamada, #automation-demo-mobile, #servicos-automacao, #planos-automacao) {
+  position: relative; isolation: isolate; margin: 0 !important; padding: var(--faixa-respiro) 0 !important;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+}
+html body :is(#home-calc-intro-mobile, #fases-calculo, #calculos-atendidos, #contratacao-calculos, #editorial-delivery-mobile,
+  #como-funciona-inicio, #automacao-chamada, #automation-demo-mobile, #servicos-automacao, #planos-automacao)::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%);
+  background: var(--faixa-b); border-top: 1px solid var(--faixa-borda); z-index: -1; pointer-events: none;
+}
+html body :is(#home-calc-intro-mobile, #calculos-atendidos, #editorial-delivery-mobile, #automacao-chamada, #automation-demo-mobile, #planos-automacao)::before {
+  background: var(--faixa-a);
+}
+
+/* Títulos das faixas: grandes, em duas linhas, como na referência. */
+html body :is(#home-calc-intro-mobile, #fases-calculo, #calculos-atendidos, #contratacao-calculos, #automation-demo-mobile, #servicos-automacao) .section-heading h2,
+html body #como-funciona-inicio .home-process-copy h3,
+html body #automacao-chamada .secondary-compact-copy h3,
+html body #planos-automacao .center h2,
+html body #editorial-delivery-mobile .editorial-delivery-copy h2 {
+  font-size: clamp(30px, 2.6vw, 40px) !important; line-height: 1.08 !important; letter-spacing: -0.03em !important; font-weight: 650 !important;
+}
+html body :is(#fases-calculo, #calculos-atendidos, #contratacao-calculos) .section-heading h2,
+html body #como-funciona-inicio .home-process-copy h3 { max-width: 15ch !important; }
+html body :is(#fases-calculo, #calculos-atendidos, #contratacao-calculos) .section-heading { margin-bottom: 40px !important; }
+
+/* Em qualquer fase do processo: linha do tempo com marcadores. */
+html body #fases-calculo .fases-calculo { position: relative; display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 32px !important; padding: 34px 0 0 !important; margin: 0 !important; list-style: none; }
+html body #fases-calculo .fases-calculo::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 1px; background: var(--faixa-borda); }
+html body #fases-calculo .fases-calculo::after { content: ""; position: absolute; left: 0; top: 6px; height: 1px; width: 72%; background: var(--accent); }
+html body #fases-calculo .fase { position: relative; display: block !important; background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+html body #fases-calculo .fase-numero { position: absolute; left: 0; top: -34px; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); font-size: 0 !important; color: transparent; border: 0 !important; z-index: 1; }
+html body #fases-calculo .fase strong { display: block; font-size: 20px !important; font-weight: 650; letter-spacing: -0.01em; margin-bottom: 12px; }
+html body #fases-calculo .fase small { display: block; color: var(--muted); font-size: 14px !important; line-height: 1.6; max-width: 34ch; }
+
+/* Do primeiro contato à entrega: quatro etapas com número grande e divisórias. */
+html body #como-funciona-inicio { grid-template-columns: minmax(0, 1fr) !important; }
+html body #como-funciona-inicio .home-process-copy { margin-bottom: 44px !important; }
+html body #como-funciona-inicio .home-process-copy > p:not(.eyebrow) { display: none !important; }
+html body #como-funciona-inicio .home-process-steps { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 0 !important; }
+html body #como-funciona-inicio .home-process-steps li { display: block !important; border: 0 !important; border-left: 1px solid var(--faixa-borda) !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; padding: 0 28px !important; }
+html body #como-funciona-inicio .home-process-steps li:first-child { border-left: 0 !important; padding-left: 0 !important; }
+html body #como-funciona-inicio .home-process-steps > li > span { display: block; font-size: 46px !important; font-weight: 300 !important; letter-spacing: 0 !important; line-height: 1 !important; color: var(--accent) !important; margin-bottom: 30px !important; }
+html body #como-funciona-inicio .home-process-steps strong { display: block; font-size: 16px !important; font-weight: 650; margin-bottom: 12px !important; }
+html body #como-funciona-inicio .home-process-steps small { display: block; color: var(--muted); font-size: 14px !important; line-height: 1.6 !important; max-width: 26ch; }
+
+/* Planilhas que fazem o trabalho repetitivo por você: texto à esquerda, tabela à direita. */
+html body #automacao-chamada { grid-template-columns: minmax(0, 1fr) minmax(0, 480px) !important; gap: clamp(32px, 6vw, 96px) !important; align-items: center !important; }
+html body #automacao-chamada .secondary-compact-copy .eyebrow { color: var(--automation-blue, #65aaf5) !important; }
+html body #automacao-chamada .secondary-compact-copy > p:not(.eyebrow) { color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 52ch; margin: 18px 0 24px; }
+html body #automacao-chamada .secondary-compact-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
+html body #automacao-chamada .secondary-compact-tags span { padding: 7px 11px; border: 1px solid var(--faixa-borda); border-radius: 6px; background: transparent; color: var(--ink); font-size: 13px; }
+html body #automacao-chamada .button { background: var(--automation-blue, #65aaf5) !important; border-color: transparent !important; color: #0b1422 !important; }
+.secondary-heat { border: 1px solid var(--faixa-borda); border-radius: 10px; overflow: hidden; background: var(--faixa-b); }
+.heat-tabela { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+.heat-tabela th, .heat-tabela td { height: 32px; padding: 0; border-top: 1px solid var(--faixa-borda); border-left: 1px solid var(--faixa-borda); font-weight: 400; color: var(--muted); text-align: left; }
+.heat-tabela tr > :first-child { border-left: 0; }
+.heat-tabela thead th { height: 30px; border-top: 0; text-align: center; }
+.heat-tabela .heat-n { width: 30px; text-align: center; }
+.heat-tabela tbody th { width: 64px; padding-left: 10px; }
+.heat-tabela thead th:nth-child(2) { width: 64px; }
+.heat-tabela thead th:first-child { width: 30px; }
+.hb { display: block; height: 18px; margin: 0 7px; border-radius: 2px; }
+.hb-w1 { width: 40%; }
+.hb-w2 { width: 58%; }
+.hb-w3 { width: 76%; }
+.hb-w4 { width: 92%; }
+.hb-t1 { background: #2c4a70; }
+.hb-t2 { background: #3e6ea3; }
+.hb-t3 { background: #5d9ae0; }
+[data-tema="claro"] .hb-t1 { background: #b9d2ee; }
+[data-tema="claro"] .hb-t2 { background: #84b2e6; }
+[data-tema="claro"] .hb-t3 { background: #4f8fd8; }
+
+@media (max-width: 900px) {
+  html body #automacao-chamada { grid-template-columns: minmax(0, 1fr) !important; }
+  html body #como-funciona-inicio .home-process-steps { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: 32px !important; }
+  html body #como-funciona-inicio .home-process-steps li:nth-child(3) { border-left: 0 !important; padding-left: 0 !important; }
+}
+@media (max-width: 760px) {
+  html body #fases-calculo .fases-calculo { grid-template-columns: minmax(0, 1fr) !important; gap: 26px !important; padding: 0 0 0 30px !important; }
+  html body #fases-calculo .fases-calculo::before, html body #fases-calculo .fases-calculo::after { top: 4px; bottom: 4px; left: 6px; right: auto; width: 1px; height: auto; }
+  html body #fases-calculo .fases-calculo::after { bottom: auto; height: 72%; }
+  html body #fases-calculo .fase-numero { top: 4px; left: -30px; }
+}
+@media (max-width: 560px) {
+  html body #como-funciona-inicio .home-process-steps { grid-template-columns: minmax(0, 1fr) !important; }
+  html body #como-funciona-inicio .home-process-steps li { border-left: 0 !important; padding: 0 !important; }
+}
+/* Automação: sem vão entre as faixas (a grade da página tinha 40px entre linhas). */
+html body #automacao.page { row-gap: 0 !important; }
+html body #automacao > .automation-intro, html body #automacao > #automation-overview-mobile { margin-bottom: 56px !important; }
