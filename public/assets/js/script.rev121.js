@@ -511,8 +511,8 @@ function setContactService(service, options = {}) {
   if (!['calculos','automacao'].includes(service)) return;
   document.body.dataset.contactTheme = service;
   if (options.plan) {
-    const escolhida = document.querySelector(`[data-contact-plan="${options.plan}"]`);
-    if (escolhida) escolhida.checked = true;
+    const servicoEscolhido = document.querySelector(`[data-contact-service="${service}"]`);
+    if (servicoEscolhido) servicoEscolhido.checked = true;
   }
 
   $$('[data-contact-choice]').forEach(choice => {
@@ -1560,28 +1560,22 @@ initGlobalScrollReveal();
   }
 })();
 
-// Veja se o seu caso está aqui: cada categoria mostra 5 cálculos e revela mais 5 a cada clique.
-$$('[data-grupo-calculos]').forEach(grupo => {
-  const itens = [...grupo.querySelectorAll('li')];
+// Cálculos que atendemos: cada grupo mostra os itens originais; o "+" no fim revela mais 5 por clique.
+// Depois do último lote, vira "Ver menos" e volta aos itens originais.
+$$('.grupo-calculos').forEach(grupo => {
+  const extras = [...grupo.querySelectorAll('li.calc-extra')];
   const botao = grupo.querySelector('[data-grupo-mais]');
-  if (!botao) return;
+  if (!botao || !extras.length) return;
   const LOTE = 5;
-  let visiveis = LOTE;
+  let visiveis = 0;
   const mostrar = qtd => {
-    itens.forEach((item, i) => { item.hidden = i >= qtd; });
-    const ocultos = itens.length - qtd;
-    botao.textContent = ocultos > 0 ? 'Ver mais cálculos' : 'Ver menos';
-    botao.dataset.estado = ocultos > 0 ? 'mais' : 'menos';
+    extras.forEach((item, i) => { item.hidden = i >= qtd; });
+    const completo = qtd >= extras.length;
+    botao.textContent = completo ? 'Ver menos' : '+ Ver mais cálculos';
   };
   botao.addEventListener('click', () => {
-    visiveis = botao.dataset.estado === 'menos' ? LOTE : Math.min(itens.length, visiveis + LOTE);
+    visiveis = visiveis >= extras.length ? 0 : Math.min(extras.length, visiveis + LOTE);
     mostrar(visiveis);
   });
-  // Ao fechar a categoria, ela volta aos primeiros 5 itens.
-  grupo.addEventListener('toggle', () => {
-    if (grupo.open) return;
-    visiveis = LOTE;
-    mostrar(visiveis);
-  });
-  mostrar(visiveis);
+  mostrar(0);
 });

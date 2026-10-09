@@ -11,7 +11,7 @@ Site da **Plannex**, com duas frentes de serviço:
 
 | Seção | O que mostra |
 | --- | --- |
-| Início | Serviços de cálculo, fases do processo, a lista de cálculos que atendemos, formas de contratação (Cálculo Geral, R$ 199,90, e Cálculo Personalizado, com valor após análise) e o passo a passo do atendimento. No celular, "Do cálculo pontual…" e "Do pedido inicial…" ficam recolhidas lá embaixo, junto das demais, antes de "Ver detalhes da entrega técnica" |
+| Início | Serviços de cálculo, fases do processo, a lista de cálculos que atendemos, formas de contratação (Cálculo Geral, R$ 199,90, para até 1 credor, e Cálculo Personalizado, com valor após análise) e o passo a passo do atendimento. No celular, "Do cálculo pontual…" e "Do pedido inicial…" ficam recolhidas lá embaixo, junto das demais, antes de "Ver detalhes da entrega técnica" |
 | Laboratório Plannex | Demonstração animada de uma memória de cálculo indo dos documentos ao parecer, com dados fictícios |
 | Serviço de Automação | Planos de automação, a demonstração "da bagunça ao controle" e a lista do que pode ser automatizado |
 | Contato | Formulário que envia por e-mail (FormSubmit) ou abre o WhatsApp com a mensagem pronta; planos de cálculo e de automação, inclusive os personalizados (sob orçamento). Pede CPF ou CNPJ (com conferência dos dígitos) ao lado do e-mail e aceita o WhatsApp com ou sem +55. O anexo começa em "Enviar depois"; quem escolhe "Sim, anexar" precisa subir pelo menos um arquivo. Depois do envio, uma caixa avisa "Pedido efetuado com sucesso! Entraremos em contato após a análise da solicitação.", com o número da solicitação bem pequeno no pé (é referência da equipe, não para o cliente acompanhar) |
@@ -20,7 +20,7 @@ Site da **Plannex**, com duas frentes de serviço:
 | Aparência | Pílula no canto inferior esquerdo: modo noturno (claro/escuro) e visual Simples ou Sofisticado (o original do site). A escolha fica no navegador e vale também na Central |
 | Central (`/painel/`) | Só com login: contatos, pedidos, prazos e pagamentos da equipe |
 
-Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev2.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões.
+Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev5.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões.
 
 ## Central Plannex (painel interno)
 

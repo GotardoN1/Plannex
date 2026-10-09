@@ -1282,8 +1282,8 @@ async function enviarMaterial(request, env, usuario, id) {
   if (!arquivo || typeof arquivo === 'string') return json({ erro: 'Escolha um arquivo.' }, 400);
   if (arquivo.size > ARQUIVO_MAXIMO) return json({ erro: 'O arquivo passa de 10 MB.' }, 413);
   if (!arquivo.size) return json({ erro: 'O arquivo está vazio.' }, 400);
-  const conferido = await validarArquivo(arquivo, 'material');
-  if (!conferido.ok) return json({ erro: conferido.erro }, 400);
+  // Materiais aceitam qualquer tipo de arquivo; o download sai sempre como anexo (octet-stream, nosniff).
+  const conferido = { ok: true, tipo: (arquivo.name.match(/\.([a-z0-9]{1,8})$/i)?.[1] || 'arquivo').toLowerCase(), bytes: new Uint8Array(await arquivo.arrayBuffer()) };
   const anterior = id ? await env.DB.prepare('SELECT chave, tamanho FROM materiais WHERE id = ?').bind(id).first() : null;
   if (id && !anterior) return json({ erro: 'Material não encontrado.' }, 404);
   const { usado } = await env.DB.prepare('SELECT COALESCE(SUM(tamanho), 0) AS usado FROM materiais').first();

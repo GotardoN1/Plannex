@@ -6,7 +6,7 @@ import { api } from './api.js';
 import { el, botao, icone, dataHora, relativo, tamanhoArquivo, tipoArquivo } from './util.js';
 
 // Formatos aceitos nos materiais (o servidor confere a mesma lista e o conteúdo real).
-const FORMATOS_MATERIAL = '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.xlsm,.ods,.csv,.jpg,.jpeg,.png,.webp,.mp4';
+// Materiais aceitam qualquer tipo de arquivo (o servidor confere só o tamanho e se o arquivo não está vazio).
 
 const ESPACO = 100 * 1024 * 1024;
 let sequencia = 0;
@@ -50,11 +50,11 @@ export function desenharMateriais(raiz) {
   const cabecalho = el('header', 'tela-topo', el('div', '', el('h1', '', 'Materiais')));
 
   const partes = [cabecalho];
-  if (eAdmin()) partes.push(formularioEnvio(usado));
   partes.push(el('section', 'bloco materiais-bloco',
     el('div', 'bloco-topo',
       el('h2', '', `Arquivos (${materiais.length})`),
       el('span', 'materiais-espaco', el('span', 'materiais-espaco-trilho', barra(usado)), `${tamanhoArquivo(usado)} de 100 MB`)),
+    eAdmin() ? formularioEnvio(usado) : null,
     materiais.length
       ? el('ul', 'materiais', materiais.map(linha))
       : el('p', 'vazio-mini', eAdmin() ? 'Nenhum material ainda. Envie o primeiro acima.' : 'Nenhum material ainda.')));
@@ -71,7 +71,6 @@ function formularioEnvio(usado) {
   const id = `material-${++sequencia}`;
   const entrada = el('input');
   entrada.type = 'file';
-  entrada.accept = FORMATOS_MATERIAL;
   entrada.id = id;
   entrada.className = 'sr';
   const descricao = el('input');
@@ -82,7 +81,7 @@ function formularioEnvio(usado) {
   const status = el('p', 'aviso');
   const zona = el('label', 'zona-envio', icone('enviar'),
     el('span', '', el('strong', '', 'Escolha um arquivo'), ' ou arraste para cá'),
-    el('small', '', `PDF, Word, Excel, imagem ou outro · até 10 MB · ${tamanhoArquivo(Math.max(0, ESPACO - usado))} livres`));
+    el('small', '', `Qualquer tipo de arquivo · até 10 MB · ${tamanhoArquivo(Math.max(0, ESPACO - usado))} livres`));
   zona.htmlFor = id;
 
   const mandar = async arquivo => {
@@ -107,8 +106,7 @@ function formularioEnvio(usado) {
   zona.addEventListener('dragleave', () => zona.classList.remove('is-alvo'));
   zona.addEventListener('drop', evento => { evento.preventDefault(); zona.classList.remove('is-alvo'); mandar(evento.dataTransfer.files[0]); });
 
-  return el('section', 'bloco materiais-envio',
-    el('div', 'bloco-topo', el('h2', '', 'Enviar material')),
+  return el('div', 'materiais-envio',
     el('div', 'materiais-envio-campos', descricao, el('label', 'campo materiais-quem', 'Quem vê', quemVe)), entrada, zona, status);
 }
 
@@ -138,7 +136,6 @@ function linha(m) {
   // Trocar o arquivo (mantém a descrição).
   const novo = el('input');
   novo.type = 'file';
-  novo.accept = FORMATOS_MATERIAL;
   novo.className = 'sr';
   novo.addEventListener('change', async () => {
     const arquivo = novo.files[0];

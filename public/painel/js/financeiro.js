@@ -198,24 +198,12 @@ function desenharTudo(raiz) {
       : el('p', 'vazio-mini', 'Os meses aparecem aqui quando houver pagamentos registrados nas demandas.'),
     ultimos.length ? el('p', 'bloco-dica', composicao(ultimos.slice(0, 3))) : null);
 
-  // Demonstrativo do caixa: Recebido − (equipe + sócios) = Parte da Plannex; Parte da Plannex − despesas pagas = Caixa.
-  const soma = campo => [...meses.values()].reduce((s, m) => s + m[campo], 0);
-  const demonstrativo = el('section', 'bloco',
-    el('div', 'bloco-topo', el('h2', 'titulo-icone', icone('nota'), 'Demonstrativo do caixa')),
-    el('div', 'numeros numeros--financeiro', [
-      tile('Recebido no total', reais(soma('recebido')), 'Pagamentos das demandas, desde o início'),
-      tile('Equipe e sócios', reais(soma('equipe') + soma('socio1') + soma('socio2')), 'Partes pagas antes da Parte da Plannex'),
-      tile('Parte da Plannex', reais(soma('casa')), 'Recebido menos equipe e sócios'),
-      tile('Despesas pagas', reais(soma('despesas')), 'Pagamentos de despesas já registrados'),
-    ]));
-
   raiz.replaceChildren(
     el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro')),
       el('span', `saude-selo saude-selo--${caixaCasa < 0 ? 'critica' : 'boa'}`, icone(caixaCasa < 0 ? 'alerta' : 'ok'), `Caixa da Plannex: ${reais(caixaCasa)}`)),
     blocoEmpresa(raiz, empresa, divisao),
     alertas.length ? blocoAlertas(alertas) : null,
     numeros,
-    demonstrativo,
     el('div', 'grade-financeiro', saude, pagamento),
     grafico,
     blocoDespesas(raiz),

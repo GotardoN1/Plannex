@@ -107,15 +107,16 @@ test('formulário do site: arquivo que não confere fica de fora e a ficha regis
   assert.match(nota.texto, /programa\.exe/);
 });
 
-test('moldes e materiais também conferem o conteúdo', async () => {
+test('moldes conferem o conteúdo; materiais aceitam qualquer arquivo', async () => {
   const { env } = await criarAmbiente();
   const cookie = await entrar(env, 'ana');
   const moldeFalso = await chamar(env, 'POST', '/api/moldes/relatorio', { cookie, form: formulario('molde.pdf', AMOSTRAS.executavel()) });
   assert.equal(moldeFalso.status, 400);
   const molde = await chamar(env, 'POST', '/api/moldes/relatorio', { cookie, form: formulario('molde.pdf', AMOSTRAS.pdf()) });
   assert.equal(molde.status, 201);
-  const materialFalso = await chamar(env, 'POST', '/api/materiais', { cookie, form: formulario('indices.csv', AMOSTRAS.csvComNulo()) });
-  assert.equal(materialFalso.status, 400);
+  // Materiais aceitam qualquer tipo de arquivo (o download sai sempre como anexo).
+  const materialQualquer = await chamar(env, 'POST', '/api/materiais', { cookie, form: formulario('indices.csv', AMOSTRAS.csvComNulo()) });
+  assert.equal(materialQualquer.status, 201);
   const material = await chamar(env, 'POST', '/api/materiais', { cookie, form: formulario('indices.csv', AMOSTRAS.csv()) });
   assert.equal(material.status, 201);
 });

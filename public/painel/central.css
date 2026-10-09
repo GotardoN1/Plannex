@@ -1458,3 +1458,8 @@ a.nav-item { text-decoration: none; }
 .demanda-equipe-nome small { color: var(--subtle); font-size: 12px; }
 .demanda-equipe-valor { color: var(--muted); font-variant-numeric: tabular-nums; }
 .demanda-equipe-parte { font-variant-numeric: tabular-nums; }
+
+/* Materiais: envio e lista no mesmo bloco; dois arquivos por linha (um no celular). */
+.materiais-bloco .materiais-envio { margin-bottom: 14px; }
+.materiais { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 680px) { .materiais { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
