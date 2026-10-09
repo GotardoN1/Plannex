@@ -563,7 +563,7 @@ function preencherRequisitos() {
     el('p', 'requisitos-titulo', icone(pronto ? 'ok' : 'alerta'),
       pronto ? 'Tudo pronto para entregar.' : `Para finalizar a entrega${versao > 1 ? ` da Versão ${versao}` : ''}, anexe:`),
     el('ul', 'requisitos-lista', itens.map(i => el('li', i.ok ? 'is-ok' : '', icone(i.ok ? 'ok' : 'anexo'), i.rotulo))),
-    pronto ? null : el('p', 'requisitos-nota', 'Sem esses arquivos (com mais de 1 KB), não é possível finalizar a demanda.'));
+    ...(pronto ? [] : [el('p', 'requisitos-nota', 'Sem esses arquivos (com mais de 1 KB), não é possível finalizar a demanda.')]));
 }
 
 function concluir(c) {

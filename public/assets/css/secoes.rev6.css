@@ -21,7 +21,6 @@ html body #automacao .plans.calc-offer-solo-auto { grid-template-columns: minmax
 @media (max-width: 760px) { :root { --faixa-respiro: 48px; } }
 html, body { overflow-x: clip; }
 
-html body .judicial-home.page, html body #automacao.page { padding-bottom: 0 !important; }
 html body .home-merged-calculations { margin-top: 48px !important; padding: 0 !important; border: 0 !important; }
 html body #calculos .section-divider--calc-result { display: none !important; }
 
@@ -137,3 +136,9 @@ html body :is(#home-calc-intro-mobile, #fases-calculo, #calculos-atendidos, #con
 /* Fases do processo: marcadores apagados até a linha chegar neles (só quando a animação está ligada). */
 html body #fases-calculo .fases-calculo.is-animada .fase .fase-numero { transition: background-color .2s ease, box-shadow .2s ease; }
 html body #fases-calculo .fases-calculo.is-animada .fase:not(.is-ativa) .fase-numero { background: var(--faixa-b) !important; box-shadow: inset 0 0 0 1px var(--faixa-borda); }
+
+/* Contato: aceite obrigatório dos Termos de Uso e da Política de Privacidade. */
+.contact-aceite { display: flex; align-items: flex-start; gap: 10px; margin: 4px 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; cursor: pointer; }
+.contact-aceite input { flex: 0 0 auto; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent); cursor: pointer; }
+.contact-aceite a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.contact-aceite-obrigatorio { color: var(--accent); }

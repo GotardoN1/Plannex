@@ -20,7 +20,7 @@ Site da **Plannex**, com duas frentes de serviço:
 | Aparência | Pílula no canto inferior esquerdo: modo noturno (claro/escuro) e visual Simples ou Sofisticado (o original do site). A escolha fica no navegador e vale também na Central |
 | Central (`/painel/`) | Só com login: contatos, pedidos, prazos e pagamentos da equipe |
 
-Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev11.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões. As seções em faixas, o visual de referência e a largura em telas largas ficam em `assets/css/secoes.rev5.css`, que vale nos dois visuais (Simples e Sofisticado).
+Os exemplos de cálculo e de planilha usam valores fictícios. O visual segue o da Central (`assets/css/simples.rev11.css`, carregado depois do CSS do site): cartões lisos, sem degradês nem brilhos, mesmas fontes e botões. As seções em faixas, o visual de referência e a largura em telas largas ficam em `assets/css/secoes.rev6.css`, que vale nos dois visuais (Simples e Sofisticado).
 
 ## Central Plannex (painel interno)
 

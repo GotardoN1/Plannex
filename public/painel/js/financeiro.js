@@ -202,7 +202,7 @@ function desenharTudo(raiz) {
     el('header', 'tela-topo', el('div', '', el('h1', '', 'Financeiro')),
       el('span', `saude-selo saude-selo--${caixaCasa < 0 ? 'critica' : 'boa'}`, icone(caixaCasa < 0 ? 'alerta' : 'ok'), `Caixa da Plannex: ${reais(caixaCasa)}`)),
     blocoEmpresa(raiz, empresa, divisao),
-    alertas.length ? blocoAlertas(alertas) : null,
+    ...(alertas.length ? [blocoAlertas(alertas)] : []),
     numeros,
     el('div', 'grade-financeiro', saude, pagamento),
     grafico,
