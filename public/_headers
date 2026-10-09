@@ -15,7 +15,10 @@
 /assets/css/style.rev115.css
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/css/simples.rev10.css
+/assets/css/simples.rev11.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/css/secoes.rev5.css
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/css/aparencia.rev11.css
@@ -49,7 +52,7 @@
 /assets/css/noscript.css
   Cache-Control: public, max-age=86400
 
-/assets/js/script.rev121.js
+/assets/js/script.rev122.js
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/js/calculos-ui.rev91.js

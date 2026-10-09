@@ -1579,3 +1579,38 @@ $$('.grupo-calculos').forEach(grupo => {
   });
   mostrar(0);
 });
+
+// Fases do processo: a linha laranja avança conforme a rolagem e acende cada marcador quando chega nele.
+// Com movimento reduzido, a linha aparece completa.
+(() => {
+  const linha = document.querySelector('#fases-calculo .fases-calculo');
+  if (!linha) return;
+  const fases = [...linha.querySelectorAll('.fase')];
+  const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const vertical = window.matchMedia('(max-width: 760px)');
+  let pedido = 0;
+  const atualizar = () => {
+    pedido = 0;
+    const caixa = linha.getBoundingClientRect();
+    if (!caixa.height) return; // seção recolhida (celular) ou página escondida
+    const altura = window.innerHeight;
+    // 0 quando a linha entra por baixo da tela; 1 quando ela chega a 35% da altura da tela.
+    const progresso = reduzido.matches ? 1 : Math.max(0, Math.min(1, (altura - caixa.top) / (altura * 0.65)));
+    linha.style.setProperty('--fases-progresso', progresso.toFixed(3));
+    for (const fase of fases) {
+      const marco = fase.getBoundingClientRect();
+      const posicao = vertical.matches ? (marco.top - caixa.top) / caixa.height : (marco.left - caixa.left) / caixa.width;
+      fase.classList.toggle('is-ativa', progresso >= posicao - 0.001);
+    }
+  };
+  const pedir = () => { if (!pedido) pedido = requestAnimationFrame(atualizar); };
+  linha.classList.add('is-animada');
+  window.addEventListener('scroll', pedir, { passive: true });
+  window.addEventListener('resize', pedir);
+  // A seção pode aparecer depois (troca de página ou botão "Ver" no celular).
+  const observador = new MutationObserver(pedir);
+  for (const alvo of [linha.closest('#fases-calculo'), linha.closest('.page')]) {
+    if (alvo) observador.observe(alvo, { attributes: true, attributeFilter: ['class', 'hidden'] });
+  }
+  atualizar();
+})();
