@@ -169,73 +169,15 @@ small, .calculation-scope-item small { font-size: 13px; color: var(--muted); }
 .button.contact-whatsapp-button, #whatsapp.button { background: #0f3324 !important; border-color: #1d6b45 !important; color: #b9f5d2 !important; }
 .button.contact-whatsapp-button:hover, #whatsapp.button:hover { background: #134330 !important; border-color: #25d366 !important; }
 
-/* Reformulação comercial: oferta única, "+" nos cálculos que atendemos e visual da referência (linha do tempo,
-   quatro etapas com divisórias, tabela da automação e colunas de "O que você recebe"). */
+/* Reformulação comercial: oferta única, "+" nos cálculos que atendemos e largura maior em telas largas
+   (páginas comerciais, cabeçalho e rodapé alinhados). */
 html body #calculos .calc-offer-pair.calc-offer-solo { grid-template-columns: minmax(0, 1fr) !important; }
 html body #automacao .plans.calc-offer-solo-auto { grid-template-columns: minmax(0, 1fr) !important; }
 @media (min-width: 1280px) {
-  html body .judicial-home.wrap, html body #automacao.wrap { width: min(1400px, calc(100% - 96px)); }
+  html body .judicial-home.wrap, html body #automacao.wrap,
+  html body > header, html body .site-footer .wrap { width: min(1400px, calc(100% - 96px)) !important; margin-inline: auto; }
 }
 .grupo-calculos-mais { display: inline-block; margin-top: 2px; padding: 0; border: 0; background: none; font: inherit; color: var(--accent); cursor: pointer; text-align: left; }
 .grupo-calculos li.calc-mais { list-style: none; }
 .grupo-calculos li.calc-mais::before { display: none; }
 .calc-preco-nota { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-
-html body #fases-calculo .fases-calculo { position: relative; display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; padding: 26px 0 0; margin: 0; list-style: none; }
-html body #fases-calculo .fases-calculo::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px; background: var(--line); }
-html body #fases-calculo .fases-calculo::after { content: ""; position: absolute; left: 0; top: 6px; height: 2px; width: 66%; background: var(--accent); }
-html body #fases-calculo .fase { position: relative; display: block !important; background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
-html body #fases-calculo .fase-numero { position: absolute; left: 0; top: -20px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); font-size: 0; color: transparent; }
-html body #fases-calculo .fase strong { display: block; font-size: 17px; margin-bottom: 8px; }
-html body #fases-calculo .fase small { color: var(--muted); font-size: 14px; line-height: 1.5; }
-@media (max-width: 760px) {
-  html body #fases-calculo .fases-calculo { grid-template-columns: minmax(0, 1fr); gap: 22px; padding-left: 26px; }
-  html body #fases-calculo .fases-calculo::before, html body #fases-calculo .fases-calculo::after { top: 0; bottom: 0; left: 5px; right: auto; width: 2px; height: auto; }
-  html body #fases-calculo .fases-calculo::after { width: 2px; height: 66%; }
-  html body #fases-calculo .fase-numero { top: 2px; left: -26px; }
-}
-
-html body #como-funciona-inicio .home-process-steps { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 0 !important; }
-html body #como-funciona-inicio .home-process-steps li { border: 0 !important; border-left: 1px solid var(--line) !important; border-radius: 0 !important; background: none !important; padding: 4px 24px !important; }
-html body #como-funciona-inicio .home-process-steps li:first-child { border-left: 0 !important; padding-left: 0 !important; }
-html body #como-funciona-inicio .home-process-steps > li > span { font-size: 40px !important; font-weight: 300 !important; letter-spacing: 0 !important; line-height: 1 !important; color: var(--accent) !important; margin-bottom: 18px !important; }
-html body #como-funciona-inicio .home-process-steps strong { font-size: 15px !important; }
-@media (max-width: 900px) {
-  html body #como-funciona-inicio .home-process-steps { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: 26px !important; }
-  html body #como-funciona-inicio .home-process-steps li:nth-child(3) { border-left: 0 !important; padding-left: 0 !important; }
-}
-@media (max-width: 560px) {
-  html body #como-funciona-inicio .home-process-steps { grid-template-columns: minmax(0, 1fr) !important; }
-  html body #como-funciona-inicio .home-process-steps li { border-left: 0 !important; padding: 0 !important; }
-}
-
-html body .calculation-scope-items { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 0 !important; }
-html body .calculation-scope-items .calculation-scope-item { border: 0 !important; border-left: 1px solid var(--line) !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; padding: 4px 22px !important; }
-html body .calculation-scope-items .calculation-scope-item:first-child { border-left: 0 !important; padding-left: 0 !important; }
-@media (max-width: 900px) {
-  html body .calculation-scope-items { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: 22px !important; }
-  html body .calculation-scope-items .calculation-scope-item:nth-child(3) { border-left: 0 !important; padding-left: 0 !important; }
-}
-@media (max-width: 560px) {
-  html body .calculation-scope-items { grid-template-columns: minmax(0, 1fr) !important; }
-  html body .calculation-scope-items .calculation-scope-item { border-left: 0 !important; padding: 0 !important; }
-}
-
-.secondary-heat { padding: 0 !important; overflow: hidden; }
-.heat-tabela { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
-.heat-tabela th, .heat-tabela td { height: 34px; padding: 0; border-top: 1px solid #1d2c40; border-left: 1px solid #1d2c40; font-weight: 400; color: var(--muted); text-align: left; }
-.heat-tabela thead th { height: 30px; text-align: center; background: #0e1b2c; }
-.heat-tabela .heat-n { width: 28px; text-align: center; }
-.heat-tabela tbody th { width: 52px; padding-left: 10px; }
-.hb { display: block; height: 14px; margin: 0 10px; border-radius: 3px; }
-.hb-w1 { width: 40%; }
-.hb-w2 { width: 60%; }
-.hb-w3 { width: 80%; }
-.hb-t1 { background: #2a4f78; }
-.hb-t2 { background: #3f74ad; }
-.hb-t3 { background: #65aaf5; }
-html body #como-funciona-inicio { display: block !important; }
-html body #como-funciona-inicio .home-process-copy { margin-bottom: 34px; }
-@media (min-width: 900px) {
-  html body #automacao-chamada { grid-template-columns: minmax(0, 1fr) minmax(380px, 460px) !important; }
-}
